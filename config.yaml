@@ -1,0 +1,27 @@
+# DuckDB Explorer Configuration
+# Use this file to configure the database connection and server settings
+
+database:
+  # Path to your DuckDB database file
+  # Use ":memory:" for an in-memory database (data will be lost on restart)
+  # path: "/Users/petevilter/code/duckdb-explore/tpch.db"
+  path: /Users/petevilter/Downloads/pjm_study_results2.duckdb
+  
+  # Database type: "file" or "memory"
+  type: "file"
+
+server:
+  # Port for the web server to listen on
+  port: 3001
+  
+  # Host to bind to (usually "localhost" for local development)
+  host: "localhost"
+
+api:
+  # Maximum number of rows to return in a single API call
+  # This prevents memory issues with very large result sets
+  maxRows: 1000
+  
+  # Maximum number of histogram bins for numerical columns
+  # Higher values give more detail but may impact performance
+  maxHistogramBins: 50

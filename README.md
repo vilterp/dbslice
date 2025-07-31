@@ -47,13 +47,25 @@ A modern web-based data exploration UI for DuckDB with Datadog-style faceted sea
 
 2. **Configure database path:**
    ```bash
-   # Edit config.json to point to your DuckDB file
-   {
-     "database": {
-       "path": "/path/to/your/database.duckdb",
-       "type": "file"
-     }
-   }
+   # Edit config.yaml to point to your DuckDB file
+   # (JSON format config.json is still supported for backward compatibility)
+   ```
+   
+   **config.yaml:**
+   ```yaml
+   # DuckDB Explorer Configuration
+   database:
+     # Path to your DuckDB database file
+     path: "/path/to/your/database.duckdb"
+     type: "file"
+   
+   server:
+     port: 3001
+     host: "localhost"
+   
+   api:
+     maxRows: 1000
+     maxHistogramBins: 50
    ```
 
 3. **Start development servers:**
@@ -91,7 +103,7 @@ duckdb-explore/
 │   ├── public/
 │   ├── build.js      # esbuild configuration
 │   └── tsconfig.json
-├── config.json       # Database configuration
+├── config.yaml       # Database configuration (YAML format)
 └── jest.config.js    # Test configuration
 ```
 
@@ -135,24 +147,52 @@ yarn test:coverage       # With coverage report
 
 ## Configuration
 
-### Database Configuration (`config.json`)
+### Database Configuration (`config.yaml`)
 
-```json
-{
-  "database": {
-    "path": "/path/to/database.duckdb",
-    "type": "file"
-  },
-  "server": {
-    "port": 3001,
-    "host": "localhost"
-  },
-  "api": {
-    "maxRows": 1000,
-    "maxHistogramBins": 50
-  }
-}
+The configuration file supports comments and environment-specific settings:
+
+```yaml
+# DuckDB Explorer Configuration
+# Use this file to configure the database connection and server settings
+
+database:
+  # Path to your DuckDB database file
+  # Use ":memory:" for an in-memory database (data will be lost on restart)
+  path: "/path/to/database.duckdb"
+  
+  # Database type: "file" or "memory"  
+  type: "file"
+
+server:
+  # Port for the web server to listen on
+  port: 3001
+  
+  # Host to bind to (usually "localhost" for local development)
+  host: "localhost"
+
+api:
+  # Maximum number of rows to return in a single API call
+  # This prevents memory issues with very large result sets
+  maxRows: 1000
+  
+  # Maximum number of histogram bins for numerical columns
+  # Higher values give more detail but may impact performance
+  maxHistogramBins: 50
+
+# Example configurations for different environments:
+# 
+# For development with sample data:
+# database:
+#   path: ":memory:"
+#   type: "memory"
+#
+# For production with large datasets:
+# api:
+#   maxRows: 5000
+#   maxHistogramBins: 100
 ```
+
+**Backward compatibility:** JSON format (`config.json`) is still supported.
 
 ### Environment Variables
 

@@ -2,16 +2,28 @@ import { createServer, Config } from './server';
 import * as duckdb from 'duckdb';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 
 // Load configuration
 let config: Config;
 try {
-  const configPath = path.join(__dirname, '../config.json');
+  // Try YAML first, then fallback to JSON for backward compatibility
+  let configPath = path.join(__dirname, '../config.yaml');
+  if (!fs.existsSync(configPath)) {
+    configPath = path.join(__dirname, '../config.json');
+  }
+  
   const configData = fs.readFileSync(configPath, 'utf8');
-  config = JSON.parse(configData);
+  
+  if (configPath.endsWith('.yaml') || configPath.endsWith('.yml')) {
+    config = yaml.load(configData) as Config;
+  } else {
+    config = JSON.parse(configData);
+  }
+  
   console.log(`📁 Loading DuckDB from: ${config.database.path}`);
 } catch (error) {
-  console.error('❌ Error loading config.json:', (error as Error).message);
+  console.error('❌ Error loading config file:', (error as Error).message);
   console.log('📝 Using default in-memory database');
   config = {
     database: { path: ':memory:', type: 'memory' },
