@@ -140,28 +140,47 @@ app.get('/api/tables/:tableName/columns', async (req: Request, res: Response) =>
 app.post('/api/tables/:tableName/data', async (req: Request, res: Response) => {
   try {
     const { tableName } = req.params;
-    const { filters = {}, limit = config.api.maxRows, offset = 0, orderBy, orderDir } = req.body;
+    const { filters = {}, rangeFilters = {}, limit = config.api.maxRows, offset = 0, orderBy, orderDir } = req.body;
+    
 
     // Sanitize table name
     const sanitizedTableName = sanitizeIdentifier(tableName);
     let baseQuery = `FROM ${sanitizedTableName}`;
     const params: any[] = [];
+    const conditions: string[] = [];
 
+    // Handle exact filters
     if (Object.keys(filters).length > 0) {
-      const conditions = Object.entries(filters).map(([column, value]) => {
-        // Sanitize column name
+      const exactConditions = Object.entries(filters).map(([column, value]) => {
         const sanitizedColumn = sanitizeIdentifier(column);
-
-        // Check if this is a range filter (format: "min-max")
-        if (typeof value === 'string' && value.includes('-') && !isNaN(parseFloat(value.split('-')[0]))) {
-          const [min, max] = value.split('-').map(Number);
-          params.push(min, max);
-          return `${sanitizedColumn} >= ? AND ${sanitizedColumn} <= ?`;
-        } else {
-          params.push(value);
-          return `${sanitizedColumn} = ?`;
-        }
+        params.push(value);
+        return `${sanitizedColumn} = ?`;
       });
+      conditions.push(...exactConditions);
+    }
+
+    // Handle range filters - use direct substitution due to DuckDB parameter binding issues
+    if (Object.keys(rangeFilters).length > 0) {
+      const rangeConditions = Object.entries(rangeFilters).map(([column, range]) => {
+        const sanitizedColumn = sanitizeIdentifier(column);
+        
+        if (typeof range !== 'object' || range === null) {
+          throw new Error(`Invalid range filter for column ${column}: expected object, got ${typeof range}`);
+        }
+        
+        const { min, max } = range as { min: number; max: number };
+        
+        if (typeof min !== 'number' || typeof max !== 'number') {
+          throw new Error(`Invalid range values for column ${column}: min=${min} (${typeof min}), max=${max} (${typeof max})`);
+        }
+        
+        // Use direct substitution for range filters to avoid DuckDB parameter binding issues
+        return `${sanitizedColumn} >= ${min} AND ${sanitizedColumn} <= ${max}`;
+      });
+      conditions.push(...rangeConditions);
+    }
+
+    if (conditions.length > 0) {
       baseQuery += ` WHERE ${conditions.join(' AND ')}`;
     }
 
@@ -179,14 +198,18 @@ app.post('/api/tables/:tableName/data', async (req: Request, res: Response) => {
     // Query for paginated data
     const limitValue = Math.min(limit as number, config.api.maxRows);
     const dataQuery = `SELECT * ${baseQuery}${orderClause} LIMIT ${limitValue} OFFSET ${offset}`;
-    const data = await runQuery(dataQuery, params);
+    try {
+      const data = await runQuery(dataQuery, params);
 
-    // Query for total count (without LIMIT/OFFSET)
-    const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
-    const countResult = await runQuery(countQuery, params);
-    const total = countResult[0]?.total ?? 0;
+      // Query for total count (without LIMIT/OFFSET)
+      const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
+      const countResult = await runQuery(countQuery, params);
+      const total = countResult[0]?.total ?? 0;
 
-    res.json({ data, total });
+      res.json({ data, total });
+    } catch (queryError) {
+      throw queryError;
+    }
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -196,29 +219,58 @@ app.post('/api/tables/:tableName/data', async (req: Request, res: Response) => {
 app.get('/api/tables/:tableName/columns/:columnName/histogram', async (req: Request, res: Response) => {
   try {
     const { tableName, columnName } = req.params;
-    const { filters = {}, bins = '20', column_type = 'text' } = req.query;
+    const { bins = '20', column_type = 'text', ...queryParams } = req.query;
     
     // Sanitize names
     const sanitizedTableName = sanitizeIdentifier(tableName);
     const sanitizedColumnName = sanitizeIdentifier(columnName);
     
-    // Build base WHERE clause for filters
+    // Separate exact filters from range filters
+    const exactFilters: Record<string, any> = {};
+    const rangeFilters: Record<string, { min: number; max: number }> = {};
+    
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.includes('-')) {
+        // Check if this looks like a range filter (format: "min-max")
+        const parts = value.split('-');
+        if (parts.length === 2) {
+          const min = parseFloat(parts[0]);
+          const max = parseFloat(parts[1]);
+          if (!isNaN(min) && !isNaN(max)) {
+            rangeFilters[key] = { min, max };
+            return;
+          }
+        }
+      }
+      // Not a range filter, treat as exact filter
+      exactFilters[key] = value;
+    });
+    
+    // Build WHERE clause
     let whereClause = '';
     const params: any[] = [];
+    const conditions: string[] = [];
     
-    if (typeof filters === 'object' && filters !== null && Object.keys(filters).length > 0) {
-      const conditions = Object.entries(filters as Record<string, any>).map(([column, value]) => {
-        const sanitizedColumn = sanitizeIdentifier(column);
-        if (sanitizedColumn !== sanitizedColumnName) {
-          params.push(value);
-          return `${sanitizedColumn} = ?`;
-        }
-        return null;
-      }).filter(Boolean);
-      
-      if (conditions.length > 0) {
-        whereClause = ` WHERE ${conditions.join(' AND ')}`;
+    // Handle exact filters (exclude the column we're histogramming)
+    Object.entries(exactFilters).forEach(([column, value]) => {
+      const sanitizedColumn = sanitizeIdentifier(column);
+      if (sanitizedColumn !== sanitizedColumnName) {
+        params.push(value);
+        conditions.push(`${sanitizedColumn} = ?`);
       }
+    });
+    
+    // Handle range filters (exclude the column we're histogramming)  
+    Object.entries(rangeFilters).forEach(([column, range]) => {
+      const sanitizedColumn = sanitizeIdentifier(column);
+      if (sanitizedColumn !== sanitizedColumnName) {
+        // Use direct substitution for range filters to avoid parameter binding issues
+        conditions.push(`${sanitizedColumn} >= ${range.min} AND ${sanitizedColumn} <= ${range.max}`);
+      }
+    });
+    
+    if (conditions.length > 0) {
+      whereClause = ` WHERE ${conditions.join(' AND ')}`;
     }
     
     let histogram: any[];

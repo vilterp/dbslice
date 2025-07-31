@@ -102,27 +102,47 @@ const createTestServer = () => {
   testApp.post('/api/tables/:tableName/data', async (req, res) => {
     try {
       const { tableName } = req.params;
-      const { filters = {}, limit = testConfig.api.maxRows, offset = 0 } = req.body;
+      const { filters = {}, rangeFilters = {}, limit = testConfig.api.maxRows, offset = 0 } = req.body;
       
       const sanitizedTableName = sanitizeIdentifier(tableName);
       let query = `SELECT * FROM ${sanitizedTableName}`;
       const params: any[] = [];
+      const conditions: string[] = [];
       
+      // Handle exact filters
       if (Object.keys(filters).length > 0) {
-        const conditions = Object.entries(filters).map(([column, value]) => {
+        const exactConditions = Object.entries(filters).map(([column, value]) => {
           const sanitizedColumn = sanitizeIdentifier(column);
-          // For test simplicity, use direct value substitution (safe since we control the test data)
           const safeValue = typeof value === 'string' ? `'${value}'` : value;
           return `${sanitizedColumn} = ${safeValue}`;
         });
+        conditions.push(...exactConditions);
+      }
+      
+      // Handle range filters
+      if (Object.keys(rangeFilters).length > 0) {
+        const rangeConditions = Object.entries(rangeFilters).map(([column, range]) => {
+          const sanitizedColumn = sanitizeIdentifier(column);
+          const { min, max } = range as { min: number; max: number };
+          return `${sanitizedColumn} >= ${min} AND ${sanitizedColumn} <= ${max}`;
+        });
+        conditions.push(...rangeConditions);
+      }
+      
+      if (conditions.length > 0) {
         query += ` WHERE ${conditions.join(' AND ')}`;
       }
       
       const limitValue = Math.min(limit as number, testConfig.api.maxRows);
-      query += ` LIMIT ${limitValue} OFFSET ${offset}`;
+      const dataQuery = query + ` LIMIT ${limitValue} OFFSET ${offset}`;
+      const data = await runQuery(dataQuery, params);
       
-      const data = await runQuery(query, params);
-      res.json(data);
+      // Get total count without LIMIT/OFFSET
+      const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
+      const countResult = await runQuery(countQuery, params);
+      const total = countResult[0]?.total ?? 0;
+      
+      res.json({ data, total });
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }
@@ -132,33 +152,90 @@ const createTestServer = () => {
   testApp.get('/api/tables/:tableName/columns/:columnName/histogram', async (req, res) => {
     try {
       const { tableName, columnName } = req.params;
-      const { filters = {}, bins = '20' } = req.query;
+      const { bins = '20', column_type = 'text', ...queryParams } = req.query;
       
       const sanitizedTableName = sanitizeIdentifier(tableName);
       const sanitizedColumnName = sanitizeIdentifier(columnName);
       
-      let baseQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}`;
-      const params: any[] = [];
+      // Parse filters like the real server
+      const exactFilters: Record<string, any> = {};
+      const rangeFilters: Record<string, { min: number; max: number }> = {};
       
-      if (typeof filters === 'object' && filters !== null && Object.keys(filters).length > 0) {
-        const conditions = Object.entries(filters as Record<string, any>).map(([column, value]) => {
-          const sanitizedColumn = sanitizeIdentifier(column);
-          if (sanitizedColumn !== sanitizedColumnName) {
-            const safeValue = typeof value === 'string' ? `'${value}'` : value;
-            return `${sanitizedColumn} = ${safeValue}`;
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (typeof value === 'string' && value.includes('-')) {
+          const parts = value.split('-');
+          if (parts.length === 2) {
+            const min = parseFloat(parts[0]);
+            const max = parseFloat(parts[1]);
+            if (!isNaN(min) && !isNaN(max)) {
+              rangeFilters[key] = { min, max };
+              return;
+            }
           }
-          return null;
-        }).filter(Boolean);
-        
-        if (conditions.length > 0) {
-          baseQuery += ` WHERE ${conditions.join(' AND ')}`;
         }
+        exactFilters[key] = value;
+      });
+      
+      // Build WHERE clause
+      const conditions: string[] = [];
+      
+      // Handle exact filters (exclude the column we're histogramming)
+      Object.entries(exactFilters).forEach(([column, value]) => {
+        const sanitizedColumn = sanitizeIdentifier(column);
+        if (sanitizedColumn !== sanitizedColumnName) {
+          const safeValue = typeof value === 'string' ? `'${value}'` : value;
+          conditions.push(`${sanitizedColumn} = ${safeValue}`);
+        }
+      });
+      
+      // Handle range filters (exclude the column we're histogramming)
+      Object.entries(rangeFilters).forEach(([column, range]) => {
+        const sanitizedColumn = sanitizeIdentifier(column);
+        if (sanitizedColumn !== sanitizedColumnName) {
+          conditions.push(`${sanitizedColumn} >= ${range.min} AND ${sanitizedColumn} <= ${range.max}`);
+        }
+      });
+      
+      const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+      
+      // Check if this is a numerical column (simplified for tests)
+      const isNumerical = ['decimal', 'integer', 'bigint', 'double', 'float'].includes((column_type as string).toLowerCase());
+      
+      let histogram: any[];
+      
+      if (isNumerical) {
+        // For numerical columns, create simple bins
+        const rangeQuery = `SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val FROM ${sanitizedTableName}${whereClause}`;
+        const rangeResult = await runQuery(rangeQuery, []);
+        
+        if (rangeResult.length > 0 && rangeResult[0].min_val !== null) {
+          const minVal = Number(rangeResult[0].min_val);
+          const maxVal = Number(rangeResult[0].max_val);
+          const binWidth = (maxVal - minVal) / 3; // Simple 3-bin histogram for tests
+          
+          const binQuery = `
+            SELECT 
+              FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) as bin_num,
+              COUNT(*) as count,
+              ${minVal} + FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) * ${binWidth} as bin_start,
+              ${minVal} + (FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) + 1) * ${binWidth} as bin_end
+            FROM ${sanitizedTableName}
+            ${whereClause}
+            GROUP BY bin_num, bin_start, bin_end
+            ORDER BY bin_start
+            LIMIT 5
+          `;
+          
+          histogram = await runQuery(binQuery, []);
+        } else {
+          histogram = [];
+        }
+      } else {
+        // For categorical columns
+        const categoryQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY count DESC LIMIT 5`;
+        histogram = await runQuery(categoryQuery, []);
       }
       
-      const binsLimit = Math.min(parseInt(bins as string), testConfig.api.maxHistogramBins);
-      baseQuery += ` GROUP BY ${sanitizedColumnName} ORDER BY count DESC LIMIT ${binsLimit}`;
-      
-      const histogram = await runQuery(baseQuery, params);
       res.json(histogram);
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
@@ -586,6 +663,210 @@ describe('API Endpoints', () => {
       // The string "BigInt" might appear in the "name" field, so we check for the specific error
       // that would occur without proper serialization handling
       expect(jsonString).toContain('large_number');  // Should contain the converted values
+    });
+  });
+
+  describe('Range filter functionality', () => {
+    it('should filter products by price range', async () => {
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({
+          rangeFilters: {
+            price: { min: 50, max: 200 }
+          }
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('total');
+      expect(response.body.data).toBeInstanceOf(Array);
+      // Should return products with price between 50 and 200
+      expect(response.body.data.length).toBeGreaterThan(0);
+      response.body.data.forEach((product: any) => {
+        expect(product.price).toBeGreaterThanOrEqual(50);
+        expect(product.price).toBeLessThanOrEqual(200);
+      });
+    });
+
+    it('should filter customers by age range', async () => {
+      const response = await request(app)
+        .post('/api/tables/customers/data')
+        .send({
+          rangeFilters: {
+            age: { min: 30, max: 40 }
+          }
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      response.body.data.forEach((customer: any) => {
+        expect(customer.age).toBeGreaterThanOrEqual(30);
+        expect(customer.age).toBeLessThanOrEqual(40);
+      });
+    });
+
+    it('should combine exact and range filters', async () => {
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({
+          filters: {
+            category: 'Electronics'
+          },
+          rangeFilters: {
+            price: { min: 100, max: 500 }
+          }
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      response.body.data.forEach((product: any) => {
+        expect(product.category).toBe('Electronics');
+        expect(product.price).toBeGreaterThanOrEqual(100);
+        expect(product.price).toBeLessThanOrEqual(500);
+      });
+    });
+
+    it('should handle multiple range filters', async () => {
+      const response = await request(app)
+        .post('/api/tables/customers/data')
+        .send({
+          rangeFilters: {
+            age: { min: 25, max: 35 },
+            total_spent: { min: 1000, max: 3000 }
+          }
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      response.body.data.forEach((customer: any) => {
+        expect(customer.age).toBeGreaterThanOrEqual(25);
+        expect(customer.age).toBeLessThanOrEqual(35);
+        expect(customer.total_spent).toBeGreaterThanOrEqual(1000);
+        expect(customer.total_spent).toBeLessThanOrEqual(3000);
+      });
+    });
+
+    it('should return empty array when range filter excludes all data', async () => {
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({
+          rangeFilters: {
+            price: { min: 10000, max: 20000 }
+          }
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(0);
+    });
+  });
+
+  describe('Filtered histogram functionality', () => {
+    it('should filter histograms with exact filters', async () => {
+      const response = await request(app)
+        .get('/api/tables/products/columns/category/histogram')
+        .query({ 
+          column_type: 'text',
+          in_stock: 'true'
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      // All returned categories should only represent products that are in stock
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('category');
+        expect(item).toHaveProperty('count');
+      });
+    });
+
+    it('should filter histograms with range filters', async () => {
+      const response = await request(app)
+        .get('/api/tables/products/columns/category/histogram')
+        .query({ 
+          column_type: 'text',
+          price: '100-300'  // Range filter format
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('category');
+        expect(item).toHaveProperty('count');
+      });
+    });
+
+    it('should filter numerical histograms with exact filters', async () => {
+      const response = await request(app)
+        .get('/api/tables/products/columns/price/histogram')
+        .query({ 
+          column_type: 'decimal',
+          category: 'Electronics'
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('count');
+        expect(item).toHaveProperty('bin_start');
+        expect(item).toHaveProperty('bin_end');
+      });
+    });
+
+    it('should filter numerical histograms with range filters', async () => {
+      const response = await request(app)
+        .get('/api/tables/customers/columns/age/histogram')
+        .query({ 
+          column_type: 'integer',
+          total_spent: '1000-2000'  // Range filter
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('count');
+        expect(item).toHaveProperty('bin_start');
+        expect(item).toHaveProperty('bin_end');
+      });
+    });
+
+    it('should combine exact and range filters in histograms', async () => {
+      const response = await request(app)
+        .get('/api/tables/products/columns/category/histogram')
+        .query({ 
+          column_type: 'text',
+          in_stock: 'true',       // Exact filter
+          price: '50-500'         // Range filter
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('category');
+        expect(item).toHaveProperty('count');
+      });
+    });
+
+    it('should exclude the histogram column from its own filters', async () => {
+      // When getting histogram for 'price', price filters should be ignored
+      const response = await request(app)
+        .get('/api/tables/products/columns/price/histogram')
+        .query({ 
+          column_type: 'decimal',
+          price: '100-200',      // This should be ignored
+          category: 'Electronics' // This should be applied
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('count');
+        expect(item).toHaveProperty('bin_start');
+        expect(item).toHaveProperty('bin_end');
+      });
     });
   });
 

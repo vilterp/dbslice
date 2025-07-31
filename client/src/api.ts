@@ -48,12 +48,25 @@ export async function fetchTableData(
   sortColumn: string,
   sortDirection: SortDirection
 ): Promise<TableDataResponse> {
-  const filterObj = filters.reduce((acc, filter) => {
-    acc[filter.column] = filter.value;
+  const exactFilters = filters.reduce((acc, filter) => {
+    if (filter.type === 'exact' || !filter.type) {
+      acc[filter.column] = filter.value;
+    }
     return acc;
   }, {} as { [key: string]: string });
 
-  const body: any = { filters: filterObj, limit: 100 };
+  const rangeFilters = filters.reduce((acc, filter) => {
+    if (filter.type === 'range' && filter.min !== undefined && filter.max !== undefined) {
+      acc[filter.column] = { min: filter.min, max: filter.max };
+    }
+    return acc;
+  }, {} as { [key: string]: { min: number; max: number } });
+
+  const body: any = { 
+    filters: exactFilters, 
+    rangeFilters: rangeFilters,
+    limit: 100 
+  };
   if (sortColumn && sortDirection) {
     body.orderBy = sortColumn;
     body.orderDir = sortDirection;
@@ -75,9 +88,16 @@ export async function fetchHistograms(
   filters: Filter[]
 ): Promise<{ [key: string]: HistogramData[] }> {
   if (columns.length === 0) return {};
-  const filterObj = filters.reduce((acc, filter) => {
-    if (filter.type === 'exact') {
+  const exactFilters = filters.reduce((acc, filter) => {
+    if (filter.type === 'exact' || !filter.type) {
       acc[filter.column] = filter.value;
+    }
+    return acc;
+  }, {} as { [key: string]: string });
+
+  const rangeFilters = filters.reduce((acc, filter) => {
+    if (filter.type === 'range' && filter.min !== undefined && filter.max !== undefined) {
+      acc[filter.column] = `${filter.min}-${filter.max}`;
     }
     return acc;
   }, {} as { [key: string]: string });
@@ -86,7 +106,8 @@ export async function fetchHistograms(
     const params = new URLSearchParams({
       bins: '10',
       column_type: column.data_type,
-      ...filterObj,
+      ...exactFilters,
+      ...rangeFilters,
     });
     const url = `http://localhost:3001/api/tables/${selectedTable}/columns/${column.column_name}/histogram?${params}`;
     const response = await fetch(url);
