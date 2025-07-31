@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
 import TableHeader from "./TableHeader";
-import FilterBar from "./FilterBar";
-import Sidebar from "./Sidebar";
-import HeaderMenu from "./HeaderMenu";
+import Tab from "./Tab";
 import TabBar from "./TabBar";
 import {
   Table,
@@ -297,87 +295,15 @@ function App() {
       />
 
       {currentTab && (
-        <div className="main-content">
-          <FilterBar filters={currentTab.filters} removeFilter={removeFilter} />
-
-          <div className="content-wrapper">
-            <Sidebar
-              columns={currentTab.columns}
-              histograms={currentTab.histograms}
-              filters={currentTab.filters}
-              collapsedColumns={currentTab.collapsedColumns}
-              rangeSelections={currentTab.rangeSelections}
-              toggleColumnCollapse={toggleColumnCollapse}
-              isNumericalColumn={isNumericalColumn}
-              handleRangeSelection={handleRangeSelection}
-              addFilter={addFilter}
-            />
-
-            <div className="main-panel">
-              {currentTab.loading ? (
-                <div className="loading">Loading...</div>
-              ) : (
-                <div className="data-table">
-                  <h3>Data ({abbreviateNumber(currentTab.tableTotal)} rows)</h3>
-                  {currentTab.tableData.length > 0 && (
-                    <div style={{ position: "relative" }}>
-                      <table>
-                        <thead>
-                          <tr>
-                            <TableHeader
-                              columns={Object.keys(currentTab.tableData[0])}
-                              sortColumn={currentTab.sortColumn}
-                              sortDirection={currentTab.sortDirection}
-                              headerMenu={currentTab.headerMenu}
-                              setHeaderMenu={(menu) =>
-                                updateTab(currentTab.id, (t) => ({
-                                  ...t,
-                                  headerMenu: menu,
-                                }))
-                              }
-                            />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentTab.tableData.map((row, index) => (
-                            <tr key={index}>
-                              {Object.values(row).map((value, cellIndex) => (
-                                <td key={cellIndex}>{String(value)}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <HeaderMenu
-                        headerMenu={currentTab.headerMenu}
-                        sortColumn={currentTab.sortColumn}
-                        setSortColumn={(col) =>
-                          updateTab(currentTab.id, (t) => ({
-                            ...t,
-                            sortColumn: col,
-                          }))
-                        }
-                        sortDirection={currentTab.sortDirection}
-                        setSortDirection={(dir) =>
-                          updateTab(currentTab.id, (t) => ({
-                            ...t,
-                            sortDirection: dir as SortDirection,
-                          }))
-                        }
-                        setHeaderMenu={(menu) =>
-                          updateTab(currentTab.id, (t) => ({
-                            ...t,
-                            headerMenu: menu,
-                          }))
-                        }
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <Tab
+          tab={currentTab}
+          removeFilter={removeFilter}
+          toggleColumnCollapse={toggleColumnCollapse}
+          isNumericalColumn={isNumericalColumn}
+          handleRangeSelection={handleRangeSelection}
+          addFilter={addFilter}
+          updateTab={updateTab}
+        />
       )}
     </div>
   );
