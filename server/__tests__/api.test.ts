@@ -487,13 +487,16 @@ describe('API Endpoints', () => {
     });
 
     it('should handle multiple filters', async () => {
-      // First test with a combination that should return fewer results
+      // Test with 3 filters: category, in_stock, and price range
       const response = await request(app)
         .post('/api/tables/products/data')
         .send({
           filters: { 
-            category: 'Furniture',
+            category: 'Electronics',
             in_stock: 1  // Use 1 instead of true for DuckDB
+          },
+          rangeFilters: {
+            price: { min: 100, max: 500 }  // This should exclude USB Cable (12.99) and Wireless Mouse (29.99)
           }
         });
 
@@ -504,11 +507,21 @@ describe('API Endpoints', () => {
 
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toBeInstanceOf(Array);
-      expect(response.body.data.length).toBe(2); // Only 2 Furniture items are in stock (Standing Desk, Monitor Stand)
+      expect(response.body.data.length).toBe(1); // Should return only Mechanical Keyboard (149.99)
       response.body.data.forEach((product: any) => {
-        expect(product.category).toBe('Furniture');
+        expect(product.category).toBe('Electronics');
         expect(product.in_stock).toBe(true);
+        expect(product.price).toBeGreaterThanOrEqual(100);
+        expect(product.price).toBeLessThanOrEqual(500);
       });
+
+      // Verify we got the expected products
+      const productNames = response.body.data.map((p: any) => p.name);
+      expect(productNames).toContain('Mechanical Keyboard');
+      // Note: Laptop Pro (1299.99) is above 500, so it should be excluded
+      expect(productNames).not.toContain('Laptop Pro');
+      expect(productNames).not.toContain('USB Cable');
+      expect(productNames).not.toContain('Wireless Mouse');
     });
   });
 
