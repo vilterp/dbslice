@@ -81,6 +81,9 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               minHeight: 24,
               cursor: 'pointer',
               outline: 'none',
+              maxWidth: 320,
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             <input
@@ -95,22 +98,25 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               style={{
                 width: `${barWidth}%`,
                 minWidth: 16,
+                maxWidth: 220,
                 display: 'flex',
                 alignItems: 'center',
                 padding: '0 6px',
                 position: 'relative',
-                overflow: 'visible',
+                overflow: 'hidden',
                 whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
                 fontWeight: 500,
                 borderRadius: 2,
-                flex: '0 0 auto',
+                flex: '0 1 auto',
                 zIndex: 1,
+                boxSizing: 'border-box',
               }}
               title={displayValue}
             >
-              <span style={{ position: 'relative', zIndex: 2 }}>{displayValue}</span>
+              <span style={{ position: 'relative', zIndex: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{displayValue}</span>
             </div>
-            <span className="bar-count" style={{ marginLeft: 'auto', minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12 }}>{item.count}</span>
+            <span className="bar-count" style={{ marginLeft: 8, minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12, flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.count}</span>
           </div>
         );
       })}

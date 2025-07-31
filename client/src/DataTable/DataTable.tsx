@@ -41,9 +41,17 @@ const DataTable: React.FC<DataTableProps> = ({
           <tbody>
             {tableData.map((row, index) => (
               <tr key={index}>
-                {Object.values(row).map((value, cellIndex) => (
-                  <td key={cellIndex}>{String(value)}</td>
-                ))}
+                {Object.values(row).map((value, cellIndex) => {
+                  const isNumber = typeof value === 'number' || (!isNaN(Number(value)) && value !== null && value !== '');
+                  return (
+                    <td
+                      key={cellIndex}
+                      style={isNumber ? { textAlign: 'right' } : {}}
+                    >
+                      {String(value)}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
