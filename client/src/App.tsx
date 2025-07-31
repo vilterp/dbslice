@@ -61,10 +61,46 @@ function App() {
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
 
+  // On mount, fetch tables and check for URL state
   useEffect(() => {
     fetchTables()
-      .then((data) => setTables(data))
+      .then((data) => {
+        setTables(data);
+        // Custom URL state loader for tabs
+        const url = new URL(window.location.href);
+        const tableFromURL = url.searchParams.get('table');
+        if (tableFromURL && !tabs.some((t) => t.table === tableFromURL)) {
+          // Parse filters
+          const urlFilters = [];
+          for (const [key, value] of url.searchParams.entries()) {
+            if (key.startsWith('filter_')) {
+              const column = key.replace('filter_', '');
+              const [filterValue, type = 'exact', min, max] = value.split(':');
+              urlFilters.push({
+                column,
+                value: filterValue,
+                type: type as 'exact' | 'range',
+                min: min ? parseFloat(min) : undefined,
+                max: max ? parseFloat(max) : undefined,
+              });
+            }
+          }
+          // Parse sort
+          const sortCol = url.searchParams.get('sort') || '';
+          const sortDir = (url.searchParams.get('dir') as SortDirection) || '';
+          const newTab = makeDefaultTab(tableFromURL);
+          newTab.filters = urlFilters;
+          newTab.sortColumn = sortCol;
+          newTab.sortDirection = sortDir;
+          setTabs((tabs) => [...tabs, newTab]);
+          setSelectedTabId(newTab.id);
+        }
+      })
       .catch((e) => console.error("Error fetching tables:", e));
+    // eslint-disable-next-line
+    // Only run on mount
+    // We intentionally do not add tabs as a dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load data for the selected tab
@@ -236,7 +272,14 @@ function App() {
   };
 
   // Tab bar UI
-  const handleTabClick = (tabId: string) => setSelectedTabId(tabId);
+  // When switching tabs, update the URL to reflect the selected tab's query state
+  const handleTabClick = (tabId: string) => {
+    setSelectedTabId(tabId);
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab) {
+      updateURL(tab.table, tab.filters, tab.sortColumn, tab.sortDirection);
+    }
+  };
   const handleTabClose = (tabId: string) => {
     setTabs((tabs) => {
       const idx = tabs.findIndex((t) => t.id === tabId);
@@ -261,9 +304,20 @@ function App() {
     const newTab = makeDefaultTab(table);
     setTabs((tabs) => [...tabs, newTab]);
     setSelectedTabId(newTab.id);
+    // Update URL for new tab
+    updateURL(table, [], '', '');
   };
 
   const currentTab = tabs.find((t) => t.id === selectedTabId);
+
+  // When filters or sort change on the selected tab, update the URL
+  React.useEffect(() => {
+    const tab = tabs.find((t) => t.id === selectedTabId);
+    if (tab) {
+      updateURL(tab.table, tab.filters, tab.sortColumn, tab.sortDirection);
+    }
+    // Only run when selectedTabId or relevant tab state changes
+  }, [selectedTabId, tabs.find((t) => t.id === selectedTabId)?.filters, tabs.find((t) => t.id === selectedTabId)?.sortColumn, tabs.find((t) => t.id === selectedTabId)?.sortDirection]);
 
   return (
     <div className="App">
