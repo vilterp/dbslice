@@ -96,7 +96,13 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               tabIndex={-1}
               style={{ marginRight: 6, pointerEvents: 'none' }}
             />
-            <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+            <div style={{ 
+              position: 'relative', 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center',
+              minWidth: 0 // Allow flex item to shrink
+            }}>
               <div
                 className="bar-fill"
                 style={{
@@ -117,15 +123,32 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
                   position: 'relative', 
                   zIndex: 2, 
                   paddingLeft: 6,
+                  paddingRight: 6,
+                  fontWeight: 500,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
-                  fontWeight: 500
+                  minWidth: 0, // Allow text to shrink
+                  flexShrink: 1 // Allow this text to shrink
                 }}
                 title={displayValue}
               >
                 {displayValue}
               </span>
             </div>
-            <span className="bar-count" style={{ marginLeft: 8, minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12, flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{abbreviateNumber(item.count)}</span>
+            <span 
+              className="bar-count" 
+              style={{ 
+                marginLeft: 8, 
+                minWidth: 30, 
+                textAlign: 'right', 
+                color: '#999', 
+                fontSize: 12, 
+                flexShrink: 0 // Don't let the count shrink
+              }}
+            >
+              {abbreviateNumber(item.count)}
+            </span>
           </div>
         );
       })}
