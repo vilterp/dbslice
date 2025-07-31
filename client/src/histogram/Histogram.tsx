@@ -4,18 +4,10 @@ import { HistogramData, Filter } from '../api';
 import NumericHistogram from './NumericHistogram';
 import DiscreteHistogram from './DiscreteHistogram';
 
-interface RangeSelection {
-  start: number;
-  end: number;
-  isSelecting: boolean;
-}
-
 type HistogramProps = {
   columnName: string;
   data: HistogramData[];
   isNumerical: boolean;
-  currentRange?: RangeSelection;
-  handleRangeSelection: (columnName: string, item: HistogramData) => void;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
@@ -25,8 +17,6 @@ const Histogram: React.FC<HistogramProps> = ({
   columnName,
   data,
   isNumerical,
-  currentRange,
-  handleRangeSelection,
   addFilter,
   removeFilter,
   filters = [],
@@ -36,7 +26,7 @@ const Histogram: React.FC<HistogramProps> = ({
   }
 
   if (isNumerical) {
-    return <NumericHistogram columnName={columnName} data={data} currentRange={currentRange} handleRangeSelection={handleRangeSelection} addFilter={addFilter} removeFilter={removeFilter} filters={filters} />;
+    return <NumericHistogram columnName={columnName} data={data} addFilter={addFilter} removeFilter={removeFilter} filters={filters} />;
   }
 
   return (

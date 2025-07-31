@@ -2,17 +2,9 @@ import React, { useState, useRef } from 'react';
 import { HistogramData, Filter } from '../api';
 import Tooltip from '../components/Tooltip';
 
-interface RangeSelection {
-  start: number;
-  end: number;
-  isSelecting: boolean;
-}
-
 type NumericHistogramProps = {
   columnName: string;
   data: HistogramData[];
-  currentRange?: RangeSelection;
-  handleRangeSelection: (columnName: string, item: HistogramData) => void;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
@@ -21,8 +13,6 @@ type NumericHistogramProps = {
 const NumericHistogram: React.FC<NumericHistogramProps> = ({
   columnName,
   data,
-  currentRange,
-  handleRangeSelection,
   addFilter,
   removeFilter,
   filters = [],
@@ -67,17 +57,18 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   const minValue = Math.min(...sortedData.map(d => d.bin_start || 0));
   const maxValue = Math.max(...sortedData.map(d => d.bin_end || 0));
 
-  const chartHeight = 120;
+  // Tighten up chart and padding
+  const chartHeight = 80;
   const chartWidth = 250;
-  const marginLeft = 10;
-  const marginRight = 10;
-  const marginTop = 5;
-  const marginBottom = 15;
+  const marginLeft = 8;
+  const marginRight = 8;
+  const marginTop = 2;
+  const marginBottom = 8;
 
   return (
-    <div className="numeric-histogram" style={{ padding: '10px' }}>
+    <div className="numeric-histogram" style={{ padding: '4px 4px 0 4px' }}>
       <svg 
-        width={chartWidth + marginLeft + marginRight} 
+        width={chartWidth + marginLeft + marginRight}
         height={chartHeight + marginTop + marginBottom}
         style={{ overflow: 'visible' }}
       >
@@ -147,7 +138,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
         {/* X-axis labels (min and max) */}
         <text
           x={marginLeft}
-          y={chartHeight + marginTop + 15}
+          y={chartHeight + marginTop + 10}
           textAnchor="start"
           fontSize="10"
           fill="#666"
@@ -156,7 +147,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
         </text>
         <text
           x={chartWidth + marginLeft}
-          y={chartHeight + marginTop + 15}
+          y={chartHeight + marginTop + 10}
           textAnchor="end"
           fontSize="10"
           fill="#666"
