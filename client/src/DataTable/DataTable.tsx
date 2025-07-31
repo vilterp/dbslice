@@ -14,6 +14,7 @@ interface DataTableProps {
   setSortColumn: (col: string) => void;
   setSortDirection: (dir: SortDirection) => void;
   addFilter: (column: string, value: any) => void;
+  error?: string;
 }
 
 
@@ -26,6 +27,7 @@ const DataTable: React.FC<DataTableProps> = ({
   setSortColumn,
   setSortDirection,
   addFilter,
+  error,
 }) => {
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [cellMenu, setCellMenu] = useState<{
@@ -63,6 +65,26 @@ const DataTable: React.FC<DataTableProps> = ({
 
   // Handler to close cell menu
   const handleCloseCellMenu = () => setCellMenu(null);
+
+  if (error) {
+    return (
+      <div className="data-table">
+        <div className="table-error" style={{
+          padding: '40px',
+          textAlign: 'center',
+          color: '#d32f2f',
+          backgroundColor: '#ffeaea',
+          border: '1px solid #ffcccc',
+          borderRadius: '8px',
+          margin: '20px',
+          fontSize: '16px'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '18px' }}>Error Loading Table Data</div>
+          <div>{error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="data-table">

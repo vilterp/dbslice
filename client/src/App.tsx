@@ -6,6 +6,7 @@ import {
   Table,
   Column,
   HistogramData,
+  HistogramResult,
   SortDirection,
   Filter,
   fetchTables,
@@ -28,7 +29,8 @@ type TabState = {
   filters: Filter[];
   tableData: any[];
   tableTotal: number;
-  histograms: { [key: string]: HistogramData[] };
+  histograms: { [key: string]: HistogramResult };
+  tableDataError?: string;
   loading: boolean;
   collapsedColumns: Set<string>;
   rangeSelections: { [key: string]: RangeSelection };
@@ -45,6 +47,7 @@ const makeDefaultTab = (table: string): TabState => ({
   tableData: [],
   tableTotal: 0,
   histograms: {},
+  tableDataError: undefined,
   loading: false,
   collapsedColumns: new Set(),
   rangeSelections: {},
@@ -124,6 +127,7 @@ function App() {
                   tableData: result.data || [],
                   tableTotal:
                     typeof result.total === "number" ? result.total : 0,
+                  tableDataError: undefined,
                 }
               : t
           )
@@ -133,7 +137,12 @@ function App() {
         console.error("Error fetching table data:", e);
         setTabs((tabs) =>
           tabs.map((t) =>
-            t.id === tab.id ? { ...t, tableData: [], tableTotal: 0 } : t
+            t.id === tab.id ? { 
+              ...t, 
+              tableData: [], 
+              tableTotal: 0,
+              tableDataError: e instanceof Error ? e.message : 'Failed to load table data'
+            } : t
           )
         );
       });

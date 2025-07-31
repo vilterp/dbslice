@@ -5,6 +5,8 @@ import Tooltip from '../components/Tooltip';
 type NumericHistogramProps = {
   columnName: string;
   data: HistogramData[];
+  error?: string;
+  isEmpty?: boolean;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
@@ -13,6 +15,8 @@ type NumericHistogramProps = {
 const NumericHistogram: React.FC<NumericHistogramProps> = ({
   columnName,
   data,
+  error,
+  isEmpty,
   addFilter,
   removeFilter,
   filters = [],
@@ -20,8 +24,37 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
   const svgRef = useRef<SVGSVGElement>(null);
 
-  if (!data || data.length === 0) {
-    return <div>No data available</div>;
+  if (error) {
+    return (
+      <div className="histogram-error" style={{
+        padding: '20px',
+        textAlign: 'center',
+        color: '#d32f2f',
+        backgroundColor: '#ffeaea',
+        border: '1px solid #ffcccc',
+        borderRadius: '4px',
+        fontSize: '14px'
+      }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Error loading histogram</div>
+        <div>{error}</div>
+      </div>
+    );
+  }
+  
+  if (isEmpty || !data || data.length === 0) {
+    return (
+      <div className="histogram-empty" style={{
+        padding: '20px',
+        textAlign: 'center',
+        color: '#666',
+        backgroundColor: '#f9f9f9',
+        border: '1px solid #e0e0e0',
+        borderRadius: '4px',
+        fontSize: '14px'
+      }}>
+        No data available for this column
+      </div>
+    );
   }
 
   // Sort data by bin_start to ensure proper order

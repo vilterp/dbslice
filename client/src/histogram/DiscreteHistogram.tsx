@@ -7,6 +7,8 @@ import Tooltip from '../components/Tooltip';
 type DiscreteHistogramProps = {
   columnName: string;
   data: HistogramData[];
+  error?: string;
+  isEmpty?: boolean;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
@@ -15,11 +17,46 @@ type DiscreteHistogramProps = {
 const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   columnName,
   data,
+  error,
+  isEmpty,
   addFilter,
   removeFilter,
   filters = [],
 }) => {
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
+  
+  if (error) {
+    return (
+      <div className="histogram-error" style={{
+        padding: '20px',
+        textAlign: 'center',
+        color: '#d32f2f',
+        backgroundColor: '#ffeaea',
+        border: '1px solid #ffcccc',
+        borderRadius: '4px',
+        fontSize: '14px'
+      }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Error loading histogram</div>
+        <div>{error}</div>
+      </div>
+    );
+  }
+  
+  if (isEmpty || !data || data.length === 0) {
+    return (
+      <div className="histogram-empty" style={{
+        padding: '20px',
+        textAlign: 'center',
+        color: '#666',
+        backgroundColor: '#f9f9f9',
+        border: '1px solid #e0e0e0',
+        borderRadius: '4px',
+        fontSize: '14px'
+      }}>
+        No data available for this column
+      </div>
+    );
+  }
   
   // Exclude 'others' from scaling calculation
   const nonOthersData = data.filter(h => !h.is_others);

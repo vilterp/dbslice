@@ -1,11 +1,11 @@
 import "./Sidebar.css";
 import React from 'react';
-import { Column, HistogramData, Filter } from './api';
+import { Column, HistogramResult, Filter } from './api';
 import Histogram from './histogram/Histogram';
 
 interface SidebarProps {
   columns: Column[];
-  histograms: { [key: string]: HistogramData[] };
+  histograms: { [key: string]: HistogramResult };
   filters: Filter[];
   collapsedColumns: Set<string>;
   toggleColumnCollapse: (columnName: string) => void;
@@ -41,23 +41,17 @@ const Sidebar: React.FC<SidebarProps> = ({
           </h4>
           {!isCollapsed && (
             <div className="histogram">
-              {!histograms[column.column_name] || !Array.isArray(histograms[column.column_name]) || histograms[column.column_name].length === 0 ? (
-                <div className="histogram-loading">
-                  {histograms[column.column_name] && !Array.isArray(histograms[column.column_name])
-                    ? `Error: ${JSON.stringify(histograms[column.column_name])}`
-                    : 'Loading histogram...'}
-                </div>
+              {!histograms[column.column_name] ? (
+                <div className="histogram-loading">Loading histogram...</div>
               ) : (
-                <>
-                  <Histogram
-                    columnName={column.column_name}
-                    data={histograms[column.column_name]}
-                    isNumerical={isNumerical}
-                    addFilter={addFilter}
-                    removeFilter={removeFilter}
-                    filters={filters}
-                  />
-                </>
+                <Histogram
+                  columnName={column.column_name}
+                  data={histograms[column.column_name]}
+                  isNumerical={isNumerical}
+                  addFilter={addFilter}
+                  removeFilter={removeFilter}
+                  filters={filters}
+                />
               )}
             </div>
           )}

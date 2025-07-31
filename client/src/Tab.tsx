@@ -3,7 +3,7 @@ import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
 import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
-import { Column, HistogramData, Filter, SortDirection } from "./api";
+import { Column, HistogramResult, Filter, SortDirection } from "./api";
 
 interface RangeSelection {
   start: number;
@@ -18,7 +18,8 @@ type TabState = {
   filters: Filter[];
   tableData: any[];
   tableTotal: number;
-  histograms: { [key: string]: HistogramData[] };
+  histograms: { [key: string]: HistogramResult };
+  tableDataError?: string;
   loading: boolean;
   collapsedColumns: Set<string>;
   rangeSelections: { [key: string]: RangeSelection };
@@ -86,49 +87,6 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
     ].some((type) => dataType.toUpperCase().includes(type));
   };
 
-  const handleRangeSelection = (columnName: string, item: HistogramData) => {
-    if (!item.bin_start || !item.bin_end) return;
-    updateTab(tab.id, (tab) => {
-      const currentRange = tab.rangeSelections[columnName];
-      if (!currentRange || !currentRange.isSelecting) {
-        // Start new selection, ensure bin_start/bin_end are numbers
-        const start = typeof item.bin_start === "number" ? item.bin_start : 0;
-        const end = typeof item.bin_end === "number" ? item.bin_end : 0;
-        return {
-          ...tab,
-          rangeSelections: {
-            ...tab.rangeSelections,
-            [columnName]: {
-              start,
-              end,
-              isSelecting: true,
-            } as RangeSelection,
-          },
-        };
-      } else {
-        // Complete selection, ensure all are numbers
-        const s1 =
-          typeof currentRange.start === "number" ? currentRange.start : 0;
-        const s2 = typeof item.bin_start === "number" ? item.bin_start : 0;
-        const e1 = typeof currentRange.end === "number" ? currentRange.end : 0;
-        const e2 = typeof item.bin_end === "number" ? item.bin_end : 0;
-        const min = Math.min(s1, s2);
-        const max = Math.max(e1, e2);
-        addFilter(columnName, `${min}-${max}`, "range", min, max);
-        return {
-          ...tab,
-          rangeSelections: {
-            ...tab.rangeSelections,
-            [columnName]: {
-              start: 0,
-              end: 0,
-              isSelecting: false,
-            } as RangeSelection,
-          },
-        };
-      }
-    });
-  };
 
   return (
     <div className="main-content">
@@ -150,33 +108,32 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
           ) : (
             <div className="data-table">
               <h3>Data ({abbreviateNumber(tab.tableTotal)} rows)</h3>
-              {tab.tableData.length > 0 && (
-                <DataTable
-                  tableData={tab.tableData}
-                  sortColumn={tab.sortColumn}
-                  sortDirection={tab.sortDirection}
-                  headerMenu={tab.headerMenu}
-                  setHeaderMenu={(menu) =>
-                    updateTab(tab.id, (t) => ({
-                      ...t,
-                      headerMenu: menu,
-                    }))
-                  }
-                  setSortColumn={(col) =>
-                    updateTab(tab.id, (t) => ({
-                      ...t,
-                      sortColumn: col,
-                    }))
-                  }
-                  setSortDirection={(dir) =>
-                    updateTab(tab.id, (t) => ({
-                      ...t,
-                      sortDirection: dir as SortDirection,
-                    }))
-                  }
-                  addFilter={addFilter}
-                />
-              )}
+              <DataTable
+                tableData={tab.tableData}
+                sortColumn={tab.sortColumn}
+                sortDirection={tab.sortDirection}
+                headerMenu={tab.headerMenu}
+                setHeaderMenu={(menu) =>
+                  updateTab(tab.id, (t) => ({
+                    ...t,
+                    headerMenu: menu,
+                  }))
+                }
+                setSortColumn={(col) =>
+                  updateTab(tab.id, (t) => ({
+                    ...t,
+                    sortColumn: col,
+                  }))
+                }
+                setSortDirection={(dir) =>
+                  updateTab(tab.id, (t) => ({
+                    ...t,
+                    sortDirection: dir as SortDirection,
+                  }))
+                }
+                addFilter={addFilter}
+                error={tab.tableDataError}
+              />
             </div>
           )}
         </div>
