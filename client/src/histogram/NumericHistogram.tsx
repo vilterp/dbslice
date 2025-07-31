@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { HistogramData } from '../api';
+import { HistogramData, Filter } from '../api';
 import Tooltip from '../components/Tooltip';
 
 interface RangeSelection {
@@ -14,6 +14,8 @@ type NumericHistogramProps = {
   currentRange?: RangeSelection;
   handleRangeSelection: (columnName: string, item: HistogramData) => void;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
+  removeFilter: (column: string, value: string) => void;
+  filters?: Filter[];
 };
 
 const NumericHistogram: React.FC<NumericHistogramProps> = ({
@@ -22,6 +24,8 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   currentRange,
   handleRangeSelection,
   addFilter,
+  removeFilter,
+  filters = [],
 }) => {
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
   const svgRef = useRef<SVGSVGElement>(null);
@@ -32,6 +36,32 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
 
   // Sort data by bin_start to ensure proper order
   const sortedData = [...data].sort((a, b) => (a.bin_start || 0) - (b.bin_start || 0));
+  
+  // Helper function to check if a bar is currently selected
+  const isBarSelected = (item: HistogramData): boolean => {
+    if (!item.bin_start || !item.bin_end) return false;
+    return filters.some(filter => 
+      filter.column === columnName && 
+      filter.type === 'range' &&
+      filter.min === item.bin_start &&
+      filter.max === item.bin_end
+    );
+  };
+  
+  // Helper function to handle bar click (toggle filter)
+  const handleBarClick = (item: HistogramData) => {
+    if (!item.bin_start || !item.bin_end) return;
+    
+    const isSelected = isBarSelected(item);
+    if (isSelected) {
+      // Remove the filter
+      const filterValue = `${item.bin_start}-${item.bin_end}`;
+      removeFilter(columnName, filterValue);
+    } else {
+      // Add the filter
+      addFilter(columnName, `${item.bin_start}-${item.bin_end}`, 'range', item.bin_start, item.bin_end);
+    }
+  };
   
   const maxCount = Math.max(...sortedData.map(d => d.count));
   const minValue = Math.min(...sortedData.map(d => d.bin_start || 0));
@@ -82,6 +112,8 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
           const width = (binWidth / valueRange) * chartWidth;
           const height = (item.count / maxCount) * chartHeight;
           const y = marginTop + chartHeight - height;
+          
+          const isSelected = isBarSelected(item);
 
           return (
             <rect
@@ -90,22 +122,18 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
               y={y}
               width={width}
               height={height}
-              fill="#bbdefb"
+              fill={isSelected ? "#90caf9" : "#bbdefb"}
               stroke="#fff"
               strokeWidth={0.5}
               style={{ cursor: 'pointer' }}
-              onClick={() => {
-                if (item.bin_start !== undefined && item.bin_end !== undefined) {
-                  addFilter(columnName, `${item.bin_start}-${item.bin_end}`, 'range', item.bin_start, item.bin_end);
-                }
-              }}
+              onClick={() => handleBarClick(item)}
               onMouseEnter={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 setTooltip({
                   visible: true,
                   x: rect.left + rect.width / 2,
                   y: rect.top,
-                  content: `Count: ${item.count}`
+                  content: `Count: ${item.count}${isSelected ? ' (filtered)' : ''}`
                 });
               }}
               onMouseLeave={() => {
