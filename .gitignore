@@ -13,6 +13,9 @@ dist/
 .env.test.local
 .env.production.local
 
+# Local configuration (not checked in)
+config.yaml
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

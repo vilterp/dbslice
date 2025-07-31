@@ -1,0 +1,14 @@
+# Sample configuration for duckdb-explore
+# Copy this file to config.yaml and edit as needed
+
+database:
+  path: tpch.db
+  type: file
+
+server:
+  port: 3001
+  host: 127.0.0.1
+
+api:
+  maxRows: 1000
+  maxHistogramBins: 20
