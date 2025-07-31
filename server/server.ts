@@ -1,13 +1,16 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import * as duckdb from 'duckdb';
+import * as fs from 'fs';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 
 // Configuration interface  
 export interface Config {
   database: {
-    path: string;
-    type: 'file' | 'memory';
+    path?: string;
+    type: 'file' | 'memory' | 's3';
+    tables?: { [key: string]: string };
   };
   server: {
     port: number;
@@ -43,6 +46,102 @@ import {
   parseHistogramFilters,
   buildHistogramWhereClause
 } from './query';
+
+// Configuration loading function
+export function loadConfig(configPath?: string): Config {
+  try {
+    let resolvedConfigPath: string;
+    
+    if (configPath) {
+      // Use provided config path
+      resolvedConfigPath = path.isAbsolute(configPath) ? configPath : path.join(process.cwd(), configPath);
+    } else {
+      // Try YAML first, then fallback to JSON for backward compatibility
+      resolvedConfigPath = path.join(__dirname, '../config.yaml');
+      if (!fs.existsSync(resolvedConfigPath)) {
+        resolvedConfigPath = path.join(__dirname, '../config.json');
+      }
+    }
+    
+    const configData = fs.readFileSync(resolvedConfigPath, 'utf8');
+    
+    let config: Config;
+    if (resolvedConfigPath.endsWith('.yaml') || resolvedConfigPath.endsWith('.yml')) {
+      config = yaml.load(configData) as Config;
+    } else {
+      config = JSON.parse(configData);
+    }
+    
+    console.log(`⚙️  Using config file: ${path.basename(resolvedConfigPath)}`);
+    if (config.database.type === 's3') {
+      console.log(`☁️  Using S3 database with ${Object.keys(config.database.tables || {}).length} table(s)`);
+    } else if (config.database.path) {
+      console.log(`📁 Loading DuckDB from: ${config.database.path}`);
+    }
+    
+    return config;
+  } catch (error) {
+    console.error('❌ Error loading config file:', (error as Error).message);
+    console.log('📝 Using default in-memory database');
+    return {
+      database: { path: ':memory:', type: 'memory' },
+      server: { port: 3001, host: 'localhost' },
+      api: { maxRows: 1000, maxHistogramBins: 50 }
+    };
+  }
+}
+
+// Database initialization function
+export function initializeDatabase(config: Config): duckdb.Database {
+  if (config.database.type === 'file' && config.database.path && config.database.path !== ':memory:') {
+    // Check if file exists
+    if (fs.existsSync(config.database.path)) {
+      const db = new duckdb.Database(config.database.path);
+      console.log(`✅ Connected to DuckDB file: ${config.database.path}`);
+      return db;
+    } else {
+      console.error(`❌ DuckDB file not found: ${config.database.path}`);
+      console.log('📝 Falling back to in-memory database');
+      return new duckdb.Database(':memory:');
+    }
+  } else if (config.database.type === 's3') {
+    // For S3, use in-memory database and create views
+    const db = new duckdb.Database(':memory:');
+    console.log('☁️  Setting up S3 database connection');
+    
+    // Set up S3 authentication
+    db.exec(`CREATE SECRET secret2 (
+      TYPE s3,
+      PROVIDER credential_chain,
+      REGION 'us-east-1'
+    )`, (err) => {
+      if (err) {
+        console.error('❌ Error creating S3 secret:', err.message);
+      } else {
+        console.log('✅ S3 authentication configured');
+      }
+    });
+    
+    // Create views for S3 tables
+    if (config.database.tables) {
+      for (const [tableName, s3Path] of Object.entries(config.database.tables)) {
+        const viewQuery = `CREATE VIEW ${tableName} AS SELECT * FROM '${s3Path}'`;
+        db.exec(viewQuery, (err) => {
+          if (err) {
+            console.error(`❌ Error creating view ${tableName}:`, err.message);
+          } else {
+            console.log(`✅ Created S3 view: ${tableName}`);
+          }
+        });
+      }
+    }
+    return db;
+  } else {
+    const db = new duckdb.Database(':memory:');
+    console.log('📝 Using in-memory database');
+    return db;
+  }
+}
 
 // Create server function that accepts a database connection and config
 export function createServer(db: duckdb.Database, config: Config) {
