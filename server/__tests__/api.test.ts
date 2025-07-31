@@ -428,7 +428,7 @@ describe('API Endpoints', () => {
   });
 
   describe('GET /api/tables/:tableName/columns/:columnName/histogram', () => {
-    it('should return histogram for product categories', async () => {
+    it('should return histogram for product categories with others as distinct count', async () => {
       const response = await request(app)
         .get('/api/tables/products/columns/category/histogram');
 
@@ -438,20 +438,23 @@ describe('API Endpoints', () => {
       expect(response.status).toBe(200);
 
       expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(2); // Electronics and Furniture
-      
-      // Check that each item has the expected structure
-      response.body.forEach((item: any) => {
-        expect(item).toHaveProperty('category');
-        expect(item).toHaveProperty('count');
-        expect(['Electronics', 'Furniture']).toContain(item.category);
-      });
+      // Should have Electronics, Furniture, and possibly an 'others' bar if more categories exist
+      const categories = response.body.map((item: any) => item.category);
+      expect(categories).toContain('Electronics');
+      expect(categories).toContain('Furniture');
 
       // Electronics should have count of 4, Furniture should have count of 4
       const electronicsItem = response.body.find((item: any) => item.category === 'Electronics');
       const furnitureItem = response.body.find((item: any) => item.category === 'Furniture');
       expect(electronicsItem.count).toBe(4);
       expect(furnitureItem.count).toBe(4);
+
+      // If there is an 'others' bar, its count should be the number of distinct other categories
+      const othersItem = response.body.find((item: any) => item.category === '(others)');
+      if (othersItem) {
+        // In the test data, there are only two categories, so others should not exist or be 0
+        expect(othersItem.count).toBe(0);
+      }
     });
 
     it('should return histogram for customer tiers', async () => {

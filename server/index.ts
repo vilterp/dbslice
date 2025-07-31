@@ -261,25 +261,28 @@ app.get('/api/tables/:tableName/columns/:columnName/histogram', async (req: Requ
         histogram = [];
       }
     } else {
-      // For categorical columns, show top 5 values and others count
+      // For categorical columns, show top 5 values and number of distinct 'other' values
       const topValuesQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY count DESC LIMIT 5`;
       const topValues = await runQuery(topValuesQuery, params);
-      
-      // Get total count and count of top 5 to calculate others
-      const totalCountQuery = `SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
-      const totalResult = await runQuery(totalCountQuery, params);
-      const totalCount = totalResult[0]?.total || 0;
-      
-      const topValuesCount = topValues.reduce((sum, item) => sum + item.count, 0);
-      const othersCount = totalCount - topValuesCount;
-      
+
+      // Get all distinct values
+      const allDistinctQuery = `SELECT DISTINCT ${sanitizedColumnName} FROM ${sanitizedTableName}${whereClause}`;
+      const allDistinct = await runQuery(allDistinctQuery, params);
+      const allDistinctSet = new Set(allDistinct.map(row => row[sanitizedColumnName]));
+
+      // Remove top values from the set to get 'other' distincts
+      for (const top of topValues) {
+        allDistinctSet.delete(top[sanitizedColumnName]);
+      }
+      const othersDistinctCount = allDistinctSet.size;
+
       histogram = [...topValues];
-      
-      // Add "others" entry if there are more values
-      if (othersCount > 0) {
+
+      // Add "others" entry if there are more distinct values
+      if (othersDistinctCount > 0) {
         histogram.push({
           [sanitizedColumnName]: '(others)',
-          count: othersCount,
+          count: othersDistinctCount,
           is_others: true
         });
       }

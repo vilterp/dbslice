@@ -39,15 +39,20 @@ const Histogram: React.FC<HistogramProps> = ({
       )}
       {data.map((item, index) => {
         const barWidth = (item.count / maxCount) * 100;
-        const displayValue = item.bin_start !== undefined && item.bin_end !== undefined
-          ? `${item.bin_start.toFixed(1)}-${item.bin_end.toFixed(1)}`
-          : String(item[columnName]);
+        const isOthers = item.is_others === true;
+        let displayValue;
+        if (item.bin_start !== undefined && item.bin_end !== undefined) {
+          displayValue = `${item.bin_start.toFixed(1)}-${item.bin_end.toFixed(1)}`;
+        } else if (isOthers) {
+          displayValue = `${item.count} other value${item.count === 1 ? '' : 's'}`;
+        } else {
+          displayValue = String(item[columnName]);
+        }
         const isInRange = currentRange?.isSelecting &&
           item.bin_start !== undefined &&
           item.bin_start >= Math.min(currentRange.start, currentRange.end) &&
           item.bin_end !== undefined &&
           item.bin_end <= Math.max(currentRange.start, currentRange.end);
-        const isOthers = item.is_others === true;
         return (
           <div
             key={index}
