@@ -1,99 +1,18 @@
-.histogram {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 
-.histogram-loading {
-  color: #999;
-  font-size: 0.75rem;
-  padding: 0.5rem 0;
-  font-style: italic;
+/* Minimal histogram styles */
+body, .histogram, .histogram-bar, .bar-label, .bar-count {
+  color: #111;
 }
 
 .histogram-bar {
   cursor: pointer;
-  padding: 2px 0;
-  border-radius: 2px;
-  transition: background-color 0.2s;
-}
-
-.histogram-bar:hover {
-  background-color: #f8f9fa;
-}
-
-.bar-label {
-  font-size: 0.75rem;
-  color: #666;
-  margin-bottom: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bar-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 16px;
 }
 
 .bar-fill {
-  height: 12px;
-  background-color: #662d91;
-  border-radius: 2px;
-  min-width: 2px;
-  transition: all 0.2s;
-}
-
-.histogram-bar:hover .bar-fill {
-  background-color: #7c3aed;
-}
-
-.histogram-bar.in-range {
-  background-color: #e8f4fd;
-}
-
-.histogram-bar.in-range .bar-fill {
-  background-color: #0066cc;
-}
-
-.range-selection-hint {
-  font-size: 0.7rem;
-  color: #0066cc;
-  font-style: italic;
-  padding: 0.25rem;
-  background-color: #e8f4fd;
-  border-radius: 2px;
-  margin-bottom: 0.5rem;
-  text-align: center;
+  background-color: #bbdefb;
 }
 
 .histogram-bar.others-bar {
-  opacity: 0.7;
-  cursor: default !important;
-}
-
-.histogram-bar.others-bar .bar-label {
+  color: #888;
   font-style: italic;
-  color: #999;
-}
-
-.histogram-bar.others-bar .bar-fill {
-  background-color: #ccc;
-}
-
-.histogram-bar.others-bar:hover {
-  background-color: transparent;
-}
-
-.histogram-bar.others-bar:hover .bar-fill {
-  background-color: #bbb;
-}
-
-.bar-count {
-  font-size: 0.75rem;
-  color: #999;
-  min-width: 30px;
-  text-align: right;
 }

@@ -32,14 +32,32 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
           <div
             key={index}
             className={`histogram-bar discrete-bar ${isOthers ? 'others-bar' : ''}`}
-            style={{ display: 'flex', alignItems: 'center', minHeight: 24 }}
+            onClick={() => {
+              if (!isOthers) addFilter(columnName, value);
+            }}
+            role={!isOthers ? 'button' : undefined}
+            tabIndex={!isOthers ? 0 : undefined}
+            onKeyDown={e => {
+              if (!isOthers && (e.key === 'Enter' || e.key === ' ')) {
+                addFilter(columnName, value);
+              }
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: 24,
+              cursor: !isOthers ? 'pointer' : undefined,
+              outline: 'none',
+            }}
           >
+            {/* Checkbox for visual feedback, but clicking the bar also toggles */}
             {!isOthers && (
               <input
                 type="checkbox"
                 checked={checked}
-                onChange={() => addFilter(columnName, value)}
-                style={{ marginRight: 6 }}
+                readOnly
+                tabIndex={-1}
+                style={{ marginRight: 6, pointerEvents: 'none' }}
               />
             )}
             <div
@@ -47,8 +65,6 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               style={{
                 width: `${barWidth}%`,
                 minWidth: 16,
-                background: checked ? '#0066cc' : '#662d91',
-                color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 padding: '0 6px',
