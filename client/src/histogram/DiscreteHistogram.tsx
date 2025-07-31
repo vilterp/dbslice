@@ -24,6 +24,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   filters = [],
 }) => {
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   if (error) {
     return (
@@ -112,6 +113,8 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
                 }
               }
             }}
+            onMouseEnter={() => setHoveredIndex(index)}
+            onMouseLeave={() => setHoveredIndex(null)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -149,6 +152,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
                   borderRadius: 2,
                   zIndex: 1,
                   boxSizing: 'border-box',
+                  filter: hoveredIndex === index ? 'brightness(0.85)' : 'none',
                 }}
               />
               <span 

@@ -22,6 +22,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   filters = [],
 }) => {
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Helper function to format numbers with appropriate precision
@@ -162,7 +163,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
                 y={y}
                 width={width}
                 height={height}
-                fill={isSelected ? "#90caf9" : "#bbdefb"}
+                fill={isSelected ? (hoveredIndex === index ? "#64b5f6" : "#90caf9") : (hoveredIndex === index ? "#90caf9" : "#bbdefb")}
                 stroke="#fff"
                 strokeWidth={0.5}
                 pointerEvents="none"
@@ -180,6 +181,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
                   const rect = e.currentTarget.getBoundingClientRect();
                   const minVal = formatNumber(binStart);
                   const maxVal = formatNumber(binEnd);
+                  setHoveredIndex(index);
                   setTooltip({
                     visible: true,
                     x: rect.left + rect.width / 2,
@@ -188,6 +190,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
                   });
                 }}
                 onMouseLeave={() => {
+                  setHoveredIndex(null);
                   setTooltip({ visible: false, x: 0, y: 0, content: '' });
                 }}
               />
