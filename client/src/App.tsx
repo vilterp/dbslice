@@ -17,6 +17,8 @@ import {
   fetchHistograms,
 } from './api';
 import { updateURL, loadFromURL } from './urlState';
+import { abbreviateNumber } from './utils';
+
 interface RangeSelection {
   start: number;
   end: number;
@@ -205,7 +207,7 @@ function App() {
                 <div className="loading">Loading...</div>
               ) : (
                 <div className="data-table">
-                  <h3>Data ({tableTotal} rows)</h3>
+                  <h3>Data ({abbreviateNumber(tableTotal)} rows)</h3>
                   {tableData.length > 0 && (
                     <div style={{ position: 'relative' }}>
                       <table>

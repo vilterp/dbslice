@@ -140,7 +140,7 @@ app.get('/api/tables/:tableName/columns', async (req: Request, res: Response) =>
 app.post('/api/tables/:tableName/data', async (req: Request, res: Response) => {
   try {
     const { tableName } = req.params;
-    const { filters = {}, limit = config.api.maxRows, offset = 0 } = req.body;
+    const { filters = {}, limit = config.api.maxRows, offset = 0, orderBy, orderDir } = req.body;
 
     // Sanitize table name
     const sanitizedTableName = sanitizeIdentifier(tableName);
@@ -165,9 +165,20 @@ app.post('/api/tables/:tableName/data', async (req: Request, res: Response) => {
       baseQuery += ` WHERE ${conditions.join(' AND ')}`;
     }
 
+    // Add ORDER BY if provided
+    let orderClause = '';
+    if (orderBy && typeof orderBy === 'string') {
+      const sanitizedOrderBy = sanitizeIdentifier(orderBy);
+      let dir = 'ASC';
+      if (typeof orderDir === 'string' && ['asc', 'desc', 'ASC', 'DESC'].includes(orderDir)) {
+        dir = orderDir.toUpperCase();
+      }
+      orderClause = ` ORDER BY ${sanitizedOrderBy} ${dir}`;
+    }
+
     // Query for paginated data
     const limitValue = Math.min(limit as number, config.api.maxRows);
-    const dataQuery = `SELECT * ${baseQuery} LIMIT ${limitValue} OFFSET ${offset}`;
+    const dataQuery = `SELECT * ${baseQuery}${orderClause} LIMIT ${limitValue} OFFSET ${offset}`;
     const data = await runQuery(dataQuery, params);
 
     // Query for total count (without LIMIT/OFFSET)

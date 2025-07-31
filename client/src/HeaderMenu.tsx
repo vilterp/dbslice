@@ -32,30 +32,43 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({
       onMouseLeave={() => setHeaderMenu(null)}
     >
       <div
-        style={{ padding: '8px 16px', cursor: 'pointer' }}
+        style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
         onClick={() => {
           setSortColumn(headerMenu.column);
           setSortDirection('asc');
           setHeaderMenu(null);
         }}
-      >Sort ascending</div>
+      >
+        {sortColumn === headerMenu.column && sortDirection === 'asc' && (
+          <span style={{ marginRight: 8 }}>✔️</span>
+        )}
+        Sort ascending
+      </div>
       <div
-        style={{ padding: '8px 16px', cursor: 'pointer' }}
+        style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
         onClick={() => {
           setSortColumn(headerMenu.column);
           setSortDirection('desc');
           setHeaderMenu(null);
         }}
-      >Sort descending</div>
+      >
+        {sortColumn === headerMenu.column && sortDirection === 'desc' && (
+          <span style={{ marginRight: 8 }}>✔️</span>
+        )}
+        Sort descending
+      </div>
       {(sortColumn === headerMenu.column) && (
         <div
-          style={{ padding: '8px 16px', cursor: 'pointer' }}
+          style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           onClick={() => {
             setSortColumn('');
             setSortDirection('');
             setHeaderMenu(null);
           }}
-        >Clear sort</div>
+        >
+          <span style={{ width: 24, display: 'inline-block' }}></span>
+          Clear sort
+        </div>
       )}
     </div>
   );

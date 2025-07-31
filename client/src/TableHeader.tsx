@@ -13,52 +13,51 @@ interface TableHeaderProps {
 const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDirection, headerMenu, setHeaderMenu }) => {
   return (
     <>
-      {columns.map(column => (
-        <th
-          key={column}
-          style={{
-            position: 'relative',
-            userSelect: 'none',
-            background: headerMenu?.column === column ? '#f0f0f0' : undefined,
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={() => setHeaderMenu(headerMenu && headerMenu.column === column ? headerMenu : null)}
-          onMouseLeave={() => setHeaderMenu(headerMenu && headerMenu.column === column ? null : headerMenu)}
-        >
-          <span style={{ verticalAlign: 'middle' }}>{column}
-            {sortColumn === column && sortDirection === 'asc' && <span style={{ marginLeft: 4 }}>▲</span>}
-            {sortColumn === column && sortDirection === 'desc' && <span style={{ marginLeft: 4 }}>▼</span>}
-          </span>
-          <button
+      {columns.map(column => {
+        const isActive = headerMenu?.column === column;
+        return (
+          <th
+            key={column}
             style={{
-              position: 'absolute',
-              right: 4,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              margin: 0,
+              position: 'relative',
+              userSelect: 'none',
+              background: isActive ? '#f0f0f0' : undefined,
+              transition: 'background 0.15s',
               cursor: 'pointer',
-              width: 20,
-              height: 20,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: 0.7
             }}
-            aria-label={`Sort options for ${column}`}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = '#f0f0f0';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = isActive ? '#f0f0f0' : '';
+            }}
             onClick={e => {
               e.stopPropagation();
-              const rect = (e.target as HTMLElement).getBoundingClientRect();
-              setHeaderMenu({ column, x: rect.right, y: rect.bottom });
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setHeaderMenu({ column, x: rect.left, y: rect.bottom });
             }}
             tabIndex={0}
           >
-            <span style={{ fontSize: 14, pointerEvents: 'none' }}>⋮</span>
-          </button>
-        </th>
-      ))}
+            <span style={{ verticalAlign: 'middle' }}>{column}
+              {sortColumn === column && sortDirection === 'asc' && <span style={{ marginLeft: 4 }}>▲</span>}
+              {sortColumn === column && sortDirection === 'desc' && <span style={{ marginLeft: 4 }}>▼</span>}
+            </span>
+            <span
+              style={{
+                position: 'absolute',
+                right: 4,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                opacity: 0.7,
+                fontSize: 14,
+                pointerEvents: 'none',
+              }}
+            >
+              ⋮
+            </span>
+          </th>
+        );
+      })}
     </>
   );
 };
