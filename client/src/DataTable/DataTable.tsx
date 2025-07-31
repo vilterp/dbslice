@@ -1,3 +1,4 @@
+import "./DataTable.css";
 import React from "react";
 import TableHeader from "./TableHeader";
 import HeaderMenu from "./HeaderMenu";

@@ -1,3 +1,4 @@
+import "./Histogram.css";
 import React from 'react';
 import { HistogramData, Filter } from '../api';
 import NumericHistogram from './NumericHistogram';
