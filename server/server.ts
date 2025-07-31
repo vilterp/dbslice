@@ -199,8 +199,9 @@ export function createServer(db: duckdb.Database, config: Config) {
           histogram = [];
         }
       } else {
+
         // For categorical columns, show top 5 values and number of distinct 'other' values
-        const topValuesQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY count DESC LIMIT 5`;
+        const topValuesQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY count DESC, ${sanitizedColumnName} ASC LIMIT 5`;
         const topValues = await runQuery(topValuesQuery);
 
         // Get all distinct values
