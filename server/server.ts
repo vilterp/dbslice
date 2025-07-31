@@ -4,6 +4,7 @@ import * as duckdb from 'duckdb';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import logger from './logger';
 
 // Configuration interface  
 export interface Config {
@@ -50,18 +51,16 @@ import {
 // Request logging middleware
 function requestLogger(req: Request, res: Response, next: Function) {
   const startTime = Date.now();
-  const timestamp = new Date().toISOString();
   
-  console.log(`🚀 [${timestamp}] ${req.method} ${req.path} - Request started`);
+  logger.info(`${req.method} ${req.path} - Request started`);
   
   // Override res.end to capture when the response finishes
   const originalEnd = res.end;
   res.end = function(chunk?: any, encoding?: any, cb?: any): any {
     const endTime = Date.now();
     const duration = endTime - startTime;
-    const finishTimestamp = new Date().toISOString();
     
-    console.log(`✅ [${finishTimestamp}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    logger.info(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
     
     // Call the original end method with proper arguments
     return originalEnd.call(this, chunk, encoding, cb);
@@ -95,17 +94,17 @@ export function loadConfig(configPath?: string): Config {
       config = JSON.parse(configData);
     }
     
-    console.log(`⚙️  Using config file: ${path.basename(resolvedConfigPath)}`);
+    logger.info(`Using config file: ${path.basename(resolvedConfigPath)}`);
     if (config.database.type === 's3') {
-      console.log(`☁️  Using S3 database with ${Object.keys(config.database.tables || {}).length} table(s)`);
+      logger.info(`Using S3 database with ${Object.keys(config.database.tables || {}).length} table(s)`);
     } else if (config.database.path) {
-      console.log(`📁 Loading DuckDB from: ${config.database.path}`);
+      logger.info(`Loading DuckDB from: ${config.database.path}`);
     }
     
     return config;
   } catch (error) {
-    console.error('❌ Error loading config file:', (error as Error).message);
-    console.log('📝 Using default in-memory database');
+    logger.error('Error loading config file:', (error as Error).message);
+    logger.info('Using default in-memory database');
     return {
       database: { path: ':memory:', type: 'memory' },
       server: { port: 3001, host: 'localhost' },
@@ -120,28 +119,30 @@ export function initializeDatabase(config: Config): duckdb.Database {
     // Check if file exists
     if (fs.existsSync(config.database.path)) {
       const db = new duckdb.Database(config.database.path);
-      console.log(`✅ Connected to DuckDB file: ${config.database.path}`);
+      logger.info(`Connected to DuckDB file: ${config.database.path}`);
       return db;
     } else {
-      console.error(`❌ DuckDB file not found: ${config.database.path}`);
-      console.log('📝 Falling back to in-memory database');
+      logger.error(`DuckDB file not found: ${config.database.path}`);
+      logger.info('Falling back to in-memory database');
       return new duckdb.Database(':memory:');
     }
   } else if (config.database.type === 's3') {
     // For S3, use in-memory database and create views
     const db = new duckdb.Database(':memory:');
-    console.log('☁️  Setting up S3 database connection');
+    logger.info('Setting up S3 database connection');
     
     // Set up S3 authentication
-    db.exec(`CREATE SECRET secret2 (
+    const s3SecretQuery = `CREATE SECRET secret2 (
       TYPE s3,
       PROVIDER credential_chain,
       REGION 'us-east-1'
-    )`, (err) => {
+    )`;
+    logger.info('Executing S3 secret creation', { query: s3SecretQuery });
+    db.exec(s3SecretQuery, (err) => {
       if (err) {
-        console.error('❌ Error creating S3 secret:', err.message);
+        logger.error('Error creating S3 secret:', err.message);
       } else {
-        console.log('✅ S3 authentication configured');
+        logger.info('S3 authentication configured');
       }
     });
     
@@ -149,11 +150,12 @@ export function initializeDatabase(config: Config): duckdb.Database {
     if (config.database.tables) {
       for (const [tableName, s3Path] of Object.entries(config.database.tables)) {
         const viewQuery = `CREATE VIEW ${tableName} AS SELECT * FROM '${s3Path}'`;
+        logger.info('Creating S3 view', { tableName, query: viewQuery });
         db.exec(viewQuery, (err) => {
           if (err) {
-            console.error(`❌ Error creating view ${tableName}:`, err.message);
+            logger.error(`Error creating view ${tableName}:`, err.message);
           } else {
-            console.log(`✅ Created S3 view: ${tableName}`);
+            logger.info(`Created S3 view: ${tableName}`);
           }
         });
       }
@@ -161,29 +163,69 @@ export function initializeDatabase(config: Config): duckdb.Database {
     return db;
   } else {
     const db = new duckdb.Database(':memory:');
-    console.log('📝 Using in-memory database');
+    logger.info('Using in-memory database');
     return db;
   }
 }
 
 // Create server function that accepts a database connection and config
 export function createServer(db: duckdb.Database, config: Config) {
-  // Promisified query function using the passed database connection
+  // Promisified query function using a separate connection for each query
   const runQuery = (query: string, params: any[] = []): Promise<any[]> => {
+    const startTime = Date.now();
+    
+    // Log the SQL query being executed
+    logger.info('Executing SQL query', { 
+      query: query.trim(),
+      params: params.length > 0 ? params : undefined
+    });
+    
     return new Promise((resolve, reject) => {
+      // Create a new connection for this query to avoid blocking concurrent queries
+      const connection = new duckdb.Connection(db);
+      
       if (params.length === 0) {
-        db.all(query, (err: Error | null, rows: any[]) => {
+        connection.all(query, (err: Error | null, rows: any[]) => {
+          connection.close(); // Always close the connection when done
+          const duration = Date.now() - startTime;
+          
           if (err) {
+            logger.error('SQL query failed', { 
+              query: query.trim(),
+              params: params.length > 0 ? params : undefined,
+              error: err.message,
+              duration: `${duration}ms`
+            });
             reject(err);
           } else {
+            logger.info('SQL query completed', { 
+              query: query.trim(),
+              rowCount: rows?.length || 0,
+              duration: `${duration}ms`
+            });
             resolve(sanitizeQueryResult(rows || []));
           }
         });
       } else {
-        db.all(query, params, (err: Error | null, rows: any[]) => {
+        connection.all(query, params, (err: Error | null, rows: any[]) => {
+          connection.close(); // Always close the connection when done
+          const duration = Date.now() - startTime;
+          
           if (err) {
+            logger.error('SQL query failed', { 
+              query: query.trim(),
+              params,
+              error: err.message,
+              duration: `${duration}ms`
+            });
             reject(err);
           } else {
+            logger.info('SQL query completed', { 
+              query: query.trim(),
+              params,
+              rowCount: rows?.length || 0,
+              duration: `${duration}ms`
+            });
             resolve(sanitizeQueryResult(rows || []));
           }
         });
@@ -277,7 +319,7 @@ export function createServer(db: duckdb.Database, config: Config) {
       const sanitizedColumnName = sanitizeIdentifier(columnName);
       
       // Build WHERE clause for histogram using the direct filters from request body
-      const { whereClause, params } = buildHistogramWhereClause(filters, rangeFilters, columnName);
+      const { whereClause } = buildHistogramWhereClause(filters, rangeFilters, columnName);
       
       let histogram: any[];
       const columnTypeStr = column_type as string;
