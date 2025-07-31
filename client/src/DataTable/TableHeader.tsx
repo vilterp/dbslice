@@ -1,4 +1,5 @@
 import React from 'react';
+import DropdownMenu from '../components/DropdownMenu';
 import { SortDirection } from '../api';
 
 interface TableHeaderProps {
@@ -54,6 +55,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDire
             >
               ⋮
             </span>
+            {/* Dropdown is now handled by HeaderMenu, not here */}
           </th>
         );
       })}

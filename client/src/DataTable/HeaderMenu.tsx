@@ -1,5 +1,5 @@
 import React from 'react';
-
+import DropdownMenu from '../components/DropdownMenu';
 import { SortDirection } from '../api';
 
 interface HeaderMenuProps {
@@ -20,58 +20,55 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({
   setHeaderMenu,
 }) => {
   if (!headerMenu) return null;
+  const menuStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: headerMenu.y,
+    left: headerMenu.x,
+    zIndex: 1000,
+  };
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: headerMenu.y,
-        left: headerMenu.x,
-        background: 'white',
-        border: '1px solid #ccc',
-        zIndex: 1000,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-      }}
-      onMouseLeave={() => setHeaderMenu(null)}
-    >
-      <div
-        style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-        onClick={() => {
-          setSortColumn(headerMenu.column);
-          setSortDirection('asc');
-          setHeaderMenu(null);
-        }}
-      >
-        {sortColumn === headerMenu.column && sortDirection === 'asc' && (
-          <span style={{ marginRight: 8 }}>✔️</span>
-        )}
-        Sort ascending
-      </div>
-      <div
-        style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-        onClick={() => {
-          setSortColumn(headerMenu.column);
-          setSortDirection('desc');
-          setHeaderMenu(null);
-        }}
-      >
-        {sortColumn === headerMenu.column && sortDirection === 'desc' && (
-          <span style={{ marginRight: 8 }}>✔️</span>
-        )}
-        Sort descending
-      </div>
-      {(sortColumn === headerMenu.column) && (
+    <div style={menuStyle} onMouseLeave={() => setHeaderMenu(null)}>
+      <DropdownMenu>
         <div
           style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           onClick={() => {
-            setSortColumn('');
-            setSortDirection('');
+            setSortColumn(headerMenu.column);
+            setSortDirection('asc');
             setHeaderMenu(null);
           }}
         >
-          <span style={{ width: 24, display: 'inline-block' }}></span>
-          Clear sort
+          {sortColumn === headerMenu.column && sortDirection === 'asc' && (
+            <span style={{ marginRight: 8 }}>✔️</span>
+          )}
+          Sort ascending
         </div>
-      )}
+        <div
+          style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+          onClick={() => {
+            setSortColumn(headerMenu.column);
+            setSortDirection('desc');
+            setHeaderMenu(null);
+          }}
+        >
+          {sortColumn === headerMenu.column && sortDirection === 'desc' && (
+            <span style={{ marginRight: 8 }}>✔️</span>
+          )}
+          Sort descending
+        </div>
+        {(sortColumn === headerMenu.column) && (
+          <div
+            style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            onClick={() => {
+              setSortColumn('');
+              setSortDirection('');
+              setHeaderMenu(null);
+            }}
+          >
+            <span style={{ width: 24, display: 'inline-block' }}></span>
+            Clear sort
+          </div>
+        )}
+      </DropdownMenu>
     </div>
   );
 };
