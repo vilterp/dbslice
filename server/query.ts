@@ -101,22 +101,22 @@ export const parseHistogramFilters = (
   return { exactFilters, rangeFilters };
 };
 
-// Build WHERE clause for histograms (using parameter binding for exact filters)
+// Build WHERE clause for histograms (using direct substitution to avoid parameter binding issues)
 export const buildHistogramWhereClause = (
   exactFilters: Record<string, any>,
   rangeFilters: Record<string, { min: number; max: number }>,
   excludeColumn: string
 ): { whereClause: string; params: any[] } => {
   const conditions: string[] = [];
-  const params: any[] = [];
   const sanitizedExcludeColumn = sanitizeIdentifier(excludeColumn);
   
-  // Handle exact filters (exclude the column we're histogramming)
+  // Handle exact filters (exclude the column we're histogramming) - use direct substitution
   Object.entries(exactFilters).forEach(([column, value]) => {
     const sanitizedColumn = sanitizeIdentifier(column);
     if (sanitizedColumn !== sanitizedExcludeColumn) {
-      params.push(value);
-      conditions.push(`${sanitizedColumn} = ?`);
+      // Use direct substitution with proper escaping
+      const safeValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : value;
+      conditions.push(`${sanitizedColumn} = ${safeValue}`);
     }
   });
   
@@ -124,12 +124,13 @@ export const buildHistogramWhereClause = (
   Object.entries(rangeFilters).forEach(([column, range]) => {
     const sanitizedColumn = sanitizeIdentifier(column);
     if (sanitizedColumn !== sanitizedExcludeColumn) {
-      // Use direct substitution for range filters to avoid parameter binding issues
+      // Use direct substitution for range filters
       conditions.push(`${sanitizedColumn} >= ${range.min} AND ${sanitizedColumn} <= ${range.max}`);
     }
   });
   
   const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
   
-  return { whereClause, params };
+  // Return empty params array since we're using direct substitution
+  return { whereClause, params: [] };
 };

@@ -173,7 +173,7 @@ export function createServer(db: duckdb.Database, config: Config) {
         
         // Get min/max values for binning
         const rangeQuery = `SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val FROM ${sanitizedTableName}${whereClause}`;
-        const rangeResult = await runQuery(rangeQuery, params);
+        const rangeResult = await runQuery(rangeQuery);
         
         if (rangeResult.length > 0 && rangeResult[0].min_val !== null && rangeResult[0].max_val !== null) {
           const minVal = Number(rangeResult[0].min_val);
@@ -194,18 +194,18 @@ export function createServer(db: duckdb.Database, config: Config) {
             LIMIT 10
           `;
           
-          histogram = await runQuery(binQuery, params);
+          histogram = await runQuery(binQuery);
         } else {
           histogram = [];
         }
       } else {
         // For categorical columns, show top 5 values and number of distinct 'other' values
         const topValuesQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY count DESC LIMIT 5`;
-        const topValues = await runQuery(topValuesQuery, params);
+        const topValues = await runQuery(topValuesQuery);
 
         // Get all distinct values
         const allDistinctQuery = `SELECT DISTINCT ${sanitizedColumnName} FROM ${sanitizedTableName}${whereClause}`;
-        const allDistinct = await runQuery(allDistinctQuery, params);
+        const allDistinct = await runQuery(allDistinctQuery);
         const allDistinctSet = new Set(allDistinct.map(row => row[sanitizedColumnName]));
 
         // Remove top values from the set to get 'other' distincts

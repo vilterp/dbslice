@@ -675,6 +675,24 @@ describe('API Endpoints', () => {
         expect(item).toHaveProperty('bin_end');
       });
     });
+
+    it('should handle histogram with both exact and range filters', async () => {
+      // Test the specific bug case: exact + range filters together in histogram
+      const response = await request(app)
+        .get('/api/tables/products/columns/category/histogram')
+        .query({ 
+          column_type: 'text',
+          in_stock: 'true',      // Exact filter
+          price: '50-500'        // Range filter
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('category');
+        expect(item).toHaveProperty('count');
+      });
+    });
   });
 
   describe('Error handling', () => {
