@@ -1,3 +1,4 @@
+import "./Sidebar.css";
 import React from 'react';
 import { Column, HistogramData, Filter } from './api';
 import Histogram from './histogram/Histogram';
