@@ -1,3 +1,4 @@
+import "./FilterBar.css";
 import React from 'react';
 import { Filter } from './api';
 
