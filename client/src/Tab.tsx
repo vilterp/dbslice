@@ -176,6 +176,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
                       sortDirection: dir as SortDirection,
                     }))
                   }
+                  addFilter={addFilter}
                 />
               )}
             </div>
