@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./SidePanel.css";
+import CopyButton from "./CopyButton";
 
 interface SidePanelProps {
   selectedRow: any | null;
@@ -31,13 +32,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ selectedRow, onClose }) => {
             <div key={key} className="detail-row">
               <div className="detail-label">
                 {key}
-                <button 
-                  className="copy-button"
-                  onClick={() => navigator.clipboard.writeText(String(value))}
-                  title="Copy value"
-                >
-                  📋
-                </button>
+                <CopyButton value={String(value)} />
               </div>
               <div className="detail-value">{String(value)}</div>
             </div>
