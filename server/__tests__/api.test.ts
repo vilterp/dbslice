@@ -1,281 +1,29 @@
 import request from 'supertest';
-import { Request, Response } from 'express';
+import { createServer } from '../server';
 import * as duckdb from 'duckdb';
-import { promises as fs } from 'fs';
-import path from 'path';
 
-const express = require('express');
-const cors = require('cors');
-
-// Import the server logic without starting the server
-// We'll create a test version of the server
+// Create test database and server
 let app: any;
+let runQuery: any;
 let db: duckdb.Database;
-
-// Test configuration
-const testConfig = {
-  database: { path: ':memory:', type: 'memory' as const },
-  server: { port: 3001, host: 'localhost' },
-  api: { maxRows: 1000, maxHistogramBins: 50 }
-};
-
-// Utility functions
-const sanitizeIdentifier = (identifier: string): string => {
-  return identifier.replace(/[^a-zA-Z0-9_]/g, '');
-};
-
-const runQuery = (query: string, params: any[] = []): Promise<any[]> => {
-  return new Promise((resolve, reject) => {
-    if (params.length === 0) {
-      db.all(query, (err: Error | null, rows: any[]) => {
-        if (err) {
-          reject(err);
-        } else {
-          // Convert BigInt values to regular numbers for JSON serialization
-          const sanitizedRows = (rows || []).map(row => {
-            const sanitizedRow: any = {};
-            for (const [key, value] of Object.entries(row)) {
-              sanitizedRow[key] = typeof value === 'bigint' ? Number(value) : value;
-            }
-            return sanitizedRow;
-          });
-          resolve(sanitizedRows);
-        }
-      });
-    } else {
-      db.all(query, params, (err: Error | null, rows: any[]) => {
-        if (err) {
-          reject(err);
-        } else {
-          // Convert BigInt values to regular numbers for JSON serialization
-          const sanitizedRows = (rows || []).map(row => {
-            const sanitizedRow: any = {};
-            for (const [key, value] of Object.entries(row)) {
-              sanitizedRow[key] = typeof value === 'bigint' ? Number(value) : value;
-            }
-            return sanitizedRow;
-          });
-          resolve(sanitizedRows);
-        }
-      });
-    }
-  });
-};
-
-// Setup test server
-const createTestServer = () => {
-  const testApp = express();
-  testApp.use(cors());
-  testApp.use(express.json());
-
-  // Get all tables
-  testApp.get('/api/tables', async (req, res) => {
-    try {
-      const tables = await runQuery(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'main'
-      `);
-      res.json(tables);
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  });
-
-  // Get columns for a table
-  testApp.get('/api/tables/:tableName/columns', async (req, res) => {
-    try {
-      const { tableName } = req.params;
-      const sanitizedTableName = sanitizeIdentifier(tableName);
-      const columns = await runQuery(`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = '${sanitizedTableName}'
-      `);
-      res.json(columns);
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  });
-
-  // Get table data with optional filters
-  testApp.post('/api/tables/:tableName/data', async (req, res) => {
-    try {
-      const { tableName } = req.params;
-      const { filters = {}, rangeFilters = {}, limit = testConfig.api.maxRows, offset = 0 } = req.body;
-      
-      const sanitizedTableName = sanitizeIdentifier(tableName);
-      let query = `SELECT * FROM ${sanitizedTableName}`;
-      const params: any[] = [];
-      const conditions: string[] = [];
-      
-      // Handle exact filters
-      if (Object.keys(filters).length > 0) {
-        const exactConditions = Object.entries(filters).map(([column, value]) => {
-          const sanitizedColumn = sanitizeIdentifier(column);
-          const safeValue = typeof value === 'string' ? `'${value}'` : value;
-          return `${sanitizedColumn} = ${safeValue}`;
-        });
-        conditions.push(...exactConditions);
-      }
-      
-      // Handle range filters
-      if (Object.keys(rangeFilters).length > 0) {
-        const rangeConditions = Object.entries(rangeFilters).map(([column, range]) => {
-          const sanitizedColumn = sanitizeIdentifier(column);
-          const { min, max } = range as { min: number; max: number };
-          return `${sanitizedColumn} >= ${min} AND ${sanitizedColumn} <= ${max}`;
-        });
-        conditions.push(...rangeConditions);
-      }
-      
-      if (conditions.length > 0) {
-        query += ` WHERE ${conditions.join(' AND ')}`;
-      }
-      
-      const limitValue = Math.min(limit as number, testConfig.api.maxRows);
-      const dataQuery = query + ` LIMIT ${limitValue} OFFSET ${offset}`;
-      const data = await runQuery(dataQuery, params);
-      
-      // Get total count without LIMIT/OFFSET
-      const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as total');
-      const countResult = await runQuery(countQuery, params);
-      const total = countResult[0]?.total ?? 0;
-      
-      res.json({ data, total });
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  });
-
-  // Get histogram data for a column
-  testApp.get('/api/tables/:tableName/columns/:columnName/histogram', async (req, res) => {
-    try {
-      const { tableName, columnName } = req.params;
-      const { bins = '20', column_type = 'text', ...queryParams } = req.query;
-      
-      const sanitizedTableName = sanitizeIdentifier(tableName);
-      const sanitizedColumnName = sanitizeIdentifier(columnName);
-      
-      // Parse filters like the real server
-      const exactFilters: Record<string, any> = {};
-      const rangeFilters: Record<string, { min: number; max: number }> = {};
-      
-      Object.entries(queryParams).forEach(([key, value]) => {
-        if (typeof value === 'string' && value.includes('-')) {
-          const parts = value.split('-');
-          if (parts.length === 2) {
-            const min = parseFloat(parts[0]);
-            const max = parseFloat(parts[1]);
-            if (!isNaN(min) && !isNaN(max)) {
-              rangeFilters[key] = { min, max };
-              return;
-            }
-          }
-        }
-        exactFilters[key] = value;
-      });
-      
-      // Build WHERE clause
-      const conditions: string[] = [];
-      
-      // Handle exact filters (exclude the column we're histogramming)
-      Object.entries(exactFilters).forEach(([column, value]) => {
-        const sanitizedColumn = sanitizeIdentifier(column);
-        if (sanitizedColumn !== sanitizedColumnName) {
-          const safeValue = typeof value === 'string' ? `'${value}'` : value;
-          conditions.push(`${sanitizedColumn} = ${safeValue}`);
-        }
-      });
-      
-      // Handle range filters (exclude the column we're histogramming)
-      Object.entries(rangeFilters).forEach(([column, range]) => {
-        const sanitizedColumn = sanitizeIdentifier(column);
-        if (sanitizedColumn !== sanitizedColumnName) {
-          conditions.push(`${sanitizedColumn} >= ${range.min} AND ${sanitizedColumn} <= ${range.max}`);
-        }
-      });
-      
-      const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
-      
-      // Check if this is a numerical column (simplified for tests)
-      const isNumerical = ['decimal', 'integer', 'bigint', 'double', 'float'].includes((column_type as string).toLowerCase());
-      
-      let histogram: any[];
-      
-      if (isNumerical) {
-        // For numerical columns, create simple bins
-        const rangeQuery = `SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val FROM ${sanitizedTableName}${whereClause}`;
-        const rangeResult = await runQuery(rangeQuery, []);
-        
-        if (rangeResult.length > 0 && rangeResult[0].min_val !== null) {
-          const minVal = Number(rangeResult[0].min_val);
-          const maxVal = Number(rangeResult[0].max_val);
-          const binWidth = (maxVal - minVal) / 3; // Simple 3-bin histogram for tests
-          
-          const binQuery = `
-            SELECT 
-              FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) as bin_num,
-              COUNT(*) as count,
-              ${minVal} + FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) * ${binWidth} as bin_start,
-              ${minVal} + (FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) + 1) * ${binWidth} as bin_end
-            FROM ${sanitizedTableName}
-            ${whereClause}
-            GROUP BY bin_num, bin_start, bin_end
-            ORDER BY bin_start
-            LIMIT 5
-          `;
-          
-          histogram = await runQuery(binQuery, []);
-        } else {
-          histogram = [];
-        }
-      } else {
-        // For categorical columns
-        const categoryQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY count DESC LIMIT 5`;
-        histogram = await runQuery(categoryQuery, []);
-      }
-      
-      res.json(histogram);
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  });
-
-  // Get database info endpoint
-  testApp.get('/api/info', async (req, res) => {
-    try {
-      const tables = await runQuery(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'main'
-      `);
-      
-      res.json({
-        database: {
-          path: testConfig.database.path,
-          type: testConfig.database.type,
-          tables: tables.length
-        },
-        config: {
-          maxRows: testConfig.api.maxRows,
-          maxHistogramBins: testConfig.api.maxHistogramBins
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  });
-
-  return testApp;
-};
 
 // Setup and teardown
 beforeAll(async () => {
-  // Initialize in-memory database
+  // Create in-memory database for tests
   db = new duckdb.Database(':memory:');
   
-  // Create sample tables with test data
+  // Create server with test database and config
+  const testConfig = {
+    database: { path: ':memory:', type: 'memory' as const },
+    server: { port: 3001, host: 'localhost' },
+    api: { maxRows: 1000, maxHistogramBins: 50 }
+  };
+  
+  const server = createServer(db, testConfig);
+  app = server.app;
+  runQuery = server.runQuery;
+  
+  // Create test tables
   await runQuery(`
     CREATE TABLE products (
       id INTEGER,
@@ -307,6 +55,14 @@ beforeAll(async () => {
       quantity INTEGER,
       order_date DATE,
       status VARCHAR
+    )
+  `);
+
+  await runQuery(`
+    CREATE TABLE bigint_test (
+      id INTEGER,
+      large_number BIGINT,
+      name VARCHAR
     )
   `);
 
@@ -345,24 +101,12 @@ beforeAll(async () => {
     (8, 6, 8, 1, '2024-03-17', 'pending')
   `);
 
-  // Create a table with BigInt values to test serialization
-  await runQuery(`
-    CREATE TABLE bigint_test (
-      id INTEGER,
-      large_number BIGINT,
-      name VARCHAR
-    )
-  `);
-
   await runQuery(`
     INSERT INTO bigint_test VALUES
     (1, 9223372036854775807, 'Max BigInt'),
     (2, -9223372036854775808, 'Min BigInt'),
     (3, 1234567890123456789, 'Random BigInt')
   `);
-
-  // Create the test server
-  app = createTestServer();
 });
 
 afterAll(async () => {
@@ -486,7 +230,7 @@ describe('API Endpoints', () => {
       expect(response.body.data[0].id).toBe(3); // Third product
     });
 
-    it('should handle multiple filters', async () => {
+    it('should handle multiple filters with exact and range filters', async () => {
       // Test with 3 filters: category, in_stock, and price range
       const response = await request(app)
         .post('/api/tables/products/data')
@@ -522,6 +266,47 @@ describe('API Endpoints', () => {
       expect(productNames).not.toContain('Laptop Pro');
       expect(productNames).not.toContain('USB Cable');
       expect(productNames).not.toContain('Wireless Mouse');
+    });
+
+    it('should handle multiple exact filters only', async () => {
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({
+          filters: { 
+            category: 'Furniture',
+            in_stock: 1  // Only in-stock furniture
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(2); // Standing Desk, Monitor Stand
+      response.body.data.forEach((product: any) => {
+        expect(product.category).toBe('Furniture');
+        expect(product.in_stock).toBe(true);
+      });
+    });
+
+    it('should handle multiple range filters only', async () => {
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({
+          rangeFilters: {
+            price: { min: 50, max: 300 },
+            id: { min: 2, max: 6 }  // Limit to specific ID range
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      response.body.data.forEach((product: any) => {
+        expect(product.price).toBeGreaterThanOrEqual(50);
+        expect(product.price).toBeLessThanOrEqual(300);
+        expect(product.id).toBeGreaterThanOrEqual(2);
+        expect(product.id).toBeLessThanOrEqual(6);
+      });
     });
   });
 
