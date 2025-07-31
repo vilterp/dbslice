@@ -12,7 +12,7 @@ interface TableHeaderProps {
 
 const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDirection, headerMenu, setHeaderMenu }) => {
   return (
-    <tr>
+    <>
       {columns.map(column => (
         <th
           key={column}
@@ -59,7 +59,7 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDire
           </button>
         </th>
       ))}
-    </tr>
+    </>
   );
 };
 
