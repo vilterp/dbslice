@@ -198,6 +198,15 @@ function App() {
   const handleTableSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const table = e.target.value;
     if (!table) return;
+    
+    // Check if tab already exists for this table
+    const existingTab = tabs.find(t => t.table === table);
+    if (existingTab) {
+      setSelectedTabId(existingTab.id);
+      updateURL(table, existingTab.filters, existingTab.sortColumn, existingTab.sortDirection);
+      return;
+    }
+    
     const newTab = makeDefaultTab(table);
     setTabs((tabs) => [...tabs, newTab]);
     setSelectedTabId(newTab.id);
@@ -237,6 +246,15 @@ function App() {
         tables={tables}
         onAddTab={(table) => {
           if (!table) return;
+          
+          // Check if tab already exists for this table
+          const existingTab = tabs.find(t => t.table === table);
+          if (existingTab) {
+            setSelectedTabId(existingTab.id);
+            updateURL(table, existingTab.filters, existingTab.sortColumn, existingTab.sortDirection);
+            return;
+          }
+          
           const newTab = makeDefaultTab(table);
           setTabs((tabs) => [...tabs, newTab]);
           setSelectedTabId(newTab.id);
