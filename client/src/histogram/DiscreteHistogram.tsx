@@ -1,6 +1,7 @@
 import React from 'react';
 import OtherValues from './OtherValues';
 import { HistogramData, Filter } from '../api';
+import { abbreviateNumber } from '../utils';
 
 type DiscreteHistogramProps = {
   columnName: string;
@@ -39,7 +40,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
         const checked = filters.some((f: Filter) => f.column === columnName && f.value === value);
         let displayValue;
         if (isOthers) {
-          displayValue = `${item.count} other value${item.count === 1 ? '' : 's'}`;
+          displayValue = `${abbreviateNumber(item.count)} other value${item.count === 1 ? '' : 's'}`;
         } else {
           displayValue = value;
         }
@@ -124,7 +125,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
                 {displayValue}
               </span>
             </div>
-            <span className="bar-count" style={{ marginLeft: 8, minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12, flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.count}</span>
+            <span className="bar-count" style={{ marginLeft: 8, minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12, flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{abbreviateNumber(item.count)}</span>
           </div>
         );
       })}
