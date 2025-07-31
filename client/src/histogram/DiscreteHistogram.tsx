@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { HistogramData, Filter } from '../api';
 
 type DiscreteHistogramProps = {
@@ -16,6 +16,9 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   removeFilter,
   filters = [],
 }) => {
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const [otherInputValue, setOtherInputValue] = useState("");
+  const otherInputRef = React.useRef<HTMLInputElement>(null);
   const maxCount = Math.max(...data.map(h => h.count));
   // Sort by count descending, then alphabetically by value if counts are equal, but always put 'others' at the end
   const sortedData = [...data].sort((a, b) => {
@@ -39,23 +42,85 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
         } else {
           displayValue = value;
         }
+        if (isOthers) {
+          return (
+            <div
+              key={index}
+              className="histogram-bar discrete-bar others-bar"
+              style={{ display: 'flex', alignItems: 'center', minHeight: 24, cursor: 'pointer', outline: 'none' }}
+              onClick={() => {
+                setShowOtherInput(true);
+                setTimeout(() => otherInputRef.current?.focus(), 0);
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setShowOtherInput(true);
+                  setTimeout(() => otherInputRef.current?.focus(), 0);
+                }
+              }}
+            >
+              <div
+                className="bar-fill"
+                style={{
+                  width: `${barWidth}%`,
+                  minWidth: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 6px',
+                  position: 'relative',
+                  overflow: 'visible',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 500,
+                  borderRadius: 2,
+                  flex: '0 0 auto',
+                  zIndex: 1,
+                }}
+                title={displayValue}
+              >
+                <span style={{ position: 'relative', zIndex: 2 }}>{displayValue}</span>
+              </div>
+              <span className="bar-count" style={{ marginLeft: 'auto', minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12 }}>{item.count}</span>
+              {showOtherInput && (
+                <input
+                  ref={otherInputRef}
+                  type="text"
+                  value={otherInputValue}
+                  onChange={e => setOtherInputValue(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && otherInputValue.trim()) {
+                      addFilter(columnName, otherInputValue.trim());
+                      setShowOtherInput(false);
+                      setOtherInputValue("");
+                    } else if (e.key === 'Escape') {
+                      setShowOtherInput(false);
+                      setOtherInputValue("");
+                    }
+                  }}
+                  style={{ marginLeft: 8, fontSize: 14, padding: '2px 6px', borderRadius: 4, border: '1px solid #ccc', minWidth: 80 }}
+                  placeholder="Type value..."
+                />
+              )}
+            </div>
+          );
+        }
+        // Render normal bars
         return (
           <div
             key={index}
-            className={`histogram-bar discrete-bar ${isOthers ? 'others-bar' : ''}`}
+            className={`histogram-bar discrete-bar`}
             onClick={() => {
-              if (isOthers) return;
               if (checked) {
-                // Remove filter if already selected
                 removeFilter(columnName, value);
               } else {
                 addFilter(columnName, value);
               }
             }}
-            role={!isOthers ? 'button' : undefined}
-            tabIndex={!isOthers ? 0 : undefined}
+            role="button"
+            tabIndex={0}
             onKeyDown={e => {
-              if (isOthers) return;
               if (e.key === 'Enter' || e.key === ' ') {
                 if (checked) {
                   removeFilter(columnName, value);
@@ -68,20 +133,17 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               display: 'flex',
               alignItems: 'center',
               minHeight: 24,
-              cursor: !isOthers ? 'pointer' : undefined,
+              cursor: 'pointer',
               outline: 'none',
             }}
           >
-            {/* Checkbox for visual feedback, but clicking the bar also toggles */}
-            {!isOthers && (
-              <input
-                type="checkbox"
-                checked={checked}
-                readOnly
-                tabIndex={-1}
-                style={{ marginRight: 6, pointerEvents: 'none' }}
-              />
-            )}
+            <input
+              type="checkbox"
+              checked={checked}
+              readOnly
+              tabIndex={-1}
+              style={{ marginRight: 6, pointerEvents: 'none' }}
+            />
             <div
               className="bar-fill"
               style={{
