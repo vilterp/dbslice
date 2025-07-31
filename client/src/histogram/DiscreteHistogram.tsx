@@ -19,6 +19,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [otherInputValue, setOtherInputValue] = useState("");
   const otherInputRef = React.useRef<HTMLInputElement>(null);
+
   const maxCount = Math.max(...data.map(h => h.count));
   // Sort by count descending, then alphabetically by value if counts are equal, but always put 'others' at the end
   const sortedData = [...data].sort((a, b) => {
@@ -44,66 +45,19 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
         }
         if (isOthers) {
           return (
-            <div
+            <OtherValues
               key={index}
-              className="histogram-bar discrete-bar others-bar"
-              style={{ display: 'flex', alignItems: 'center', minHeight: 24, cursor: 'pointer', outline: 'none' }}
-              onClick={() => {
-                setShowOtherInput(true);
-                setTimeout(() => otherInputRef.current?.focus(), 0);
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setShowOtherInput(true);
-                  setTimeout(() => otherInputRef.current?.focus(), 0);
-                }
-              }}
-            >
-              <div
-                className="bar-fill"
-                style={{
-                  width: `${barWidth}%`,
-                  minWidth: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0 6px',
-                  position: 'relative',
-                  overflow: 'visible',
-                  whiteSpace: 'nowrap',
-                  fontWeight: 500,
-                  borderRadius: 2,
-                  flex: '0 0 auto',
-                  zIndex: 1,
-                }}
-                title={displayValue}
-              >
-                <span style={{ position: 'relative', zIndex: 2 }}>{displayValue}</span>
-              </div>
-              <span className="bar-count" style={{ marginLeft: 'auto', minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12 }}>{item.count}</span>
-              {showOtherInput && (
-                <input
-                  ref={otherInputRef}
-                  type="text"
-                  value={otherInputValue}
-                  onChange={e => setOtherInputValue(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && otherInputValue.trim()) {
-                      addFilter(columnName, otherInputValue.trim());
-                      setShowOtherInput(false);
-                      setOtherInputValue("");
-                    } else if (e.key === 'Escape') {
-                      setShowOtherInput(false);
-                      setOtherInputValue("");
-                    }
-                  }}
-                  style={{ marginLeft: 8, fontSize: 14, padding: '2px 6px', borderRadius: 4, border: '1px solid #ccc', minWidth: 80 }}
-                  placeholder="Type value..."
-                />
-              )}
-            </div>
+              barWidth={barWidth}
+              displayValue={displayValue}
+              count={item.count}
+              showOtherInput={showOtherInput}
+              setShowOtherInput={setShowOtherInput}
+              otherInputValue={otherInputValue}
+              setOtherInputValue={setOtherInputValue}
+              otherInputRef={otherInputRef}
+              addFilter={addFilter}
+              columnName={columnName}
+            />
           );
         }
         // Render normal bars
@@ -171,5 +125,76 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
     </div>
   );
 };
+
+type OtherValuesProps = {
+  barWidth: number;
+  displayValue: string;
+  count: number;
+  showOtherInput: boolean;
+  setShowOtherInput: React.Dispatch<React.SetStateAction<boolean>>;
+  otherInputValue: string;
+  setOtherInputValue: React.Dispatch<React.SetStateAction<string>>;
+  otherInputRef: React.RefObject<HTMLInputElement | null>;
+  addFilter: (column: string, value: string) => void;
+  columnName: string;
+};
+
+function OtherValues({
+  barWidth,
+  displayValue,
+  count,
+  showOtherInput,
+  setShowOtherInput,
+  otherInputValue,
+  setOtherInputValue,
+  otherInputRef,
+  addFilter,
+  columnName,
+}: OtherValuesProps) {
+  return (
+    <div
+      className="histogram-bar discrete-bar others-bar"
+      style={{ display: 'flex', alignItems: 'center', minHeight: 24, cursor: 'pointer', outline: 'none' }}
+      onClick={() => {
+        setShowOtherInput(true);
+        setTimeout(() => otherInputRef.current?.focus(), 0);
+      }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          setShowOtherInput(true);
+          setTimeout(() => otherInputRef.current?.focus(), 0);
+        }
+      }}
+    >
+      {!showOtherInput && (
+        <span style={{ position: 'relative', zIndex: 2 }}>{displayValue}</span>
+      )}
+      <span className="bar-count" style={{ marginLeft: 'auto', minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12 }}>{count}</span>
+      {showOtherInput && (
+        <input
+          ref={otherInputRef}
+          type="text"
+          value={otherInputValue}
+          onChange={e => setOtherInputValue(e.target.value)}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && otherInputValue.trim()) {
+              addFilter(columnName, otherInputValue.trim());
+              setShowOtherInput(false);
+              setOtherInputValue("");
+            } else if (e.key === 'Escape') {
+              setShowOtherInput(false);
+              setOtherInputValue("");
+            }
+          }}
+          style={{ marginLeft: 8, fontSize: 14, padding: '2px 6px', borderRadius: 4, border: '1px solid #ccc', minWidth: 80 }}
+          placeholder="Type value..."
+        />
+      )}
+    </div>
+  );
+}
 
 export default DiscreteHistogram;
