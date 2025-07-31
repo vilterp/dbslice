@@ -225,28 +225,23 @@ function App() {
     <div className="App">
       <header className="header">
         <h1>DuckDB Explorer</h1>
-        <div className="table-selector">
-          <select
-            value=""
-            onChange={handleTableSelect}
-            className="table-select"
-          >
-            <option value="">Open table...</option>
-            {tables.map((table) => (
-              <option key={table.table_name} value={table.table_name}>
-                {table.table_name}
-              </option>
-            ))}
-          </select>
-        </div>
       </header>
 
       {/* Tab bar */}
+
       <TabBar
         tabs={tabs}
         selectedTabId={selectedTabId}
         onTabClick={handleTabClick}
         onTabClose={handleTabClose}
+        tables={tables}
+        onAddTab={(table) => {
+          if (!table) return;
+          const newTab = makeDefaultTab(table);
+          setTabs((tabs) => [...tabs, newTab]);
+          setSelectedTabId(newTab.id);
+          updateURL(table, [], "", "");
+        }}
       />
 
       {currentTab && <Tab tab={currentTab} updateTab={updateTab} />}
