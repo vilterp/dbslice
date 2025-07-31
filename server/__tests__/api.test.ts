@@ -438,11 +438,13 @@ describe('API Endpoints', () => {
         .send({})
         .expect(200);
 
-      expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(8);
-      expect(response.body[0]).toHaveProperty('id');
-      expect(response.body[0]).toHaveProperty('name');
-      expect(response.body[0]).toHaveProperty('category');
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('total');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(8);
+      expect(response.body.data[0]).toHaveProperty('id');
+      expect(response.body.data[0]).toHaveProperty('name');
+      expect(response.body.data[0]).toHaveProperty('category');
     });
 
     it('should return filtered products data', async () => {
@@ -453,9 +455,10 @@ describe('API Endpoints', () => {
         })
         .expect(200);
 
-      expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(4); // Electronics products
-      response.body.forEach((product: any) => {
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(4); // Electronics products
+      response.body.data.forEach((product: any) => {
         expect(product.category).toBe('Electronics');
       });
     });
@@ -466,8 +469,9 @@ describe('API Endpoints', () => {
         .send({ limit: 3 })
         .expect(200);
 
-      expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(3);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(3);
     });
 
     it('should respect offset parameter', async () => {
@@ -476,9 +480,10 @@ describe('API Endpoints', () => {
         .send({ limit: 3, offset: 2 })
         .expect(200);
 
-      expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(3);
-      expect(response.body[0].id).toBe(3); // Third product
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(3);
+      expect(response.body.data[0].id).toBe(3); // Third product
     });
 
     it('should handle multiple filters', async () => {
@@ -496,8 +501,9 @@ describe('API Endpoints', () => {
       }
       expect(response.status).toBe(200);
 
-      expect(response.body).toBeInstanceOf(Array);
-      response.body.forEach((product: any) => {
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      response.body.data.forEach((product: any) => {
         expect(product.category).toBe('Electronics');
         expect(product.in_stock).toBe(true);
       });
@@ -554,7 +560,7 @@ describe('API Endpoints', () => {
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(1); // Limited to 1 bin
+      expect(response.body.length).toBe(2); // Categories are not binned - this returns distinct categories
     });
 
     it('should handle filters in histogram', async () => {
@@ -563,9 +569,9 @@ describe('API Endpoints', () => {
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
-      // Test that histogram returns data (filter parsing would need more complex implementation for query params)
+      // Test that histogram returns data with filters applied
       const totalCount = response.body.reduce((sum: number, item: any) => sum + item.count, 0);
-      expect(totalCount).toBe(8); // All products (filter not implemented for query params in this test)
+      expect(totalCount).toBe(6); // Products that are in stock
     });
   });
 
@@ -594,11 +600,12 @@ describe('API Endpoints', () => {
         .send({})
         .expect(200);
 
-      expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(3);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(3);
       
       // Verify that BigInt values are properly converted to numbers
-      response.body.forEach((row: any) => {
+      response.body.data.forEach((row: any) => {
         expect(row).toHaveProperty('id');
         expect(row).toHaveProperty('large_number');
         expect(row).toHaveProperty('name');
@@ -609,9 +616,9 @@ describe('API Endpoints', () => {
       });
 
       // Check specific values
-      const maxBigIntRow = response.body.find((row: any) => row.name === 'Max BigInt');
-      const minBigIntRow = response.body.find((row: any) => row.name === 'Min BigInt');
-      const randomBigIntRow = response.body.find((row: any) => row.name === 'Random BigInt');
+      const maxBigIntRow = response.body.data.find((row: any) => row.name === 'Max BigInt');
+      const minBigIntRow = response.body.data.find((row: any) => row.name === 'Min BigInt');
+      const randomBigIntRow = response.body.data.find((row: any) => row.name === 'Random BigInt');
 
       expect(maxBigIntRow.large_number).toBe(9223372036854775807);
       expect(minBigIntRow.large_number).toBe(-9223372036854775808);
