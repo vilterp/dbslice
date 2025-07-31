@@ -95,27 +95,34 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               tabIndex={-1}
               style={{ marginRight: 6, pointerEvents: 'none' }}
             />
-            <div
-              className="bar-fill"
-              style={{
-                width: `${barWidth}%`,
-                minWidth: 16,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 6px',
-                position: 'relative',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-                fontWeight: 500,
-                borderRadius: 2,
-                flex: '0 1 auto',
-                zIndex: 1,
-                boxSizing: 'border-box',
-              }}
-              title={displayValue}
-            >
-              <span style={{ position: 'relative', zIndex: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{displayValue}</span>
+            <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+              <div
+                className="bar-fill"
+                style={{
+                  width: `${barWidth}%`,
+                  minWidth: 16,
+                  height: 24,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  fontWeight: 500,
+                  borderRadius: 2,
+                  zIndex: 1,
+                  boxSizing: 'border-box',
+                }}
+              />
+              <span 
+                style={{ 
+                  position: 'relative', 
+                  zIndex: 2, 
+                  paddingLeft: 6,
+                  whiteSpace: 'nowrap',
+                  fontWeight: 500
+                }}
+                title={displayValue}
+              >
+                {displayValue}
+              </span>
             </div>
             <span className="bar-count" style={{ marginLeft: 8, minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12, flex: '0 0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.count}</span>
           </div>
