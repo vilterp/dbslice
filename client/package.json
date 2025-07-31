@@ -1,0 +1,27 @@
+{
+  "name": "client",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/jest": "28",
+    "@types/node": "^20.0.0",
+    "@types/supertest": "^6.0.3",
+    "esbuild": "^0.19.0",
+    "esbuild-plugin-copy": "^2.1.1",
+    "jest": "28",
+    "supertest": "^7.1.4",
+    "ts-jest": "28",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "start": "node build.js --dev",
+    "build": "node build.js",
+    "dev": "node build.js --dev --watch"
+  }
+}

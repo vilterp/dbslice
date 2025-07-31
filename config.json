@@ -1,0 +1,14 @@
+{
+  "database": {
+    "path": "/Users/petevilter/Downloads/pjm_study_results2.duckdb",
+    "type": "file"
+  },
+  "server": {
+    "port": 3001,
+    "host": "localhost"
+  },
+  "api": {
+    "maxRows": 1000,
+    "maxHistogramBins": 50
+  }
+}
