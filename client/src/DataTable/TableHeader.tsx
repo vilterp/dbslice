@@ -1,6 +1,5 @@
 import React from 'react';
-
-type SortDirection = 'asc' | 'desc' | '';
+import { SortDirection } from '../api';
 
 interface TableHeaderProps {
   columns: string[];

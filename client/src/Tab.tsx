@@ -1,8 +1,7 @@
 import React from "react";
 import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
-import TableHeader from "./TableHeader";
-import HeaderMenu from "./HeaderMenu";
+import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
 import { Column, HistogramData, Filter, SortDirection } from "./api";
 
@@ -153,58 +152,31 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
             <div className="data-table">
               <h3>Data ({abbreviateNumber(tab.tableTotal)} rows)</h3>
               {tab.tableData.length > 0 && (
-                <div style={{ position: "relative" }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <TableHeader
-                          columns={Object.keys(tab.tableData[0])}
-                          sortColumn={tab.sortColumn}
-                          sortDirection={tab.sortDirection}
-                          headerMenu={tab.headerMenu}
-                          setHeaderMenu={(menu) =>
-                            updateTab(tab.id, (t) => ({
-                              ...t,
-                              headerMenu: menu,
-                            }))
-                          }
-                        />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tab.tableData.map((row, index) => (
-                        <tr key={index}>
-                          {Object.values(row).map((value, cellIndex) => (
-                            <td key={cellIndex}>{String(value)}</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <HeaderMenu
-                    headerMenu={tab.headerMenu}
-                    sortColumn={tab.sortColumn}
-                    setSortColumn={(col) =>
-                      updateTab(tab.id, (t) => ({
-                        ...t,
-                        sortColumn: col,
-                      }))
-                    }
-                    sortDirection={tab.sortDirection}
-                    setSortDirection={(dir) =>
-                      updateTab(tab.id, (t) => ({
-                        ...t,
-                        sortDirection: dir as SortDirection,
-                      }))
-                    }
-                    setHeaderMenu={(menu) =>
-                      updateTab(tab.id, (t) => ({
-                        ...t,
-                        headerMenu: menu,
-                      }))
-                    }
-                  />
-                </div>
+                <DataTable
+                  tableData={tab.tableData}
+                  tableTotal={tab.tableTotal}
+                  sortColumn={tab.sortColumn}
+                  sortDirection={tab.sortDirection}
+                  headerMenu={tab.headerMenu}
+                  setHeaderMenu={(menu) =>
+                    updateTab(tab.id, (t) => ({
+                      ...t,
+                      headerMenu: menu,
+                    }))
+                  }
+                  setSortColumn={(col) =>
+                    updateTab(tab.id, (t) => ({
+                      ...t,
+                      sortColumn: col,
+                    }))
+                  }
+                  setSortDirection={(dir) =>
+                    updateTab(tab.id, (t) => ({
+                      ...t,
+                      sortDirection: dir as SortDirection,
+                    }))
+                  }
+                />
               )}
             </div>
           )}

@@ -1,11 +1,13 @@
 import React from 'react';
 
+import { SortDirection } from '../api';
+
 interface HeaderMenuProps {
   headerMenu: { column: string; x: number; y: number } | null;
   sortColumn: string;
   setSortColumn: (col: string) => void;
-  sortDirection: string;
-  setSortDirection: (dir: string) => void;
+  sortDirection: SortDirection;
+  setSortDirection: (dir: SortDirection) => void;
   setHeaderMenu: (menu: { column: string; x: number; y: number } | null) => void;
 }
 
