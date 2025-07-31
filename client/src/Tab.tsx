@@ -154,7 +154,6 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
               {tab.tableData.length > 0 && (
                 <DataTable
                   tableData={tab.tableData}
-                  tableTotal={tab.tableTotal}
                   sortColumn={tab.sortColumn}
                   sortDirection={tab.sortDirection}
                   headerMenu={tab.headerMenu}

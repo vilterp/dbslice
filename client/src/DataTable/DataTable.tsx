@@ -2,12 +2,10 @@ import "./DataTable.css";
 import React from "react";
 import TableHeader from "./TableHeader";
 import HeaderMenu from "./HeaderMenu";
-import { abbreviateNumber } from "../utils";
 import { SortDirection } from "../api";
 
 interface DataTableProps {
   tableData: any[];
-  tableTotal: number;
   sortColumn: string;
   sortDirection: SortDirection;
   headerMenu: { column: string; x: number; y: number } | null;
@@ -18,7 +16,6 @@ interface DataTableProps {
 
 const DataTable: React.FC<DataTableProps> = ({
   tableData,
-  tableTotal,
   sortColumn,
   sortDirection,
   headerMenu,
@@ -27,7 +24,6 @@ const DataTable: React.FC<DataTableProps> = ({
   setSortDirection,
 }) => (
   <div className="data-table">
-    <h3>Data ({abbreviateNumber(tableTotal)} rows)</h3>
     {tableData.length > 0 && (
       <div style={{ position: "relative" }}>
         <table>
