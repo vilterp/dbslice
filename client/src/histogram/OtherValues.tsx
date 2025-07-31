@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { abbreviateNumber } from '../utils';
+import Tooltip from '../components/Tooltip';
 
 type OtherValuesProps = {
   barWidth: number;
@@ -18,6 +19,7 @@ const OtherValues: React.FC<OtherValuesProps> = ({
 }) => {
   const [showOtherInput, setShowOtherInput] = React.useState(false);
   const [otherInputValue, setOtherInputValue] = React.useState("");
+  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
   const otherInputRef = React.useRef<HTMLInputElement>(null);
 
   return (
@@ -82,7 +84,22 @@ const OtherValues: React.FC<OtherValuesProps> = ({
                 minWidth: 0, // Allow text to shrink
                 flexShrink: 1 // Allow this text to shrink
               }}
-              title={displayValue}
+              onMouseEnter={(e) => {
+                const element = e.currentTarget;
+                const isOverflowing = element.scrollWidth > element.clientWidth;
+                if (isOverflowing) {
+                  const rect = element.getBoundingClientRect();
+                  setTooltip({
+                    visible: true,
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    content: displayValue
+                  });
+                }
+              }}
+              onMouseLeave={() => {
+                setTooltip({ visible: false, x: 0, y: 0, content: '' });
+              }}
             >
               {displayValue}
             </span>
@@ -129,6 +146,12 @@ const OtherValues: React.FC<OtherValuesProps> = ({
           placeholder="Type value..."
         />
       )}
+      <Tooltip 
+        visible={tooltip.visible}
+        x={tooltip.x}
+        y={tooltip.y}
+        content={tooltip.content}
+      />
     </div>
   );
 };

@@ -7,7 +7,9 @@
   font-size: 12px;
   pointer-events: none;
   z-index: 1000;
-  white-space: nowrap;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-width: 300px;
   transform: translate(-50%, -100%);
   margin-top: -8px;
 }
