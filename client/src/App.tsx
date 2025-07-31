@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
-import TableHeader from './TableHeader';
-import FilterBar from './FilterBar';
-import Sidebar from './Sidebar';
-import HeaderMenu from './HeaderMenu';
+import React, { useState, useEffect } from "react";
+import "./App.css";
+import TableHeader from "./TableHeader";
+import FilterBar from "./FilterBar";
+import Sidebar from "./Sidebar";
+import HeaderMenu from "./HeaderMenu";
 import {
   Table,
   Column,
@@ -15,9 +15,9 @@ import {
   fetchColumns,
   fetchTableData,
   fetchHistograms,
-} from './api';
-import { updateURL, loadFromURL } from './urlState';
-import { abbreviateNumber } from './utils';
+} from "./api";
+import { updateURL, loadFromURL } from "./urlState";
+import { abbreviateNumber } from "./utils";
 
 interface RangeSelection {
   start: number;
@@ -25,158 +25,259 @@ interface RangeSelection {
   isSelecting: boolean;
 }
 
+type TabState = {
+  id: string;
+  table: string;
+  columns: Column[];
+  filters: Filter[];
+  tableData: any[];
+  tableTotal: number;
+  histograms: { [key: string]: HistogramData[] };
+  loading: boolean;
+  collapsedColumns: Set<string>;
+  rangeSelections: { [key: string]: RangeSelection };
+  sortColumn: string;
+  sortDirection: SortDirection;
+  headerMenu: { column: string; x: number; y: number } | null;
+};
+
+const makeDefaultTab = (table: string): TabState => ({
+  id: Math.random().toString(36).slice(2),
+  table,
+  columns: [],
+  filters: [],
+  tableData: [],
+  tableTotal: 0,
+  histograms: {},
+  loading: false,
+  collapsedColumns: new Set(),
+  rangeSelections: {},
+  sortColumn: "",
+  sortDirection: "",
+  headerMenu: null,
+});
+
 function App() {
   const [tables, setTables] = useState<Table[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string>('');
-  const [columns, setColumns] = useState<Column[]>([]);
-  const [filters, setFilters] = useState<Filter[]>([]);
-  const [tableData, setTableData] = useState<any[]>([]);
-  const [tableTotal, setTableTotal] = useState<number>(0);
-  const [histograms, setHistograms] = useState<{[key: string]: HistogramData[]}>({});
-  const [loading, setLoading] = useState(false);
-  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
-  const [rangeSelections, setRangeSelections] = useState<{[key: string]: RangeSelection}>({});
-  const [sortColumn, setSortColumn] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('');
-  const [headerMenu, setHeaderMenu] = useState<{column: string, x: number, y: number} | null>(null);
-
+  const [tabs, setTabs] = useState<TabState[]>([]);
+  const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTables()
       .then((data) => setTables(data))
-      .catch((e) => console.error('Error fetching tables:', e));
+      .catch((e) => console.error("Error fetching tables:", e));
   }, []);
 
-  // Load from URL after tables are fetched
+  // Load data for the selected tab
   useEffect(() => {
-    if (tables.length > 0) {
-      loadFromURL(
-        tables,
-        setSelectedTable,
-        setFilters,
-        setSortColumn,
-        setSortDirection
-      );
-    }
-  }, [tables]);
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      if (tables.length > 0) {
-        loadFromURL(
-          tables,
-          setSelectedTable,
-          setFilters,
-          setSortColumn,
-          setSortDirection
+    const tab = tabs.find((t) => t.id === selectedTabId);
+    if (!tab) return;
+    if (!tab.table) return;
+    // Fetch columns
+    fetchColumns(tab.table)
+      .then((data) => {
+        setTabs((tabs) =>
+          tabs.map((t) => (t.id === tab.id ? { ...t, columns: data } : t))
         );
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [tables]);
+      })
+      .catch((e) => console.error("Error fetching columns:", e));
+    // Fetch table data
+    fetchTableData(tab.table, tab.filters, tab.sortColumn, tab.sortDirection)
+      .then((result) => {
+        setTabs((tabs) =>
+          tabs.map((t) =>
+            t.id === tab.id
+              ? {
+                  ...t,
+                  tableData: result.data || [],
+                  tableTotal:
+                    typeof result.total === "number" ? result.total : 0,
+                }
+              : t
+          )
+        );
+      })
+      .catch((e) => {
+        console.error("Error fetching table data:", e);
+        setTabs((tabs) =>
+          tabs.map((t) =>
+            t.id === tab.id ? { ...t, tableData: [], tableTotal: 0 } : t
+          )
+        );
+      });
+  }, [
+    selectedTabId,
+    tabs.find((t) => t.id === selectedTabId)?.filters,
+    tabs.find((t) => t.id === selectedTabId)?.sortColumn,
+    tabs.find((t) => t.id === selectedTabId)?.sortDirection,
+  ]);
 
   useEffect(() => {
-    if (selectedTable) {
-      fetchColumns(selectedTable)
-        .then((data) => setColumns(data))
-        .catch((e) => console.error('Error fetching columns:', e));
-      fetchTableData(selectedTable, filters, sortColumn, sortDirection)
-        .then((result) => {
-          setTableData(result.data || []);
-          setTableTotal(typeof result.total === 'number' ? result.total : 0);
-        })
-        .catch((e) => {
-          console.error('Error fetching table data:', e);
-          setTableData([]);
-          setTableTotal(0);
-        });
-      updateURL(selectedTable, filters, sortColumn, sortDirection);
-    }
-    // eslint-disable-next-line
-  }, [selectedTable, filters, sortColumn, sortDirection]);
-
-  useEffect(() => {
-    if (selectedTable && columns.length > 0) {
-      fetchHistograms(selectedTable, columns, filters)
-        .then((data) => setHistograms(data))
-        .catch((e) => console.error('Error fetching histograms:', e));
-    }
-  }, [selectedTable, filters, columns]);
+    const tab = tabs.find((t) => t.id === selectedTabId);
+    if (!tab) return;
+    if (!tab.table || tab.columns.length === 0) return;
+    fetchHistograms(tab.table, tab.columns, tab.filters)
+      .then((data) => {
+        setTabs((tabs) =>
+          tabs.map((t) => (t.id === tab.id ? { ...t, histograms: data } : t))
+        );
+      })
+      .catch((e) => console.error("Error fetching histograms:", e));
+  }, [
+    selectedTabId,
+    tabs.find((t) => t.id === selectedTabId)?.columns,
+    tabs.find((t) => t.id === selectedTabId)?.filters,
+  ]);
 
   // All data loading functions are now imported from api.ts
 
-  const addFilter = (column: string, value: string, type: 'exact' | 'range' = 'exact', min?: number, max?: number) => {
-    const existingFilter = filters.find(f => f.column === column);
-    if (existingFilter) {
-      setFilters(filters.map(f => f.column === column ? { column, value, type, min, max } : f));
-    } else {
-      setFilters([...filters, { column, value, type, min, max }]);
-    }
+  // Tab-specific state updaters
+  const updateTab = (tabId: string, updater: (tab: TabState) => TabState) => {
+    setTabs((tabs) => tabs.map((t) => (t.id === tabId ? updater(t) : t)));
+  };
+
+  const addFilter = (
+    column: string,
+    value: string,
+    type: "exact" | "range" = "exact",
+    min?: number,
+    max?: number
+  ) => {
+    if (!selectedTabId) return;
+    updateTab(selectedTabId, (tab) => {
+      const existingFilter = tab.filters.find((f) => f.column === column);
+      let newFilters;
+      if (existingFilter) {
+        newFilters = tab.filters.map((f) =>
+          f.column === column ? { column, value, type, min, max } : f
+        );
+      } else {
+        newFilters = [...tab.filters, { column, value, type, min, max }];
+      }
+      return { ...tab, filters: newFilters };
+    });
   };
 
   const removeFilter = (column: string) => {
-    setFilters(filters.filter(f => f.column !== column));
+    if (!selectedTabId) return;
+    updateTab(selectedTabId, (tab) => ({
+      ...tab,
+      filters: tab.filters.filter((f) => f.column !== column),
+    }));
   };
 
   const toggleColumnCollapse = (columnName: string) => {
-    const newCollapsed = new Set(collapsedColumns);
-    if (newCollapsed.has(columnName)) {
-      newCollapsed.delete(columnName);
-    } else {
-      newCollapsed.add(columnName);
-    }
-    setCollapsedColumns(newCollapsed);
+    if (!selectedTabId) return;
+    updateTab(selectedTabId, (tab) => {
+      const newCollapsed = new Set(tab.collapsedColumns);
+      if (newCollapsed.has(columnName)) {
+        newCollapsed.delete(columnName);
+      } else {
+        newCollapsed.add(columnName);
+      }
+      return { ...tab, collapsedColumns: newCollapsed };
+    });
   };
 
   const isNumericalColumn = (dataType: string) => {
-    return ['INTEGER', 'BIGINT', 'DECIMAL', 'DOUBLE', 'FLOAT', 'NUMERIC', 'REAL'].some(type => 
-      dataType.toUpperCase().includes(type)
-    );
+    return [
+      "INTEGER",
+      "BIGINT",
+      "DECIMAL",
+      "DOUBLE",
+      "FLOAT",
+      "NUMERIC",
+      "REAL",
+    ].some((type) => dataType.toUpperCase().includes(type));
   };
 
   const handleRangeSelection = (columnName: string, item: HistogramData) => {
+    if (!selectedTabId) return;
     if (!item.bin_start || !item.bin_end) return;
-    
-    const currentRange = rangeSelections[columnName];
-    
-    if (!currentRange || !currentRange.isSelecting) {
-      // Start new selection
-      setRangeSelections({
-        ...rangeSelections,
-        [columnName]: {
-          start: item.bin_start,
-          end: item.bin_end,
-          isSelecting: true
-        }
-      });
-    } else {
-      // Complete selection
-      const min = Math.min(currentRange.start, item.bin_start);
-      const max = Math.max(currentRange.end, item.bin_end);
-      
-      addFilter(columnName, `${min}-${max}`, 'range', min, max);
-      
-      setRangeSelections({
-        ...rangeSelections,
-        [columnName]: { start: 0, end: 0, isSelecting: false }
-      });
-    }
+    updateTab(selectedTabId, (tab) => {
+      const currentRange = tab.rangeSelections[columnName];
+      if (!currentRange || !currentRange.isSelecting) {
+        // Start new selection, ensure bin_start/bin_end are numbers
+        const start = typeof item.bin_start === "number" ? item.bin_start : 0;
+        const end = typeof item.bin_end === "number" ? item.bin_end : 0;
+        return {
+          ...tab,
+          rangeSelections: {
+            ...tab.rangeSelections,
+            [columnName]: {
+              start,
+              end,
+              isSelecting: true,
+            } as RangeSelection,
+          },
+        };
+      } else {
+        // Complete selection, ensure all are numbers
+        const s1 =
+          typeof currentRange.start === "number" ? currentRange.start : 0;
+        const s2 = typeof item.bin_start === "number" ? item.bin_start : 0;
+        const e1 = typeof currentRange.end === "number" ? currentRange.end : 0;
+        const e2 = typeof item.bin_end === "number" ? item.bin_end : 0;
+        const min = Math.min(s1, s2);
+        const max = Math.max(e1, e2);
+        addFilter(columnName, `${min}-${max}`, "range", min, max);
+        return {
+          ...tab,
+          rangeSelections: {
+            ...tab.rangeSelections,
+            [columnName]: {
+              start: 0,
+              end: 0,
+              isSelecting: false,
+            } as RangeSelection,
+          },
+        };
+      }
+    });
   };
+
+  // Tab bar UI
+  const handleTabClick = (tabId: string) => setSelectedTabId(tabId);
+  const handleTabClose = (tabId: string) => {
+    setTabs((tabs) => {
+      const idx = tabs.findIndex((t) => t.id === tabId);
+      const newTabs = tabs.filter((t) => t.id !== tabId);
+      if (selectedTabId === tabId) {
+        // Select next tab, or previous, or null
+        if (newTabs.length > 0) {
+          const newIdx = idx > 0 ? idx - 1 : 0;
+          setSelectedTabId(newTabs[newIdx].id);
+        } else {
+          setSelectedTabId(null);
+        }
+      }
+      return newTabs;
+    });
+  };
+
+  // When selecting a table, open a new tab
+  const handleTableSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const table = e.target.value;
+    if (!table) return;
+    const newTab = makeDefaultTab(table);
+    setTabs((tabs) => [...tabs, newTab]);
+    setSelectedTabId(newTab.id);
+  };
+
+  const currentTab = tabs.find((t) => t.id === selectedTabId);
 
   return (
     <div className="App">
       <header className="header">
         <h1>DuckDB Explorer</h1>
         <div className="table-selector">
-          <select 
-            value={selectedTable} 
-            onChange={(e) => setSelectedTable(e.target.value)}
+          <select
+            value=""
+            onChange={handleTableSelect}
             className="table-select"
           >
-            <option value="">Select a table...</option>
-            {tables.map(table => (
+            <option value="">Open table...</option>
+            {tables.map((table) => (
               <option key={table.table_name} value={table.table_name}>
                 {table.table_name}
               </option>
@@ -185,17 +286,63 @@ function App() {
         </div>
       </header>
 
-      {selectedTable && (
+      {/* Tab bar */}
+      <div
+        className="tab-bar"
+        style={{
+          display: "flex",
+          background: "#f8f9fa",
+          borderBottom: "1px solid #e0e0e0",
+        }}
+      >
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            className={tab.id === selectedTabId ? "tab active" : "tab"}
+            style={{
+              padding: "0.5rem 1rem",
+              borderRight: "1px solid #e0e0e0",
+              background: tab.id === selectedTabId ? "white" : "inherit",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              position: "relative",
+            }}
+            onClick={() => handleTabClick(tab.id)}
+          >
+            <span>{tab.table}</span>
+            <button
+              style={{
+                marginLeft: 8,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#888",
+                fontSize: 16,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTabClose(tab.id);
+              }}
+              aria-label="Close tab"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {currentTab && (
         <div className="main-content">
-          <FilterBar filters={filters} removeFilter={removeFilter} />
+          <FilterBar filters={currentTab.filters} removeFilter={removeFilter} />
 
           <div className="content-wrapper">
             <Sidebar
-              columns={columns}
-              histograms={histograms}
-              filters={filters}
-              collapsedColumns={collapsedColumns}
-              rangeSelections={rangeSelections}
+              columns={currentTab.columns}
+              histograms={currentTab.histograms}
+              filters={currentTab.filters}
+              collapsedColumns={currentTab.collapsedColumns}
+              rangeSelections={currentTab.rangeSelections}
               toggleColumnCollapse={toggleColumnCollapse}
               isNumericalColumn={isNumericalColumn}
               handleRangeSelection={handleRangeSelection}
@@ -203,27 +350,32 @@ function App() {
             />
 
             <div className="main-panel">
-              {loading ? (
+              {currentTab.loading ? (
                 <div className="loading">Loading...</div>
               ) : (
                 <div className="data-table">
-                  <h3>Data ({abbreviateNumber(tableTotal)} rows)</h3>
-                  {tableData.length > 0 && (
-                    <div style={{ position: 'relative' }}>
+                  <h3>Data ({abbreviateNumber(currentTab.tableTotal)} rows)</h3>
+                  {currentTab.tableData.length > 0 && (
+                    <div style={{ position: "relative" }}>
                       <table>
                         <thead>
                           <tr>
                             <TableHeader
-                              columns={Object.keys(tableData[0])}
-                              sortColumn={sortColumn}
-                              sortDirection={sortDirection}
-                              headerMenu={headerMenu}
-                              setHeaderMenu={setHeaderMenu}
+                              columns={Object.keys(currentTab.tableData[0])}
+                              sortColumn={currentTab.sortColumn}
+                              sortDirection={currentTab.sortDirection}
+                              headerMenu={currentTab.headerMenu}
+                              setHeaderMenu={(menu) =>
+                                updateTab(currentTab.id, (t) => ({
+                                  ...t,
+                                  headerMenu: menu,
+                                }))
+                              }
                             />
                           </tr>
                         </thead>
                         <tbody>
-                          {tableData.map((row, index) => (
+                          {currentTab.tableData.map((row, index) => (
                             <tr key={index}>
                               {Object.values(row).map((value, cellIndex) => (
                                 <td key={cellIndex}>{String(value)}</td>
@@ -233,12 +385,27 @@ function App() {
                         </tbody>
                       </table>
                       <HeaderMenu
-                        headerMenu={headerMenu}
-                        sortColumn={sortColumn}
-                        setSortColumn={setSortColumn}
-                        sortDirection={sortDirection}
-                        setSortDirection={(dir: string) => setSortDirection(dir as SortDirection)}
-                        setHeaderMenu={setHeaderMenu}
+                        headerMenu={currentTab.headerMenu}
+                        sortColumn={currentTab.sortColumn}
+                        setSortColumn={(col) =>
+                          updateTab(currentTab.id, (t) => ({
+                            ...t,
+                            sortColumn: col,
+                          }))
+                        }
+                        sortDirection={currentTab.sortDirection}
+                        setSortDirection={(dir) =>
+                          updateTab(currentTab.id, (t) => ({
+                            ...t,
+                            sortDirection: dir as SortDirection,
+                          }))
+                        }
+                        setHeaderMenu={(menu) =>
+                          updateTab(currentTab.id, (t) => ({
+                            ...t,
+                            headerMenu: menu,
+                          }))
+                        }
                       />
                     </div>
                   )}
