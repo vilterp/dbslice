@@ -4,6 +4,7 @@ import TableHeader from "./TableHeader";
 import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
 import HeaderMenu from "./HeaderMenu";
+import TabBar from "./TabBar";
 import {
   Table,
   Column,
@@ -286,51 +287,14 @@ function App() {
         </div>
       </header>
 
+
       {/* Tab bar */}
-      <div
-        className="tab-bar"
-        style={{
-          display: "flex",
-          background: "#f8f9fa",
-          borderBottom: "1px solid #e0e0e0",
-        }}
-      >
-        {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={tab.id === selectedTabId ? "tab active" : "tab"}
-            style={{
-              padding: "0.5rem 1rem",
-              borderRight: "1px solid #e0e0e0",
-              background: tab.id === selectedTabId ? "white" : "inherit",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              position: "relative",
-            }}
-            onClick={() => handleTabClick(tab.id)}
-          >
-            <span>{tab.table}</span>
-            <button
-              style={{
-                marginLeft: 8,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "#888",
-                fontSize: 16,
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTabClose(tab.id);
-              }}
-              aria-label="Close tab"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
+      <TabBar
+        tabs={tabs}
+        selectedTabId={selectedTabId}
+        onTabClick={handleTabClick}
+        onTabClose={handleTabClose}
+      />
 
       {currentTab && (
         <div className="main-content">
