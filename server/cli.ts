@@ -21,6 +21,7 @@ try {
     config = JSON.parse(configData);
   }
   
+  console.log(`⚙️  Using config file: ${path.basename(configPath)}`);
   console.log(`📁 Loading DuckDB from: ${config.database.path}`);
 } catch (error) {
   console.error('❌ Error loading config file:', (error as Error).message);
