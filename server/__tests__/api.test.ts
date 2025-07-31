@@ -487,11 +487,12 @@ describe('API Endpoints', () => {
     });
 
     it('should handle multiple filters', async () => {
+      // First test with a combination that should return fewer results
       const response = await request(app)
         .post('/api/tables/products/data')
         .send({
           filters: { 
-            category: 'Electronics',
+            category: 'Furniture',
             in_stock: 1  // Use 1 instead of true for DuckDB
           }
         });
@@ -503,8 +504,9 @@ describe('API Endpoints', () => {
 
       expect(response.body).toHaveProperty('data');
       expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(2); // Only 2 Furniture items are in stock (Standing Desk, Monitor Stand)
       response.body.data.forEach((product: any) => {
-        expect(product.category).toBe('Electronics');
+        expect(product.category).toBe('Furniture');
         expect(product.in_stock).toBe(true);
       });
     });
