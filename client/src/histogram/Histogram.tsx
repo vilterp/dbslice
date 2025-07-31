@@ -36,7 +36,7 @@ const Histogram: React.FC<HistogramProps> = ({
   }
 
   if (isNumerical) {
-    return <NumericHistogram columnName={columnName} data={data} currentRange={currentRange} handleRangeSelection={handleRangeSelection} />;
+    return <NumericHistogram columnName={columnName} data={data} currentRange={currentRange} handleRangeSelection={handleRangeSelection} addFilter={addFilter} />;
   }
 
   return (
