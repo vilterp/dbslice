@@ -96,7 +96,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabC
         </button>
         {showDropdown && (
           <div style={{ position: "absolute", left: 0, top: "100%", zIndex: 20 }}>
-            <DropdownMenu disablePositioning>
+            <DropdownMenu align="left">
               {tables.map((table) => (
                 <div
                   key={table.table_name}

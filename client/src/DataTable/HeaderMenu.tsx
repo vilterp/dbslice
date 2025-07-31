@@ -27,9 +27,21 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({
     right: 'auto',
     zIndex: 1000,
   };
+  // Close on outside click
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setHeaderMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [setHeaderMenu]);
+
   return (
-    <div style={menuStyle} onMouseLeave={() => setHeaderMenu(null)}>
-      <DropdownMenu disablePositioning>
+    <div ref={menuRef} style={menuStyle}>
+      <DropdownMenu align="left">
         <div
           style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           onClick={() => {
