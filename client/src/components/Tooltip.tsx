@@ -19,7 +19,9 @@ const Tooltip: React.FC<TooltipProps> = ({ visible, x, y, content }) => {
         top: y,
       }}
     >
-      {content}
+      {content.split('\n').map((line, index) => (
+        <div key={index}>{line}</div>
+      ))}
     </div>
   );
 };

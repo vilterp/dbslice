@@ -24,6 +24,20 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
   const svgRef = useRef<SVGSVGElement>(null);
 
+  // Helper function to format numbers with appropriate precision
+  const formatNumber = (num: number): string => {
+    if (Math.abs(num) >= 1000000 || (Math.abs(num) < 0.01 && num !== 0)) {
+      return num.toExponential(2);
+    }
+    if (Math.abs(num) >= 100) {
+      return num.toFixed(0);
+    }
+    if (Math.abs(num) >= 1) {
+      return num.toFixed(2);
+    }
+    return num.toFixed(3);
+  };
+
   if (error) {
     return (
       <div className="histogram-error" style={{
@@ -101,6 +115,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   return (
     <div className="numeric-histogram" style={{ padding: '4px 4px 0 4px' }}>
       <svg 
+        ref={svgRef}
         width={chartWidth + marginLeft + marginRight}
         height={chartHeight + marginTop + marginBottom}
         style={{ overflow: 'visible' }}
@@ -140,30 +155,43 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
           const isSelected = isBarSelected(item);
 
           return (
-            <rect
-              key={index}
-              x={x}
-              y={y}
-              width={width}
-              height={height}
-              fill={isSelected ? "#90caf9" : "#bbdefb"}
-              stroke="#fff"
-              strokeWidth={0.5}
-              style={{ cursor: 'pointer' }}
-              onClick={() => handleBarClick(item)}
-              onMouseEnter={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setTooltip({
-                  visible: true,
-                  x: rect.left + rect.width / 2,
-                  y: rect.top,
-                  content: `Count: ${item.count}${isSelected ? ' (filtered)' : ''}`
-                });
-              }}
-              onMouseLeave={() => {
-                setTooltip({ visible: false, x: 0, y: 0, content: '' });
-              }}
-            />
+            <g key={index}>
+              {/* Visible bar */}
+              <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                fill={isSelected ? "#90caf9" : "#bbdefb"}
+                stroke="#fff"
+                strokeWidth={0.5}
+                pointerEvents="none"
+              />
+              {/* Invisible full-height clickable area */}
+              <rect
+                x={x}
+                y={marginTop}
+                width={width}
+                height={chartHeight}
+                fill="transparent"
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleBarClick(item)}
+                onMouseEnter={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const minVal = formatNumber(binStart);
+                  const maxVal = formatNumber(binEnd);
+                  setTooltip({
+                    visible: true,
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    content: `Range: ${minVal} - ${maxVal}\nCount: ${item.count}${isSelected ? ' (filtered)' : ''}`
+                  });
+                }}
+                onMouseLeave={() => {
+                  setTooltip({ visible: false, x: 0, y: 0, content: '' });
+                }}
+              />
+            </g>
           );
         })}
 
