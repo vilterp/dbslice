@@ -95,29 +95,31 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabC
           +
         </button>
         {showDropdown && (
-          <DropdownMenu>
-            {tables.map((table) => (
-              <div
-                key={table.table_name}
-                style={{
-                  padding: "0.5rem 1rem",
-                  cursor: "pointer",
-                  borderBottom: "1px solid #eee",
-                  whiteSpace: 'nowrap',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  maxWidth: 300,
-                }}
-                title={table.table_name}
-                onClick={() => {
-                  setShowDropdown(false);
-                  onAddTab(table.table_name);
-                }}
-              >
-                {table.table_name}
-              </div>
-            ))}
-          </DropdownMenu>
+          <div style={{ position: "absolute", left: 0, top: "100%", zIndex: 20 }}>
+            <DropdownMenu disablePositioning>
+              {tables.map((table) => (
+                <div
+                  key={table.table_name}
+                  style={{
+                    padding: "0.5rem 1rem",
+                    cursor: "pointer",
+                    borderBottom: "1px solid #eee",
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    maxWidth: 300,
+                  }}
+                  title={table.table_name}
+                  onClick={() => {
+                    setShowDropdown(false);
+                    onAddTab(table.table_name);
+                  }}
+                >
+                  {table.table_name}
+                </div>
+              ))}
+            </DropdownMenu>
+          </div>
         )}
       </div>
     </div>

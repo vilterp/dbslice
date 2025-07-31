@@ -24,11 +24,12 @@ const HeaderMenu: React.FC<HeaderMenuProps> = ({
     position: 'fixed',
     top: headerMenu.y,
     left: headerMenu.x,
+    right: 'auto',
     zIndex: 1000,
   };
   return (
     <div style={menuStyle} onMouseLeave={() => setHeaderMenu(null)}>
-      <DropdownMenu>
+      <DropdownMenu disablePositioning>
         <div
           style={{ padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           onClick={() => {
