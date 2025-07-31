@@ -17,7 +17,10 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   removeFilter,
   filters = [],
 }) => {
-  const maxCount = Math.max(...data.map(h => h.count));
+  // Exclude 'others' from scaling calculation
+  const nonOthersData = data.filter(h => !h.is_others);
+  const maxCount = nonOthersData.length > 0 ? Math.max(...nonOthersData.map(h => h.count)) : 1;
+  
   // Sort by count descending, then alphabetically by value if counts are equal, but always put 'others' at the end
   const sortedData = [...data].sort((a, b) => {
     if (a.is_others) return 1;
@@ -81,7 +84,6 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               minHeight: 24,
               cursor: 'pointer',
               outline: 'none',
-              maxWidth: 320,
               width: '100%',
               boxSizing: 'border-box',
             }}
@@ -98,7 +100,6 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               style={{
                 width: `${barWidth}%`,
                 minWidth: 16,
-                maxWidth: 220,
                 display: 'flex',
                 alignItems: 'center',
                 padding: '0 6px',
