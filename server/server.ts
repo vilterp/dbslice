@@ -44,7 +44,6 @@ import {
   sanitizeIdentifier, 
   buildWhereClause, 
   buildOrderByClause,
-  parseHistogramFilters,
   buildHistogramWhereClause
 } from './query';
 
@@ -173,9 +172,11 @@ export function createServer(db: duckdb.Database, config: Config) {
   // Promisified query function using a separate connection for each query
   const runQuery = (query: string, params: any[] = []): Promise<any[]> => {
     const startTime = Date.now();
+    const queryId = Math.random().toString(36).substring(2, 8); // Generate short unique ID
     
-    // Log the SQL query being executed
-    logger.info('Executing SQL query', { 
+    // Log when the query starts
+    logger.info('SQL query started', { 
+      queryId,
       query: query.trim(),
       params: params.length > 0 ? params : undefined
     });
@@ -191,6 +192,7 @@ export function createServer(db: duckdb.Database, config: Config) {
           
           if (err) {
             logger.error('SQL query failed', { 
+              queryId,
               query: query.trim(),
               params: params.length > 0 ? params : undefined,
               error: err.message,
@@ -198,7 +200,8 @@ export function createServer(db: duckdb.Database, config: Config) {
             });
             reject(err);
           } else {
-            logger.info('SQL query completed', { 
+            logger.info('SQL query finished', { 
+              queryId,
               query: query.trim(),
               rowCount: rows?.length || 0,
               duration: `${duration}ms`
@@ -213,6 +216,7 @@ export function createServer(db: duckdb.Database, config: Config) {
           
           if (err) {
             logger.error('SQL query failed', { 
+              queryId,
               query: query.trim(),
               params,
               error: err.message,
@@ -220,7 +224,8 @@ export function createServer(db: duckdb.Database, config: Config) {
             });
             reject(err);
           } else {
-            logger.info('SQL query completed', { 
+            logger.info('SQL query finished', { 
+              queryId,
               query: query.trim(),
               params,
               rowCount: rows?.length || 0,
