@@ -144,6 +144,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
           isNumericalColumn={isNumericalColumn}
           handleRangeSelection={handleRangeSelection}
           addFilter={addFilter}
+          removeFilter={removeFilter}
         />
         <div className="main-panel">
           {tab.loading ? (

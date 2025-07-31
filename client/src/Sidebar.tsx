@@ -19,6 +19,7 @@ interface SidebarProps {
   isNumericalColumn: (dataType: string) => boolean;
   handleRangeSelection: (columnName: string, item: HistogramData) => void;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
+  removeFilter: (column: string, value: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -31,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   isNumericalColumn,
   handleRangeSelection,
   addFilter,
+  removeFilter,
 }) => (
   <div className="sidebar">
     <h3>Filters</h3>
@@ -65,6 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     currentRange={currentRange}
                     handleRangeSelection={handleRangeSelection}
                     addFilter={addFilter}
+                    removeFilter={removeFilter}
                     filters={filters}
                   />
                 </>

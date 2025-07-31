@@ -5,6 +5,16 @@
 
 .bar-fill {
   background-color: #bbdefb;
+  max-width: 350px;
+  min-width: 32px;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-count {
+  margin-left: 8px;
 }
 
 .histogram-bar.others-bar {

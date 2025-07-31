@@ -17,6 +17,7 @@ type HistogramProps = {
   currentRange?: RangeSelection;
   handleRangeSelection: (columnName: string, item: HistogramData) => void;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
+  removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
 };
 
@@ -27,6 +28,7 @@ const Histogram: React.FC<HistogramProps> = ({
   currentRange,
   handleRangeSelection,
   addFilter,
+  removeFilter,
   filters = [],
 }) => {
   if (!data || !Array.isArray(data) || data.length === 0) {
@@ -42,6 +44,7 @@ const Histogram: React.FC<HistogramProps> = ({
       columnName={columnName}
       data={data}
       addFilter={addFilter}
+      removeFilter={removeFilter}
       filters={filters}
     />
   );

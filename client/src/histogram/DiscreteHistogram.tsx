@@ -5,6 +5,7 @@ type DiscreteHistogramProps = {
   columnName: string;
   data: HistogramData[];
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
+  removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
 };
 
@@ -12,6 +13,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   columnName,
   data,
   addFilter,
+  removeFilter,
   filters = [],
 }) => {
   const maxCount = Math.max(...data.map(h => h.count));
@@ -42,13 +44,24 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
             key={index}
             className={`histogram-bar discrete-bar ${isOthers ? 'others-bar' : ''}`}
             onClick={() => {
-              if (!isOthers) addFilter(columnName, value);
+              if (isOthers) return;
+              if (checked) {
+                // Remove filter if already selected
+                removeFilter(columnName, value);
+              } else {
+                addFilter(columnName, value);
+              }
             }}
             role={!isOthers ? 'button' : undefined}
             tabIndex={!isOthers ? 0 : undefined}
             onKeyDown={e => {
-              if (!isOthers && (e.key === 'Enter' || e.key === ' ')) {
-                addFilter(columnName, value);
+              if (isOthers) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                if (checked) {
+                  removeFilter(columnName, value);
+                } else {
+                  addFilter(columnName, value);
+                }
               }
             }}
             style={{
