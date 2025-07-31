@@ -1,6 +1,6 @@
 import React from 'react';
 import { Column, HistogramData, Filter } from './api';
-import Histogram from './Histogram';
+import Histogram from './histogram/Histogram';
 
 interface RangeSelection {
   start: number;

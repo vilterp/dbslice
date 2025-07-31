@@ -1,5 +1,5 @@
 import React from 'react';
-import { HistogramData, Filter } from './api';
+import { HistogramData, Filter } from '../api';
 import NumericHistogram from './NumericHistogram';
 import DiscreteHistogram from './DiscreteHistogram';
 
