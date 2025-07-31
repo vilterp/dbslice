@@ -1,5 +1,6 @@
 import React from 'react';
 import { Column, HistogramData, Filter } from './api';
+import Histogram from './Histogram';
 
 interface RangeSelection {
   start: number;
@@ -55,48 +56,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               ) : (
                 <>
-                  {isNumerical && currentRange?.isSelecting && (
-                    <div className="range-selection-hint">
-                      Click another bar to complete range selection
-                    </div>
-                  )}
-                  {histograms[column.column_name].map((item, index) => {
-                    const maxCount = Math.max(...(histograms[column.column_name] || []).map(h => h.count));
-                    const barWidth = (item.count / maxCount) * 100;
-                    const displayValue = item.bin_start !== undefined && item.bin_end !== undefined
-                      ? `${item.bin_start.toFixed(1)}-${item.bin_end.toFixed(1)}`
-                      : String(item[column.column_name]);
-                    const isInRange = currentRange?.isSelecting &&
-                      item.bin_start !== undefined &&
-                      item.bin_start >= Math.min(currentRange.start, currentRange.end) &&
-                      item.bin_end !== undefined &&
-                      item.bin_end <= Math.max(currentRange.start, currentRange.end);
-                    const isOthers = item.is_others === true;
-                    return (
-                      <div
-                        key={index}
-                        className={`histogram-bar ${isInRange ? 'in-range' : ''} ${isOthers ? 'others-bar' : ''}`}
-                        onClick={() => {
-                          if (isOthers) return;
-                          if (isNumerical && item.bin_start !== undefined) {
-                            handleRangeSelection(column.column_name, item);
-                          } else {
-                            addFilter(column.column_name, String(item[column.column_name]));
-                          }
-                        }}
-                        style={{ cursor: isOthers ? 'default' : 'pointer' }}
-                      >
-                        <div className="bar-label">{displayValue}</div>
-                        <div className="bar-container">
-                          <div
-                            className="bar-fill"
-                            style={{ width: `${barWidth}%` }}
-                          ></div>
-                          <span className="bar-count">{item.count}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <Histogram
+                    columnName={column.column_name}
+                    data={histograms[column.column_name]}
+                    isNumerical={isNumerical}
+                    currentRange={currentRange}
+                    handleRangeSelection={handleRangeSelection}
+                    addFilter={addFilter}
+                  />
                 </>
               )}
             </div>
