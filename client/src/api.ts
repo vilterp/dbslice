@@ -97,20 +97,24 @@ export async function fetchHistograms(
 
   const rangeFilters = filters.reduce((acc, filter) => {
     if (filter.type === 'range' && filter.min !== undefined && filter.max !== undefined) {
-      acc[filter.column] = `${filter.min}-${filter.max}`;
+      acc[filter.column] = { min: filter.min, max: filter.max };
     }
     return acc;
-  }, {} as { [key: string]: string });
+  }, {} as { [key: string]: { min: number; max: number } });
 
   const histogramPromises = columns.map(async (column) => {
-    const params = new URLSearchParams({
-      bins: '10',
-      column_type: column.data_type,
-      ...exactFilters,
-      ...rangeFilters,
+    const response = await fetch(`http://localhost:3001/api/tables/${selectedTable}/columns/${column.column_name}/histogram`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bins: 10,
+        column_type: column.data_type,
+        filters: exactFilters,
+        rangeFilters: rangeFilters,
+      }),
     });
-    const url = `http://localhost:3001/api/tables/${selectedTable}/columns/${column.column_name}/histogram?${params}`;
-    const response = await fetch(url);
     const data = await response.json();
     if (data.error) {
       return { column: column.column_name, data: [] };

@@ -139,10 +139,8 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
           histograms={tab.histograms}
           filters={tab.filters}
           collapsedColumns={tab.collapsedColumns}
-          rangeSelections={tab.rangeSelections}
           toggleColumnCollapse={toggleColumnCollapse}
           isNumericalColumn={isNumericalColumn}
-          handleRangeSelection={handleRangeSelection}
           addFilter={addFilter}
           removeFilter={removeFilter}
         />

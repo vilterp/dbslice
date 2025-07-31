@@ -144,20 +144,17 @@ export function createServer(db: duckdb.Database, config: Config) {
   });
 
   // Get histogram data for a column
-  app.get('/api/tables/:tableName/columns/:columnName/histogram', async (req: Request, res: Response) => {
+  app.post('/api/tables/:tableName/columns/:columnName/histogram', async (req: Request, res: Response) => {
     try {
       const { tableName, columnName } = req.params;
-      const { bins = '20', column_type = 'text', ...queryParams } = req.query;
+      const { bins = 20, column_type = 'text', filters = {}, rangeFilters = {} } = req.body;
       
       // Sanitize names
       const sanitizedTableName = sanitizeIdentifier(tableName);
       const sanitizedColumnName = sanitizeIdentifier(columnName);
       
-      // Parse filters using query utilities
-      const { exactFilters, rangeFilters } = parseHistogramFilters(queryParams, columnName);
-      
-      // Build WHERE clause for histogram
-      const { whereClause, params } = buildHistogramWhereClause(exactFilters, rangeFilters, columnName);
+      // Build WHERE clause for histogram using the direct filters from request body
+      const { whereClause, params } = buildHistogramWhereClause(filters, rangeFilters, columnName);
       
       let histogram: any[];
       const columnTypeStr = column_type as string;
@@ -169,7 +166,7 @@ export function createServer(db: duckdb.Database, config: Config) {
       
       if (isNumerical) {
         // For numerical columns, create binned histogram
-        const binsCount = Math.min(parseInt(bins as string), 10); // Limit bins for numerical
+        const binsCount = Math.min(Number(bins), 10); // Limit bins for numerical
         
         // Get min/max values for binning
         const rangeQuery = `SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val FROM ${sanitizedTableName}${whereClause}`;

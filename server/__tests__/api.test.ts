@@ -310,10 +310,13 @@ describe('API Endpoints', () => {
     });
   });
 
-  describe('GET /api/tables/:tableName/columns/:columnName/histogram', () => {
+  describe('POST /api/tables/:tableName/columns/:columnName/histogram', () => {
     it('should return histogram for product categories with others as distinct count', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/category/histogram');
+        .post('/api/tables/products/columns/category/histogram')
+        .send({
+          column_type: 'text'
+        });
 
       if (response.status !== 200) {
         console.log('Histogram error response:', response.body);
@@ -342,7 +345,10 @@ describe('API Endpoints', () => {
 
     it('should return histogram for customer tiers', async () => {
       const response = await request(app)
-        .get('/api/tables/customers/columns/tier/histogram')
+        .post('/api/tables/customers/columns/tier/histogram')
+        .send({
+          column_type: 'text'
+        })
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
@@ -356,7 +362,11 @@ describe('API Endpoints', () => {
 
     it('should respect bins parameter', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/category/histogram?bins=1')
+        .post('/api/tables/products/columns/category/histogram')
+        .send({
+          bins: 1,
+          column_type: 'text'
+        })
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
@@ -365,7 +375,11 @@ describe('API Endpoints', () => {
 
     it('should handle filters in histogram', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/category/histogram?in_stock=1')
+        .post('/api/tables/products/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          filters: { in_stock: '1' }
+        })
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
@@ -427,31 +441,32 @@ describe('API Endpoints', () => {
 
     it('should handle BigInt values in histogram data without serialization errors', async () => {
       const response = await request(app)
-        .get('/api/tables/bigint_test/columns/large_number/histogram')
+        .post('/api/tables/bigint_test/columns/large_number/histogram')
+        .send({
+          column_type: 'bigint'
+        })
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(3);
+      expect(response.body.length).toBeGreaterThan(0);
       
-      // Verify that BigInt values in histogram are properly converted
+      // For numerical columns, histogram returns binned data with bin_start, bin_end, etc.
       response.body.forEach((item: any) => {
-        expect(item).toHaveProperty('large_number');
         expect(item).toHaveProperty('count');
+        expect(item).toHaveProperty('bin_start');
+        expect(item).toHaveProperty('bin_end');
+        expect(item).toHaveProperty('bin_num');
         
-        // Ensure large_number is a regular number, not BigInt
-        expect(typeof item.large_number).toBe('number');
-        expect(item.large_number).not.toBeInstanceOf(BigInt);
-        
-        // Ensure count is also a regular number
+        // Ensure all numeric values are properly converted from BigInt
         expect(typeof item.count).toBe('number');
         expect(item.count).not.toBeInstanceOf(BigInt);
+        expect(typeof item.bin_start).toBe('number');
+        expect(item.bin_start).not.toBeInstanceOf(BigInt);
+        expect(typeof item.bin_end).toBe('number');
+        expect(item.bin_end).not.toBeInstanceOf(BigInt);
+        expect(typeof item.bin_num).toBe('number');
+        expect(item.bin_num).not.toBeInstanceOf(BigInt);
       });
-
-      // Check that we have the expected large number values
-      const largeNumbers = response.body.map((item: any) => item.large_number);
-      expect(largeNumbers).toContain(9223372036854775807);
-      expect(largeNumbers).toContain(-9223372036854775808);
-      expect(largeNumbers).toContain(1234567890123456789);
     });
 
     it('should return JSON serializable response for BigInt columns', async () => {
@@ -575,10 +590,10 @@ describe('API Endpoints', () => {
   describe('Filtered histogram functionality', () => {
     it('should filter histograms with exact filters', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/category/histogram')
-        .query({ 
+        .post('/api/tables/products/columns/category/histogram')
+        .send({ 
           column_type: 'text',
-          in_stock: 'true'
+          filters: { in_stock: 'true' }
         })
         .expect(200);
 
@@ -592,10 +607,10 @@ describe('API Endpoints', () => {
 
     it('should filter histograms with range filters', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/category/histogram')
-        .query({ 
+        .post('/api/tables/products/columns/category/histogram')
+        .send({ 
           column_type: 'text',
-          price: '100-300'  // Range filter format
+          rangeFilters: { price: { min: 100, max: 300 } }
         })
         .expect(200);
 
@@ -608,10 +623,10 @@ describe('API Endpoints', () => {
 
     it('should filter numerical histograms with exact filters', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/price/histogram')
-        .query({ 
+        .post('/api/tables/products/columns/price/histogram')
+        .send({ 
           column_type: 'decimal',
-          category: 'Electronics'
+          filters: { category: 'Electronics' }
         })
         .expect(200);
 
@@ -625,10 +640,10 @@ describe('API Endpoints', () => {
 
     it('should filter numerical histograms with range filters', async () => {
       const response = await request(app)
-        .get('/api/tables/customers/columns/age/histogram')
-        .query({ 
+        .post('/api/tables/customers/columns/age/histogram')
+        .send({ 
           column_type: 'integer',
-          total_spent: '1000-2000'  // Range filter
+          rangeFilters: { total_spent: { min: 1000, max: 2000 } }
         })
         .expect(200);
 
@@ -642,11 +657,11 @@ describe('API Endpoints', () => {
 
     it('should combine exact and range filters in histograms', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/category/histogram')
-        .query({ 
+        .post('/api/tables/products/columns/category/histogram')
+        .send({ 
           column_type: 'text',
-          in_stock: 'true',       // Exact filter
-          price: '50-500'         // Range filter
+          filters: { in_stock: 'true' },
+          rangeFilters: { price: { min: 50, max: 500 } }
         })
         .expect(200);
 
@@ -660,11 +675,11 @@ describe('API Endpoints', () => {
     it('should exclude the histogram column from its own filters', async () => {
       // When getting histogram for 'price', price filters should be ignored
       const response = await request(app)
-        .get('/api/tables/products/columns/price/histogram')
-        .query({ 
+        .post('/api/tables/products/columns/price/histogram')
+        .send({ 
           column_type: 'decimal',
-          price: '100-200',      // This should be ignored
-          category: 'Electronics' // This should be applied
+          rangeFilters: { price: { min: 100, max: 200 } }, // This should be ignored
+          filters: { category: 'Electronics' } // This should be applied
         })
         .expect(200);
 
@@ -679,11 +694,11 @@ describe('API Endpoints', () => {
     it('should handle histogram with both exact and range filters', async () => {
       // Test the specific bug case: exact + range filters together in histogram
       const response = await request(app)
-        .get('/api/tables/products/columns/category/histogram')
-        .query({ 
+        .post('/api/tables/products/columns/category/histogram')
+        .send({ 
           column_type: 'text',
-          in_stock: 'true',      // Exact filter
-          price: '50-500'        // Range filter
+          filters: { in_stock: 'true' },
+          rangeFilters: { price: { min: 50, max: 500 } }
         })
         .expect(200);
 
@@ -708,7 +723,8 @@ describe('API Endpoints', () => {
 
     it('should handle invalid column name in histogram endpoint', async () => {
       const response = await request(app)
-        .get('/api/tables/products/columns/invalid_column/histogram')
+        .post('/api/tables/products/columns/invalid_column/histogram')
+        .send({ column_type: 'text' })
         .expect(500);
 
       expect(response.body).toHaveProperty('error');

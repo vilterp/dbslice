@@ -3,21 +3,13 @@ import React from 'react';
 import { Column, HistogramData, Filter } from './api';
 import Histogram from './histogram/Histogram';
 
-interface RangeSelection {
-  start: number;
-  end: number;
-  isSelecting: boolean;
-}
-
 interface SidebarProps {
   columns: Column[];
   histograms: { [key: string]: HistogramData[] };
   filters: Filter[];
   collapsedColumns: Set<string>;
-  rangeSelections: { [key: string]: RangeSelection };
   toggleColumnCollapse: (columnName: string) => void;
   isNumericalColumn: (dataType: string) => boolean;
-  handleRangeSelection: (columnName: string, item: HistogramData) => void;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
 }
@@ -27,10 +19,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   histograms,
   filters,
   collapsedColumns,
-  rangeSelections,
   toggleColumnCollapse,
   isNumericalColumn,
-  handleRangeSelection,
   addFilter,
   removeFilter,
 }) => (
@@ -39,7 +29,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     {columns.map(column => {
       const isCollapsed = collapsedColumns.has(column.column_name);
       const isNumerical = isNumericalColumn(column.data_type);
-      const currentRange = rangeSelections[column.column_name];
       return (
         <div key={column.column_name} className="column-filter">
           <h4
@@ -64,8 +53,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     columnName={column.column_name}
                     data={histograms[column.column_name]}
                     isNumerical={isNumerical}
-                    currentRange={currentRange}
-                    handleRangeSelection={handleRangeSelection}
                     addFilter={addFilter}
                     removeFilter={removeFilter}
                     filters={filters}
