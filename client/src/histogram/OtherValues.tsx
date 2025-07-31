@@ -36,11 +36,11 @@ const OtherValues: React.FC<OtherValuesProps> = ({
         }
       }}
     >
-      {!showOtherInput && (
-        <span style={{ position: 'relative', zIndex: 2 }}>{displayValue}</span>
-      )}
-      <span className="bar-count" style={{ marginLeft: 'auto', minWidth: 30, textAlign: 'right', color: '#999', fontSize: 12 }}>{count}</span>
-      {showOtherInput && (
+      {!showOtherInput ? (
+        <>
+          <span style={{ position: 'relative', zIndex: 2 }}>{displayValue}</span>
+        </>
+      ) : (
         <input
           ref={otherInputRef}
           type="text"
@@ -50,8 +50,8 @@ const OtherValues: React.FC<OtherValuesProps> = ({
           onKeyDown={e => {
             if (e.key === 'Enter' && otherInputValue.trim()) {
               addFilter(columnName, otherInputValue.trim());
-              setShowOtherInput(false);
               setOtherInputValue("");
+              setTimeout(() => setShowOtherInput(false), 0);
             } else if (e.key === 'Escape') {
               setShowOtherInput(false);
               setOtherInputValue("");
