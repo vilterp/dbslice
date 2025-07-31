@@ -47,6 +47,29 @@ import {
   buildHistogramWhereClause
 } from './query';
 
+// Request logging middleware
+function requestLogger(req: Request, res: Response, next: Function) {
+  const startTime = Date.now();
+  const timestamp = new Date().toISOString();
+  
+  console.log(`🚀 [${timestamp}] ${req.method} ${req.path} - Request started`);
+  
+  // Override res.end to capture when the response finishes
+  const originalEnd = res.end;
+  res.end = function(chunk?: any, encoding?: any, cb?: any): any {
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    const finishTimestamp = new Date().toISOString();
+    
+    console.log(`✅ [${finishTimestamp}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    
+    // Call the original end method with proper arguments
+    return originalEnd.call(this, chunk, encoding, cb);
+  };
+  
+  next();
+}
+
 // Configuration loading function
 export function loadConfig(configPath?: string): Config {
   try {
@@ -171,6 +194,7 @@ export function createServer(db: duckdb.Database, config: Config) {
   // Create Express app
   const app = express();
 
+  app.use(requestLogger);
   app.use(cors());
   app.use(express.json());
 
