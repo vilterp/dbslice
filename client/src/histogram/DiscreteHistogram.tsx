@@ -15,9 +15,18 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   filters = [],
 }) => {
   const maxCount = Math.max(...data.map(h => h.count));
+  // Sort by count descending, then alphabetically by value if counts are equal, but always put 'others' at the end
+  const sortedData = [...data].sort((a, b) => {
+    if (a.is_others) return 1;
+    if (b.is_others) return -1;
+    if (b.count !== a.count) return b.count - a.count;
+    const aVal = String(a[columnName]);
+    const bVal = String(b[columnName]);
+    return aVal.localeCompare(bVal);
+  });
   return (
     <div className="discrete-histogram">
-      {data.map((item, index) => {
+      {sortedData.map((item, index) => {
         const barWidth = (item.count / maxCount) * 100;
         const isOthers = item.is_others === true;
         const value = String(item[columnName]);

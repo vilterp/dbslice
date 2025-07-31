@@ -1,9 +1,4 @@
 
-/* Minimal histogram styles */
-body, .histogram, .histogram-bar, .bar-label, .bar-count {
-  color: #111;
-}
-
 .histogram-bar {
   cursor: pointer;
 }
