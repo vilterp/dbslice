@@ -23,6 +23,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({
   columns,
   histograms,
+  filters,
   collapsedColumns,
   rangeSelections,
   toggleColumnCollapse,
@@ -63,6 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     currentRange={currentRange}
                     handleRangeSelection={handleRangeSelection}
                     addFilter={addFilter}
+                    filters={filters}
                   />
                 </>
               )}
