@@ -1,8 +1,9 @@
 import "./DataTable.css";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import TableHeader from "./TableHeader";
 import HeaderMenu from "./HeaderMenu";
 import SidePanel from "./SidePanel";
+import DropdownMenu from "../components/DropdownMenu";
 import { SortDirection } from "../api";
 
 interface DataTableProps {
@@ -65,8 +66,19 @@ const DataTable: React.FC<DataTableProps> = ({
     }
   };
 
-  // Handler to close cell menu
-  const handleCloseCellMenu = () => setCellMenu(null);
+  // Close cell menu on outside click
+  const cellMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (cellMenuRef.current && !cellMenuRef.current.contains(e.target as Node)) {
+        setCellMenu(null);
+      }
+    }
+    if (cellMenu) {
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }
+  }, [cellMenu]);
 
   if (error) {
     return (
@@ -138,24 +150,23 @@ const DataTable: React.FC<DataTableProps> = ({
           {/* Cell context menu for filtering */}
           {cellMenu && (
             <div
+              ref={cellMenuRef}
               style={{
                 position: 'fixed',
                 top: cellMenu.y,
                 left: cellMenu.x,
-                background: 'white',
-                border: '1px solid #ccc',
+                right: 'auto',
                 zIndex: 1000,
-                minWidth: 160,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
               }}
-              onMouseLeave={handleCloseCellMenu}
             >
-              <div
-                style={{ padding: '8px 16px', cursor: 'pointer' }}
-                onClick={handleAddFilter}
-              >
-                Filter to this value
-              </div>
+              <DropdownMenu align="left">
+                <div
+                  style={{ padding: '8px 16px', cursor: 'pointer' }}
+                  onClick={handleAddFilter}
+                >
+                  Filter to this value
+                </div>
+              </DropdownMenu>
             </div>
           )}
           <SidePanel
