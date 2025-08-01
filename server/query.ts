@@ -1,4 +1,121 @@
 // Query building utilities for DuckDB
+import * as duckdb from 'duckdb';
+import logger from './logger';
+
+// Utility function to convert BigInt values to numbers for JSON serialization
+const sanitizeQueryResult = (data: any): any => {
+  if (Array.isArray(data)) {
+    return data.map(sanitizeQueryResult);
+  } else if (data && typeof data === 'object') {
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      sanitized[key] = typeof value === 'bigint' ? Number(value) : sanitizeQueryResult(value);
+    }
+    return sanitized;
+  } else if (typeof data === 'bigint') {
+    return Number(data);
+  }
+  return data;
+};
+
+// Create a query runner with shared connection and queuing
+export function createQueryRunner(db: duckdb.Database) {
+  // Create a shared connection for better caching and performance
+  const sharedConnection = new duckdb.Connection(db);
+  
+  // Query queue to serialize queries on the shared connection
+  const queryQueue: Array<() => void> = [];
+  let isProcessingQuery = false;
+  
+  const processQueryQueue = () => {
+    if (isProcessingQuery || queryQueue.length === 0) return;
+    
+    isProcessingQuery = true;
+    const nextQuery = queryQueue.shift();
+    if (nextQuery) {
+      nextQuery();
+    }
+  };
+  
+  // Promisified query function using the shared connection with queuing
+  const runQuery = (query: string, params: any[] = []): Promise<any[]> => {
+    const startTime = Date.now();
+    const queryId = Math.random().toString(36).substring(2, 8); // Generate short unique ID
+    
+    // Log when the query starts
+    logger.info('SQL query started', { 
+      queryId,
+      query: query.trim(),
+      params: params.length > 0 ? params : undefined
+    });
+    
+    return new Promise((resolve, reject) => {
+      const executeQuery = () => {
+        if (params.length === 0) {
+          sharedConnection.all(query, (err: Error | null, rows: any[]) => {
+            isProcessingQuery = false;
+            const duration = Date.now() - startTime;
+            
+            if (err) {
+              logger.error('SQL query failed', { 
+                queryId,
+                query: query.trim(),
+                params: params.length > 0 ? params : undefined,
+                error: err.message,
+                duration: `${duration}ms`
+              });
+              reject(err);
+            } else {
+              logger.info('SQL query finished', { 
+                queryId,
+                query: query.trim(),
+                rowCount: rows?.length || 0,
+                duration: `${duration}ms`
+              });
+              resolve(sanitizeQueryResult(rows || []));
+            }
+            
+            // Process next query in queue
+            processQueryQueue();
+          });
+        } else {
+          sharedConnection.all(query, params, (err: Error | null, rows: any[]) => {
+            isProcessingQuery = false;
+            const duration = Date.now() - startTime;
+            
+            if (err) {
+              logger.error('SQL query failed', { 
+                queryId,
+                query: query.trim(),
+                params,
+                error: err.message,
+                duration: `${duration}ms`
+              });
+              reject(err);
+            } else {
+              logger.info('SQL query finished', { 
+                queryId,
+                query: query.trim(),
+                rowCount: rows?.length || 0,
+                duration: `${duration}ms`
+              });
+              resolve(sanitizeQueryResult(rows || []));
+            }
+            
+            // Process next query in queue
+            processQueryQueue();
+          });
+        }
+      };
+      
+      // Add query to queue
+      queryQueue.push(executeQuery);
+      processQueryQueue();
+    });
+  };
+
+  return runQuery;
+}
 
 // Utility function to sanitize identifiers
 export const sanitizeIdentifier = (identifier: string): string => {
