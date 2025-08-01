@@ -1,5 +1,32 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import './Tooltip.css';
+
+export type TooltipState = {
+  visible: boolean;
+  x: number;
+  y: number;
+  content: string;
+};
+
+export function useTooltip() {
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    content: "",
+  });
+
+  const showTooltip = (x: number, y: number, content: string) => {
+    setTooltip({ visible: true, x, y, content });
+  };
+
+  const hideTooltip = () => {
+    setTooltip({ visible: false, x: 0, y: 0, content: "" });
+  };
+
+  return { tooltip, showTooltip, hideTooltip, setTooltip };
+}
 
 interface TooltipProps {
   visible: boolean;

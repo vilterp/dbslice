@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Tooltip from "../components/Tooltip";
+import { useTooltip } from "../components/Tooltip";
 import { abbreviateNumber } from "../utils";
 
 type OtherValuesProps = {
@@ -17,12 +18,7 @@ const OtherValues: React.FC<OtherValuesProps> = ({
 }) => {
   const [showOtherInput, setShowOtherInput] = React.useState(false);
   const [otherInputValue, setOtherInputValue] = React.useState("");
-  const [tooltip, setTooltip] = useState({
-    visible: false,
-    x: 0,
-    y: 0,
-    content: "",
-  });
+  const { tooltip, showTooltip, hideTooltip } = useTooltip();
   const otherInputRef = React.useRef<HTMLInputElement>(null);
   const displayValue = `${abbreviateNumber(distinctCount)} other values`;
 
@@ -53,17 +49,10 @@ const OtherValues: React.FC<OtherValuesProps> = ({
               const isOverflowing = element.scrollWidth > element.clientWidth;
               if (isOverflowing) {
                 const rect = element.getBoundingClientRect();
-                setTooltip({
-                  visible: true,
-                  x: rect.left + rect.width / 2,
-                  y: rect.top,
-                  content: displayValue,
-                });
+                showTooltip(rect.left + rect.width / 2, rect.top, displayValue);
               }
             }}
-            onMouseLeave={() => {
-              setTooltip({ visible: false, x: 0, y: 0, content: "" });
-            }}
+            onMouseLeave={hideTooltip}
           >
             {displayValue}
           </span>

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { HistogramData } from '../api';
 import Tooltip from '../components/Tooltip';
+import { useTooltip } from '../components/Tooltip';
 import { Filter } from '../../../src/common';
 
 type NumericHistogramProps = {
@@ -22,7 +23,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   removeFilter,
   filters = [],
 }) => {
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
+  const { tooltip, showTooltip, hideTooltip } = useTooltip();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -167,16 +168,15 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
                   const minVal = formatNumber(binStart);
                   const maxVal = formatNumber(binEnd);
                   setHoveredIndex(index);
-                  setTooltip({
-                    visible: true,
-                    x: rect.left + rect.width / 2,
-                    y: rect.top,
-                    content: `Range: ${minVal} - ${maxVal}\nCount: ${item.count}${isSelected ? ' (filtered)' : ''}`
-                  });
+                  showTooltip(
+                    rect.left + rect.width / 2,
+                    rect.top,
+                    `Range: ${minVal} - ${maxVal}\nCount: ${item.count}${isSelected ? ' (filtered)' : ''}`
+                  );
                 }}
                 onMouseLeave={() => {
                   setHoveredIndex(null);
-                  setTooltip({ visible: false, x: 0, y: 0, content: '' });
+                  hideTooltip();
                 }}
               />
             </g>

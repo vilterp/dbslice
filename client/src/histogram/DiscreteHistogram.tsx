@@ -3,6 +3,7 @@ import OtherValues from './OtherValues';
 import { HistogramData } from '../api';
 import { abbreviateNumber } from '../utils';
 import Tooltip from '../components/Tooltip';
+import { useTooltip } from '../components/Tooltip';
 import { Filter } from '../../../src/common';
 
 // Configuration constants (should match api.ts)
@@ -28,7 +29,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   removeFilter,
   filters = [],
 }) => {
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
+  const { tooltip, showTooltip, hideTooltip } = useTooltip();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
   // Calculate proper height: (DEFAULT_TOP_N_CATEGORIES + 1 for "others") * BAR_HEIGHT
@@ -128,17 +129,10 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
                   const isOverflowing = element.scrollWidth > element.clientWidth;
                   if (isOverflowing) {
                     const rect = element.getBoundingClientRect();
-                    setTooltip({
-                      visible: true,
-                      x: rect.left + rect.width / 2,
-                      y: rect.top,
-                      content: displayValue
-                    });
+                    showTooltip(rect.left + rect.width / 2, rect.top, displayValue);
                   }
                 }}
-                onMouseLeave={() => {
-                  setTooltip({ visible: false, x: 0, y: 0, content: '' });
-                }}
+                onMouseLeave={hideTooltip}
               >
                 {displayValue}
               </span>
