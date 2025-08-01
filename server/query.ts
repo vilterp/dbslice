@@ -142,19 +142,6 @@ export const isNumericalColumnType = (columnType: string): boolean => {
   );
 };
 
-// Check if BigInt values might cause overflow in histogram calculations
-export const isBigIntOverflowRisk = (columnType: string, minVal: number, maxVal: number): boolean => {
-  return columnType.toUpperCase().includes('BIGINT') && 
-         (Math.abs(minVal) > Number.MAX_SAFE_INTEGER || Math.abs(maxVal) > Number.MAX_SAFE_INTEGER);
-};
-
-// Build query to get min/max values for numerical histogram
-export const buildRangeQuery = (tableName: string, columnName: string, whereClause: string): string => {
-  const sanitizedTableName = sanitizeIdentifier(tableName);
-  const sanitizedColumnName = sanitizeIdentifier(columnName);
-  
-  return `SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val FROM ${sanitizedTableName}${whereClause}`;
-};
 
 // Build optimized numerical histogram query using DuckDB's automatic binning
 export const buildNumericalHistogramQuery = (tableName: string, columnName: string, whereClause: string): string => {

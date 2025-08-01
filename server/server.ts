@@ -174,7 +174,24 @@ export function initializeDatabase(config: Config): duckdb.Database {
 
 // Create server function that accepts a database connection and config
 export function createServer(db: duckdb.Database, config: Config) {
-  // Promisified query function using a separate connection for each query
+  // Create a shared connection for better caching and performance
+  const sharedConnection = new duckdb.Connection(db);
+  
+  // Query queue to serialize queries on the shared connection
+  const queryQueue: Array<() => void> = [];
+  let isProcessingQuery = false;
+  
+  const processQueryQueue = () => {
+    if (isProcessingQuery || queryQueue.length === 0) return;
+    
+    isProcessingQuery = true;
+    const nextQuery = queryQueue.shift();
+    if (nextQuery) {
+      nextQuery();
+    }
+  };
+  
+  // Promisified query function using the shared connection with queuing
   const runQuery = (query: string, params: any[] = []): Promise<any[]> => {
     const startTime = Date.now();
     const queryId = Math.random().toString(36).substring(2, 8); // Generate short unique ID
@@ -187,59 +204,67 @@ export function createServer(db: duckdb.Database, config: Config) {
     });
     
     return new Promise((resolve, reject) => {
-      // Create a new connection for this query to avoid blocking concurrent queries
-      const connection = new duckdb.Connection(db);
+      const executeQuery = () => {
+        if (params.length === 0) {
+          sharedConnection.all(query, (err: Error | null, rows: any[]) => {
+            isProcessingQuery = false;
+            const duration = Date.now() - startTime;
+            
+            if (err) {
+              logger.error('SQL query failed', { 
+                queryId,
+                query: query.trim(),
+                params: params.length > 0 ? params : undefined,
+                error: err.message,
+                duration: `${duration}ms`
+              });
+              reject(err);
+            } else {
+              logger.info('SQL query finished', { 
+                queryId,
+                query: query.trim(),
+                rowCount: rows?.length || 0,
+                duration: `${duration}ms`
+              });
+              resolve(sanitizeQueryResult(rows || []));
+            }
+            
+            // Process next query in queue
+            processQueryQueue();
+          });
+        } else {
+          sharedConnection.all(query, params, (err: Error | null, rows: any[]) => {
+            isProcessingQuery = false;
+            const duration = Date.now() - startTime;
+            
+            if (err) {
+              logger.error('SQL query failed', { 
+                queryId,
+                query: query.trim(),
+                params,
+                error: err.message,
+                duration: `${duration}ms`
+              });
+              reject(err);
+            } else {
+              logger.info('SQL query finished', { 
+                queryId,
+                query: query.trim(),
+                rowCount: rows?.length || 0,
+                duration: `${duration}ms`
+              });
+              resolve(sanitizeQueryResult(rows || []));
+            }
+            
+            // Process next query in queue
+            processQueryQueue();
+          });
+        }
+      };
       
-      if (params.length === 0) {
-        connection.all(query, (err: Error | null, rows: any[]) => {
-          connection.close(); // Always close the connection when done
-          const duration = Date.now() - startTime;
-          
-          if (err) {
-            logger.error('SQL query failed', { 
-              queryId,
-              query: query.trim(),
-              params: params.length > 0 ? params : undefined,
-              error: err.message,
-              duration: `${duration}ms`
-            });
-            reject(err);
-          } else {
-            logger.info('SQL query finished', { 
-              queryId,
-              query: query.trim(),
-              rowCount: rows?.length || 0,
-              duration: `${duration}ms`
-            });
-            resolve(sanitizeQueryResult(rows || []));
-          }
-        });
-      } else {
-        connection.all(query, params, (err: Error | null, rows: any[]) => {
-          connection.close(); // Always close the connection when done
-          const duration = Date.now() - startTime;
-          
-          if (err) {
-            logger.error('SQL query failed', { 
-              queryId,
-              query: query.trim(),
-              params,
-              error: err.message,
-              duration: `${duration}ms`
-            });
-            reject(err);
-          } else {
-            logger.info('SQL query finished', { 
-              queryId,
-              query: query.trim(),
-              params,
-              rowCount: rows?.length || 0,
-              duration: `${duration}ms`
-            });
-            resolve(sanitizeQueryResult(rows || []));
-          }
-        });
-      }
+      // Add query to queue
+      queryQueue.push(executeQuery);
+      processQueryQueue();
     });
   };
 
