@@ -24,24 +24,24 @@ export interface RangeFilter {
   max: number;
 }
 
-export interface Query {
+export interface BaseQuery {
   tableName: string;
-  exactFilters?: Record<string, any>;
+  exactFilters?: Record<string, string | number | boolean>;
   rangeFilters?: Record<string, RangeFilter>;
+}
+
+export interface Query extends BaseQuery {
   orderBy?: string;
   orderDir?: 'ASC' | 'DESC';
   limit?: number;
   offset?: number;
 }
 
-export type QueryRunner = (sql: string, params?: any[]) => Promise<any[]>;
-
-export interface HistogramQuery {
-  tableName: string;
+export interface HistogramQuery extends BaseQuery {
   columnName: string;
   columnType: string;
-  exactFilters?: Record<string, string | number | boolean>;
-  rangeFilters?: Record<string, RangeFilter>;
   topN?: number;
   bins?: number;
 }
+
+export type QueryRunner = (sql: string, params?: any[]) => Promise<any[]>;
