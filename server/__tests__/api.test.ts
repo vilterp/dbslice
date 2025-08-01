@@ -865,4 +865,23 @@ describe('API Endpoints', () => {
       expect(response.body.error).toContain('invalid_column');
     });
   });
+
+  describe('Date handling', () => {
+    it('should return date columns as ISO strings in table data', async () => {
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({})
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBeGreaterThan(0);
+      // created_date should be an ISO string
+      response.body.data.forEach((row: any) => {
+        expect(typeof row.created_date).toBe('string');
+        // Should match ISO date format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)
+        expect(row.created_date).toMatch(/^\d{4}-\d{2}-\d{2}/);
+      });
+    });
+  });
 });

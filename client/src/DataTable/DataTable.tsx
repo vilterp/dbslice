@@ -1,5 +1,6 @@
 import "./DataTable.css";
 import React, { useState, useRef, useEffect } from "react";
+import { formatValue } from '../utils/formatValue';
 import TableHeader from "./TableHeader";
 import HeaderMenu from "./HeaderMenu";
 import SidePanel from "./SidePanel";
@@ -130,7 +131,7 @@ const DataTable: React.FC<DataTableProps> = ({
                         className="table-cell"
                         onContextMenu={e => handleCellContextMenu(e, col, value)}
                       >
-                        {String(value)}
+                        {formatValue(value)}
                       </td>
                     );
                   })}

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Tooltip from "../components/Tooltip";
 import { useTooltip } from "../components/Tooltip";
 import { abbreviateNumber } from "../utils";
+import { formatValue } from "../utils/formatValue";
 
 type OtherValuesProps = {
   distinctCount: number;

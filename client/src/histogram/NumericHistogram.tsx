@@ -3,6 +3,7 @@ import { HistogramData } from '../api';
 import Tooltip from '../components/Tooltip';
 import { useTooltip } from '../components/Tooltip';
 import { Filter } from '../../../src/common';
+import { formatValue } from '../utils/formatValue';
 
 type NumericHistogramProps = {
   columnName: string;

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import OtherValues from './OtherValues';
 import { HistogramData } from '../api';
 import { abbreviateNumber } from '../utils';
+import { formatValue } from '../utils/formatValue';
 import Tooltip from '../components/Tooltip';
 import { useTooltip } from '../components/Tooltip';
 import { Filter } from '../../../src/common';
@@ -71,7 +72,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
           const distinctCount = item.distinct_count || item.count;
           displayValue = `${abbreviateNumber(distinctCount)} other value${distinctCount === 1 ? '' : 's'}`;
         } else {
-          displayValue = value;
+          displayValue = formatValue(value);
         }
         if (isOthers) {
           return (
