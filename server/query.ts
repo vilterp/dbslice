@@ -1,8 +1,9 @@
-import { NUMERICAL_COLUMN_TYPES, Query, RangeFilter, QueryRunner, HistogramQuery } from '../src/common';
+import { NUMERICAL_COLUMN_TYPES, Query, RangeFilter, HistogramQuery } from '../src/common';
 import { sanitizeQueryResult, sanitizeIdentifier } from './helpers';
-// Query building utilities for DuckDB
 import * as duckdb from 'duckdb';
 import logger from './logger';
+
+export type QueryRunner = (sql: string, params?: any[]) => Promise<any[]>;
 
 // Top-level runQuery function that takes a Query object and executes it
 export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<any[]> => {

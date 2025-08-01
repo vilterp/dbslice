@@ -44,7 +44,6 @@ export interface HistogramQuery extends BaseQuery {
   bins?: number;
 }
 
-export type QueryRunner = (sql: string, params?: any[]) => Promise<any[]>;
 
 // API types shared between client and server
 export type SortDirection = 'asc' | 'desc' | '';
