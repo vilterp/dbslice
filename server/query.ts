@@ -1,26 +1,102 @@
-import { NUMERICAL_COLUMN_TYPES, Query, RangeFilter } from '../src/common';
+import { NUMERICAL_COLUMN_TYPES, Query, RangeFilter, QueryRunner, HistogramQuery } from '../src/common';
+import { sanitizeQueryResult, sanitizeIdentifier } from './helpers';
 // Query building utilities for DuckDB
 import * as duckdb from 'duckdb';
 import logger from './logger';
 
-// Utility function to convert BigInt values to numbers for JSON serialization
-const sanitizeQueryResult = (data: any): any => {
-  if (Array.isArray(data)) {
-    return data.map(sanitizeQueryResult);
-  } else if (data && typeof data === 'object') {
-    const sanitized: any = {};
-    for (const [key, value] of Object.entries(data)) {
-      sanitized[key] = typeof value === 'bigint' ? Number(value) : sanitizeQueryResult(value);
+// Top-level runQuery function that takes a Query object and executes it
+export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<any[]> => {
+  const {
+    tableName,
+    exactFilters = {},
+    rangeFilters = {},
+    orderBy,
+    orderDir = 'ASC',
+    limit,
+    offset
+  } = query;
+
+  const sanitizedTableName = sanitizeIdentifier(tableName);
+  
+  // Build WHERE clause
+  const whereClause = buildWhereClause(exactFilters, rangeFilters);
+  
+  // Build ORDER BY clause
+  const orderByClause = buildOrderByClause(orderBy, orderDir);
+  
+  // Build LIMIT clause
+  let limitClause = '';
+  if (limit !== undefined) {
+    limitClause = ` LIMIT ${limit}`;
+    if (offset !== undefined) {
+      limitClause += ` OFFSET ${offset}`;
     }
-    return sanitized;
-  } else if (typeof data === 'bigint') {
-    return Number(data);
   }
-  return data;
+  
+  // Construct final SQL query
+  const sql = `SELECT * FROM ${sanitizedTableName}${whereClause}${orderByClause}${limitClause}`;
+  
+  // Execute query
+  return await queryRunner(sql);
+};
+
+// Count query function that takes a Query object and returns the count
+export const runCountQuery = async (query: Query, queryRunner: QueryRunner): Promise<number> => {
+  const {
+    tableName,
+    exactFilters = {},
+    rangeFilters = {}
+  } = query;
+
+  const sanitizedTableName = sanitizeIdentifier(tableName);
+  
+  // Build WHERE clause
+  const whereClause = buildWhereClause(exactFilters, rangeFilters);
+  
+  // Construct count SQL query
+  const sql = `SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
+  
+  // Execute query
+  const result = await queryRunner(sql);
+  return result[0]?.total ?? 0;
+};
+
+// Histogram query function that takes a HistogramQuery object and returns histogram data
+export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRunner: QueryRunner): Promise<any[]> => {
+  const {
+    tableName,
+    columnName,
+    columnType,
+    exactFilters = {},
+    rangeFilters = {},
+    topN = 5,
+    bins = 20
+  } = histogramQuery;
+
+  // Build WHERE clause for histogram using the direct filters
+  const { whereClause } = buildHistogramWhereClause(exactFilters, rangeFilters, columnName);
+  
+  // Check if column is numerical for binning
+  const isNumerical = isNumericalColumnType(columnType);
+  
+  if (isNumerical) {
+    // For numerical columns, use DuckDB's automatic histogram binning
+    const histogramQuerySQL = buildNumericalHistogramQuery(tableName, columnName, whereClause);
+    const rawHistogram = await queryRunner(histogramQuerySQL);
+    const numBins = Math.max(1, Math.min(bins, 100)); // Limit between 1 and 100 bins
+    return transformNumericalHistogramResults(rawHistogram, numBins);
+  } else {
+    // For categorical columns, use simple GROUP BY COUNT
+    // Get top N categories plus calculate "others"
+    const topLimit = Math.max(1, Math.min(topN, 20)); // Limit between 1 and 20
+    const histogramQuerySQL = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topLimit + 1);
+    const rawHistogram = await queryRunner(histogramQuerySQL);
+    return await transformCategoricalHistogramResults(rawHistogram, topLimit, tableName, columnName, whereClause, queryRunner);
+  }
 };
 
 // Create a query runner with shared connection and queuing
-export function createQueryRunner(db: duckdb.Database) {
+export function createQueryRunner(db: duckdb.Database): QueryRunner {
   // Create a shared connection for better caching and performance
   const sharedConnection = new duckdb.Connection(db);
   
@@ -118,13 +194,8 @@ export function createQueryRunner(db: duckdb.Database) {
   return runSQLQuery;
 }
 
-// Utility function to sanitize identifiers
-export const sanitizeIdentifier = (identifier: string): string => {
-  return identifier.replace(/[^a-zA-Z0-9_]/g, '');
-};
-
 // Build WHERE conditions for exact filters
-export const buildExactFilterConditions = (filters: Record<string, any>): string[] => {
+const buildExactFilterConditions = (filters: Record<string, string | number | boolean>): string[] => {
   if (Object.keys(filters).length === 0) return [];
   
   return Object.entries(filters).map(([column, value]) => {
@@ -136,7 +207,7 @@ export const buildExactFilterConditions = (filters: Record<string, any>): string
 };
 
 // Build WHERE conditions for range filters
-export const buildRangeFilterConditions = (rangeFilters: Record<string, RangeFilter>): string[] => {
+const buildRangeFilterConditions = (rangeFilters: Record<string, RangeFilter>): string[] => {
   if (Object.keys(rangeFilters).length === 0) return [];
   
   return Object.entries(rangeFilters).map(([column, range]) => {
@@ -157,8 +228,8 @@ export const buildRangeFilterConditions = (rangeFilters: Record<string, RangeFil
 };
 
 // Build complete WHERE clause from filters
-export const buildWhereClause = (
-  filters: Record<string, any>, 
+const buildWhereClause = (
+  filters: Record<string, string | number | boolean>, 
   rangeFilters: Record<string, RangeFilter>
 ): string => {
   const conditions: string[] = [];
@@ -173,7 +244,7 @@ export const buildWhereClause = (
 };
 
 // Build ORDER BY clause
-export const buildOrderByClause = (orderBy?: string, orderDir?: string): string => {
+const buildOrderByClause = (orderBy?: string, orderDir?: string): string => {
   if (!orderBy || typeof orderBy !== 'string') return '';
   
   const sanitizedOrderBy = sanitizeIdentifier(orderBy);
@@ -185,43 +256,9 @@ export const buildOrderByClause = (orderBy?: string, orderDir?: string): string 
   return ` ORDER BY ${sanitizedOrderBy} ${dir}`;
 };
 
-// Parse query parameters into exact and range filters for histograms
-export const parseHistogramFilters = (
-  queryParams: Record<string, any>,
-  excludeColumn: string
-): { exactFilters: Record<string, any>; rangeFilters: Record<string, RangeFilter> } => {
-  const exactFilters: Record<string, any> = {};
-  const rangeFilters: Record<string, RangeFilter> = {};
-  const sanitizedExcludeColumn = sanitizeIdentifier(excludeColumn);
-  
-  Object.entries(queryParams).forEach(([key, value]) => {
-    const sanitizedKey = sanitizeIdentifier(key);
-    
-    // Skip the column we're creating a histogram for
-    if (sanitizedKey === sanitizedExcludeColumn) return;
-    
-    if (typeof value === 'string' && value.includes('-')) {
-      // Check if this looks like a range filter (format: "min-max")
-      const parts = value.split('-');
-      if (parts.length === 2) {
-        const min = parseFloat(parts[0]);
-        const max = parseFloat(parts[1]);
-        if (!isNaN(min) && !isNaN(max)) {
-          rangeFilters[key] = { column: key, min, max };
-          return;
-        }
-      }
-    }
-    // Not a range filter, treat as exact filter
-    exactFilters[key] = value;
-  });
-  
-  return { exactFilters, rangeFilters };
-};
-
 // Build WHERE clause for histograms (using direct substitution to avoid parameter binding issues)
-export const buildHistogramWhereClause = (
-  exactFilters: Record<string, any>,
+const buildHistogramWhereClause = (
+  exactFilters: Record<string, string | number | boolean>,
   rangeFilters: Record<string, RangeFilter>,
   excludeColumn: string
 ): { whereClause: string; params: any[] } => {
@@ -254,7 +291,7 @@ export const buildHistogramWhereClause = (
 };
 
 // Check if a column type is numerical
-export const isNumericalColumnType = (columnType: string): boolean => {
+const isNumericalColumnType = (columnType: string): boolean => {
   return NUMERICAL_COLUMN_TYPES.some(type => 
     columnType.toUpperCase().includes(type)
   );
@@ -262,7 +299,7 @@ export const isNumericalColumnType = (columnType: string): boolean => {
 
 
 // Build optimized numerical histogram query using DuckDB's automatic binning
-export const buildNumericalHistogramQuery = (tableName: string, columnName: string, whereClause: string): string => {
+const buildNumericalHistogramQuery = (tableName: string, columnName: string, whereClause: string): string => {
   const sanitizedTableName = sanitizeIdentifier(tableName);
   const sanitizedColumnName = sanitizeIdentifier(columnName);
   
@@ -276,7 +313,7 @@ export const buildNumericalHistogramQuery = (tableName: string, columnName: stri
 };
 
 // Build categorical histogram query using simple GROUP BY COUNT
-export const buildCategoricalHistogramQuery = (
+const buildCategoricalHistogramQuery = (
   tableName: string, 
   columnName: string, 
   whereClause: string, 
@@ -298,7 +335,7 @@ export const buildCategoricalHistogramQuery = (
 };
 
 // Transform numerical histogram results to expected format (for both regular and BigInt)
-export const transformNumericalHistogramResults = (rawHistogram: any[], maxBins?: number): any[] => {
+const transformNumericalHistogramResults = (rawHistogram: any[], maxBins?: number): any[] => {
   let validBins = rawHistogram.map(row => ({
     bin_value: Number(row.bin_value),
     count: Number(row.count)
@@ -373,13 +410,13 @@ export const transformNumericalHistogramResults = (rawHistogram: any[], maxBins?
 };
 
 // Transform categorical histogram results to expected format with top N + others
-export const transformCategoricalHistogramResults = async (
+const transformCategoricalHistogramResults = async (
   rawHistogram: any[], 
   topLimit: number, 
   tableName: string, 
   columnName: string, 
   whereClause: string,
-  runQuery: (query: string) => Promise<any[]>
+  runQuery: QueryRunner
 ): Promise<any[]> => {
   const filteredResults = rawHistogram.filter(row => Number(row.count) > 0);
   
@@ -412,61 +449,4 @@ export const transformCategoricalHistogramResults = async (
   }
   
   return topResults;
-};
-
-// Top-level runQuery function that takes a Query object and executes it
-export const runQuery = async (query: Query, queryRunner: (sql: string, params?: any[]) => Promise<any[]>): Promise<any[]> => {
-  const {
-    tableName,
-    exactFilters = {},
-    rangeFilters = {},
-    orderBy,
-    orderDir = 'ASC',
-    limit,
-    offset
-  } = query;
-
-  const sanitizedTableName = sanitizeIdentifier(tableName);
-  
-  // Build WHERE clause
-  const whereClause = buildWhereClause(exactFilters, rangeFilters);
-  
-  // Build ORDER BY clause
-  const orderByClause = buildOrderByClause(orderBy, orderDir);
-  
-  // Build LIMIT clause
-  let limitClause = '';
-  if (limit !== undefined) {
-    limitClause = ` LIMIT ${limit}`;
-    if (offset !== undefined) {
-      limitClause += ` OFFSET ${offset}`;
-    }
-  }
-  
-  // Construct final SQL query
-  const sql = `SELECT * FROM ${sanitizedTableName}${whereClause}${orderByClause}${limitClause}`;
-  
-  // Execute query
-  return await queryRunner(sql);
-};
-
-// Count query function that takes a Query object and returns the count
-export const runCountQuery = async (query: Query, queryRunner: (sql: string, params?: any[]) => Promise<any[]>): Promise<number> => {
-  const {
-    tableName,
-    exactFilters = {},
-    rangeFilters = {}
-  } = query;
-
-  const sanitizedTableName = sanitizeIdentifier(tableName);
-  
-  // Build WHERE clause
-  const whereClause = buildWhereClause(exactFilters, rangeFilters);
-  
-  // Construct count SQL query
-  const sql = `SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
-  
-  // Execute query
-  const result = await queryRunner(sql);
-  return result[0]?.total ?? 0;
 };

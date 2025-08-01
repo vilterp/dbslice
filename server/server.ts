@@ -6,17 +6,12 @@ import { requestLogger, timeoutMiddleware } from './middleware';
 import { Config } from './config';
 import { 
   createQueryRunner,
-  sanitizeIdentifier, 
-  buildHistogramWhereClause,
-  isNumericalColumnType,
-  buildNumericalHistogramQuery,
-  buildCategoricalHistogramQuery,
-  transformNumericalHistogramResults,
-  transformCategoricalHistogramResults,
   runQuery,
-  runCountQuery
+  runCountQuery,
+  runHistogramQuery
 } from './query';
-import { Query } from '../src/common';
+import { sanitizeIdentifier } from './helpers';
+import { Query, HistogramQuery } from '../src/common';
 
 
 
@@ -124,30 +119,19 @@ export function createServer(db: duckdb.Database, config: Config) {
       const { tableName, columnName } = req.params;
       const { column_type = 'text', filters = {}, rangeFilters = {}, top_n = 5, bins = 20 } = req.body;
       
+      // Create HistogramQuery object
+      const histogramQuery: HistogramQuery = {
+        tableName,
+        columnName,
+        columnType: column_type as string,
+        exactFilters: filters,
+        rangeFilters,
+        topN: top_n,
+        bins
+      };
       
-      // Build WHERE clause for histogram using the direct filters from request body
-      const { whereClause } = buildHistogramWhereClause(filters, rangeFilters, columnName);
-      
-      let histogram: any[];
-      const columnTypeStr = column_type as string;
-      
-      // Check if column is numerical for binning
-      const isNumerical = isNumericalColumnType(columnTypeStr);
-      
-      if (isNumerical) {
-        // For numerical columns, use DuckDB's automatic histogram binning
-        const histogramQuery = buildNumericalHistogramQuery(tableName, columnName, whereClause);
-        const rawHistogram = await runSQLQuery(histogramQuery);
-        const numBins = Math.max(1, Math.min(bins, 100)); // Limit between 1 and 100 bins
-        histogram = transformNumericalHistogramResults(rawHistogram, numBins);
-      } else {
-        // For categorical columns, use simple GROUP BY COUNT
-        // Get top N categories plus calculate "others"
-        const topLimit = Math.max(1, Math.min(top_n, 20)); // Limit between 1 and 20
-        const histogramQuery = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topLimit + 1);
-        const rawHistogram = await runSQLQuery(histogramQuery);
-        histogram = await transformCategoricalHistogramResults(rawHistogram, topLimit, tableName, columnName, whereClause, runSQLQuery);
-      }
+      // Execute histogram query using new consolidated function
+      const histogram = await runHistogramQuery(histogramQuery, runSQLQuery);
       
       res.json(histogram);
     } catch (error) {

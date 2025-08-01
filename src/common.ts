@@ -33,3 +33,15 @@ export interface Query {
   limit?: number;
   offset?: number;
 }
+
+export type QueryRunner = (sql: string, params?: any[]) => Promise<any[]>;
+
+export interface HistogramQuery {
+  tableName: string;
+  columnName: string;
+  columnType: string;
+  exactFilters?: Record<string, string | number | boolean>;
+  rangeFilters?: Record<string, RangeFilter>;
+  topN?: number;
+  bins?: number;
+}
