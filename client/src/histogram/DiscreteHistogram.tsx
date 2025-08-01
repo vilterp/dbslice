@@ -75,7 +75,9 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
         const checked = filters.some((f: Filter) => f.column === columnName && f.value === value);
         let displayValue;
         if (isOthers) {
-          displayValue = `${abbreviateNumber(item.count)} other value${item.count === 1 ? '' : 's'}`;
+          // Use distinct_count for the "X other values" text, not the row count
+          const distinctCount = item.distinct_count || item.count;
+          displayValue = `${abbreviateNumber(distinctCount)} other value${distinctCount === 1 ? '' : 's'}`;
         } else {
           displayValue = value;
         }
