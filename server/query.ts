@@ -180,13 +180,36 @@ export const buildCategoricalHistogramQuery = (
 };
 
 // Transform numerical histogram results to expected format (for both regular and BigInt)
-export const transformNumericalHistogramResults = (rawHistogram: any[]): any[] => {
-  const validBins = rawHistogram.map(row => ({
+export const transformNumericalHistogramResults = (rawHistogram: any[], maxBins?: number): any[] => {
+  let validBins = rawHistogram.map(row => ({
     bin_value: Number(row.bin_value),
     count: Number(row.count)
   })).filter(bin => bin.count > 0);
   
   if (validBins.length === 0) return [];
+  
+  // Limit the number of bins if specified by merging adjacent bins
+  if (maxBins && validBins.length > maxBins) {
+    validBins.sort((a, b) => a.bin_value - b.bin_value);
+    
+    // Merge bins to reduce to maxBins
+    const mergedBins = [];
+    const binsPerGroup = Math.ceil(validBins.length / maxBins);
+    
+    for (let i = 0; i < validBins.length; i += binsPerGroup) {
+      const group = validBins.slice(i, i + binsPerGroup);
+      const totalCount = group.reduce((sum, bin) => sum + bin.count, 0);
+      const minValue = Math.min(...group.map(bin => bin.bin_value));
+      const maxValue = Math.max(...group.map(bin => bin.bin_value));
+      
+      mergedBins.push({
+        bin_value: (minValue + maxValue) / 2, // Use center as representative value
+        count: totalCount
+      });
+    }
+    
+    validBins = mergedBins;
+  }
   
   // Sort by bin_value to ensure proper ordering
   validBins.sort((a, b) => a.bin_value - b.bin_value);

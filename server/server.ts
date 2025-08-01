@@ -364,7 +364,7 @@ export function createServer(db: duckdb.Database, config: Config) {
   app.post('/api/tables/:tableName/columns/:columnName/histogram', async (req: Request, res: Response) => {
     try {
       const { tableName, columnName } = req.params;
-      const { column_type = 'text', filters = {}, rangeFilters = {}, top_n = 5 } = req.body;
+      const { column_type = 'text', filters = {}, rangeFilters = {}, top_n = 5, bins = 20 } = req.body;
       
       
       // Build WHERE clause for histogram using the direct filters from request body
@@ -380,7 +380,8 @@ export function createServer(db: duckdb.Database, config: Config) {
         // For numerical columns, use DuckDB's automatic histogram binning
         const histogramQuery = buildNumericalHistogramQuery(tableName, columnName, whereClause);
         const rawHistogram = await runQuery(histogramQuery);
-        histogram = transformNumericalHistogramResults(rawHistogram);
+        const numBins = Math.max(1, Math.min(bins, 100)); // Limit between 1 and 100 bins
+        histogram = transformNumericalHistogramResults(rawHistogram, numBins);
       } else {
         // For categorical columns, use simple GROUP BY COUNT
         // Get top N categories plus calculate "others"

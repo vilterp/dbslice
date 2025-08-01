@@ -2,6 +2,7 @@ export type SortDirection = 'asc' | 'desc' | '';
 
 // Configuration constants
 const DEFAULT_TOP_N_CATEGORIES = 5;
+const DEFAULT_HISTOGRAM_BINS = 20;
 
 export interface Table {
   table_name: string;
@@ -128,7 +129,7 @@ export async function fetchHistogram(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        bins: 10,
+        bins: DEFAULT_HISTOGRAM_BINS,
         column_type: column.data_type,
         filters: exactFilters,
         rangeFilters: rangeFilters,
