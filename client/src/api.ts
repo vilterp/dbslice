@@ -1,5 +1,8 @@
 export type SortDirection = 'asc' | 'desc' | '';
 
+// Configuration constants
+const DEFAULT_TOP_N_CATEGORIES = 5;
+
 export interface Table {
   table_name: string;
 }
@@ -7,6 +10,7 @@ export interface Table {
 export interface Column {
   column_name: string;
   data_type: string;
+  no_histogram?: boolean;
 }
 
 export interface HistogramData {
@@ -128,6 +132,7 @@ export async function fetchHistogram(
         column_type: column.data_type,
         filters: exactFilters,
         rangeFilters: rangeFilters,
+        top_n: DEFAULT_TOP_N_CATEGORIES, // Number of top categories to show for discrete histograms
       }),
     });
     

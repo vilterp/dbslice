@@ -41,15 +41,27 @@ const Sidebar: React.FC<SidebarProps> = ({
           </h4>
           {!isCollapsed && (
             <div className="histogram">
-              <Histogram
-                columnName={column.column_name}
-                column={column}
-                selectedTable={selectedTable}
-                isNumerical={isNumerical}
-                addFilter={addFilter}
-                removeFilter={removeFilter}
-                filters={filters}
-              />
+              {column.no_histogram ? (
+                <div style={{
+                  padding: '10px',
+                  textAlign: 'center',
+                  color: '#666',
+                  fontStyle: 'italic',
+                  fontSize: '14px'
+                }}>
+                  Histogram disabled for this column
+                </div>
+              ) : (
+                <Histogram
+                  columnName={column.column_name}
+                  column={column}
+                  selectedTable={selectedTable}
+                  isNumerical={isNumerical}
+                  addFilter={addFilter}
+                  removeFilter={removeFilter}
+                  filters={filters}
+                />
+              )}
             </div>
           )}
         </div>

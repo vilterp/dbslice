@@ -181,19 +181,94 @@ export const buildCategoricalHistogramQuery = (
 
 // Transform numerical histogram results to expected format (for both regular and BigInt)
 export const transformNumericalHistogramResults = (rawHistogram: any[]): any[] => {
-  return rawHistogram.map(row => ({
-    bin_start: Number(row.bin_value),
-    bin_end: Number(row.bin_value),
-    count: Number(row.count),
-    bin_value: Number(row.bin_value)
+  const validBins = rawHistogram.map(row => ({
+    bin_value: Number(row.bin_value),
+    count: Number(row.count)
   })).filter(bin => bin.count > 0);
+  
+  if (validBins.length === 0) return [];
+  
+  // Sort by bin_value to ensure proper ordering
+  validBins.sort((a, b) => a.bin_value - b.bin_value);
+  
+  // Calculate bin ranges
+  return validBins.map((bin, index) => {
+    let bin_start: number;
+    let bin_end: number;
+    
+    if (validBins.length === 1) {
+      // Single bin case - create a small range around the value
+      const value = bin.bin_value;
+      const range = Math.abs(value) * 0.1 || 1; // 10% of value or 1 if value is 0
+      bin_start = value - range / 2;
+      bin_end = value + range / 2;
+    } else if (index === 0) {
+      // First bin
+      const nextValue = validBins[1].bin_value;
+      const midpoint = (bin.bin_value + nextValue) / 2;
+      bin_start = bin.bin_value - (midpoint - bin.bin_value);
+      bin_end = midpoint;
+    } else if (index === validBins.length - 1) {
+      // Last bin
+      const prevValue = validBins[index - 1].bin_value;
+      const midpoint = (prevValue + bin.bin_value) / 2;
+      bin_start = midpoint;
+      bin_end = bin.bin_value + (bin.bin_value - midpoint);
+    } else {
+      // Middle bins
+      const prevValue = validBins[index - 1].bin_value;
+      const nextValue = validBins[index + 1].bin_value;
+      bin_start = (prevValue + bin.bin_value) / 2;
+      bin_end = (bin.bin_value + nextValue) / 2;
+    }
+    
+    return {
+      bin_start,
+      bin_end,
+      count: bin.count,
+      bin_value: bin.bin_value
+    };
+  });
 };
 
-// Transform categorical histogram results to expected format
-export const transformCategoricalHistogramResults = (rawHistogram: any[]): any[] => {
-  return rawHistogram.filter(row => Number(row.count) > 0).map(row => ({
+// Transform categorical histogram results to expected format with top N + others
+export const transformCategoricalHistogramResults = async (
+  rawHistogram: any[], 
+  topLimit: number, 
+  tableName: string, 
+  columnName: string, 
+  whereClause: string,
+  runQuery: (query: string) => Promise<any[]>
+): Promise<any[]> => {
+  const filteredResults = rawHistogram.filter(row => Number(row.count) > 0);
+  
+  // Take only the top N results
+  const topResults = filteredResults.slice(0, topLimit).map(row => ({
     ...row,
     count: Number(row.count),
-    is_others: false // No longer using 'other' concept since we're getting top results directly
+    is_others: false
   }));
+  
+  // Calculate "others" if there are more than topLimit categories
+  if (filteredResults.length > topLimit) {
+    // Get total count
+    const sanitizedTableName = sanitizeIdentifier(tableName);
+    const totalQuery = `SELECT COUNT(*) as total FROM ${sanitizedTableName} ${whereClause}`;
+    const totalResult = await runQuery(totalQuery);
+    const totalCount = totalResult[0]?.total || 0;
+    
+    // Calculate count for "others"
+    const topCount = topResults.reduce((sum, item) => sum + item.count, 0);
+    const othersCount = totalCount - topCount;
+    
+    if (othersCount > 0) {
+      topResults.push({
+        [columnName]: '(others)',
+        count: othersCount,
+        is_others: true
+      });
+    }
+  }
+  
+  return topResults;
 };

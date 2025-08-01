@@ -11,7 +11,7 @@ export interface Config {
   database: {
     path?: string;
     type: 'file' | 'memory' | 's3';
-    tables?: { [key: string]: string };
+    tables?: { [key: string]: string | { url: string; no_histogram?: string[] } };
   };
   server: {
     port: number;
@@ -152,7 +152,8 @@ export function initializeDatabase(config: Config): duckdb.Database {
     
     // Create views for S3 tables
     if (config.database.tables) {
-      for (const [tableName, s3Path] of Object.entries(config.database.tables)) {
+      for (const [tableName, tableConfig] of Object.entries(config.database.tables)) {
+        const s3Path = typeof tableConfig === 'string' ? tableConfig : tableConfig.url;
         const viewQuery = `CREATE VIEW ${tableName} AS SELECT * FROM '${s3Path}'`;
         logger.info('Creating S3 view', { tableName, query: viewQuery });
         db.exec(viewQuery, (err) => {
@@ -300,7 +301,23 @@ export function createServer(db: duckdb.Database, config: Config) {
         FROM information_schema.columns 
         WHERE table_name = '${sanitizedTableName}'
       `);
-      res.json(columns);
+      
+      // Add no_histogram information from config
+      const noHistogramColumns = new Set<string>();
+      if (config.database.tables && config.database.tables[tableName]) {
+        const tableConfig = config.database.tables[tableName];
+        if (typeof tableConfig === 'object' && tableConfig.no_histogram) {
+          tableConfig.no_histogram.forEach(col => noHistogramColumns.add(col));
+        }
+      }
+      
+      // Add no_histogram flag to each column
+      const enhancedColumns = columns.map((column: any) => ({
+        ...column,
+        no_histogram: noHistogramColumns.has(column.column_name)
+      }));
+      
+      res.json(enhancedColumns);
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }
@@ -347,7 +364,7 @@ export function createServer(db: duckdb.Database, config: Config) {
   app.post('/api/tables/:tableName/columns/:columnName/histogram', async (req: Request, res: Response) => {
     try {
       const { tableName, columnName } = req.params;
-      const { column_type = 'text', filters = {}, rangeFilters = {} } = req.body;
+      const { column_type = 'text', filters = {}, rangeFilters = {}, top_n = 5 } = req.body;
       
       
       // Build WHERE clause for histogram using the direct filters from request body
@@ -366,11 +383,11 @@ export function createServer(db: duckdb.Database, config: Config) {
         histogram = transformNumericalHistogramResults(rawHistogram);
       } else {
         // For categorical columns, use simple GROUP BY COUNT
-        // Use a reasonable default limit since bins doesn't make sense for categories
-        const limit = config.api.maxHistogramBins;
-        const histogramQuery = buildCategoricalHistogramQuery(tableName, columnName, whereClause, limit);
+        // Get top N categories plus calculate "others"
+        const topLimit = Math.max(1, Math.min(top_n, 20)); // Limit between 1 and 20
+        const histogramQuery = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topLimit + 1);
         const rawHistogram = await runQuery(histogramQuery);
-        histogram = transformCategoricalHistogramResults(rawHistogram);
+        histogram = await transformCategoricalHistogramResults(rawHistogram, topLimit, tableName, columnName, whereClause, runQuery);
       }
       
       res.json(histogram);
