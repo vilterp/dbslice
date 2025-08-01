@@ -91,7 +91,7 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
     const topLimit = Math.max(1, Math.min(topN, 20)); // Limit between 1 and 20
     const histogramQuerySQL = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topLimit + 1);
     const rawHistogram = await queryRunner(histogramQuerySQL);
-    return await transformCategoricalHistogramResults(rawHistogram, topLimit, tableName, columnName, whereClause, queryRunner);
+    return await transformCategoricalHistogramResults(rawHistogram, topLimit, columnName);
   }
 };
 
@@ -413,10 +413,7 @@ const transformNumericalHistogramResults = (rawHistogram: any[], maxBins?: numbe
 const transformCategoricalHistogramResults = async (
   rawHistogram: any[], 
   topLimit: number, 
-  tableName: string, 
-  columnName: string, 
-  whereClause: string,
-  runQuery: QueryRunner
+  columnName: string
 ): Promise<any[]> => {
   const filteredResults = rawHistogram.filter(row => Number(row.count) > 0);
   
