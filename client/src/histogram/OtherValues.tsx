@@ -24,7 +24,7 @@ const OtherValues: React.FC<OtherValuesProps> = ({
     content: "",
   });
   const otherInputRef = React.useRef<HTMLInputElement>(null);
-  const displayValue = `${distinctCount} other values`;
+  const displayValue = `${abbreviateNumber(distinctCount)} other values`;
 
   // Checkbox in DiscreteHistogram is about 16px wide with marginRight: 6
   // So, left padding should be about 22px
