@@ -1,11 +1,9 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import * as duckdb from 'duckdb';
-import * as fs from 'fs';
 import * as path from 'path';
-import * as yaml from 'js-yaml';
-import logger from './logger';
 import { requestLogger, timeoutMiddleware } from './middleware';
+import { Config } from './config';
 import { 
   createQueryRunner,
   sanitizeIdentifier, 
@@ -19,124 +17,7 @@ import {
   transformCategoricalHistogramResults
 } from './query';
 
-// Configuration interface  
-export interface Config {
-  database: {
-    path?: string;
-    type: 'file' | 'memory' | 's3';
-    tables?: { [key: string]: string | { url: string; no_histogram?: string[] } };
-  };
-  server: {
-    port: number;
-    host: string;
-  };
-  api: {
-    maxRows: number;
-    maxHistogramBins: number;
-  };
-}
 
-
-
-// Configuration loading function
-export function loadConfig(configPath?: string): Config {
-  try {
-    let resolvedConfigPath: string;
-    
-    if (configPath) {
-      // Use provided config path
-      resolvedConfigPath = path.isAbsolute(configPath) ? configPath : path.join(process.cwd(), configPath);
-    } else {
-      // Try YAML first, then fallback to JSON for backward compatibility
-      resolvedConfigPath = path.join(__dirname, '../config.yaml');
-      if (!fs.existsSync(resolvedConfigPath)) {
-        resolvedConfigPath = path.join(__dirname, '../config.json');
-      }
-    }
-    
-    const configData = fs.readFileSync(resolvedConfigPath, 'utf8');
-    
-    let config: Config;
-    if (resolvedConfigPath.endsWith('.yaml') || resolvedConfigPath.endsWith('.yml')) {
-      config = yaml.load(configData) as Config;
-    } else {
-      config = JSON.parse(configData);
-    }
-    
-    logger.info(`Using config file: ${path.basename(resolvedConfigPath)}`);
-    if (config.database.type === 's3') {
-      logger.info(`Using S3 database with ${Object.keys(config.database.tables || {}).length} table(s)`);
-    } else if (config.database.path) {
-      logger.info(`Loading DuckDB from: ${config.database.path}`);
-    }
-    
-    return config;
-  } catch (error) {
-    logger.error('Error loading config file:', (error as Error).message);
-    logger.info('Using default in-memory database');
-    return {
-      database: { path: ':memory:', type: 'memory' },
-      server: { port: 3001, host: 'localhost' },
-      api: { maxRows: 1000, maxHistogramBins: 50 }
-    };
-  }
-}
-
-// Database initialization function
-export function initializeDatabase(config: Config): duckdb.Database {
-  if (config.database.type === 'file' && config.database.path && config.database.path !== ':memory:') {
-    // Check if file exists
-    if (fs.existsSync(config.database.path)) {
-      const db = new duckdb.Database(config.database.path);
-      logger.info(`Connected to DuckDB file: ${config.database.path}`);
-      return db;
-    } else {
-      logger.error(`DuckDB file not found: ${config.database.path}`);
-      logger.info('Falling back to in-memory database');
-      return new duckdb.Database(':memory:');
-    }
-  } else if (config.database.type === 's3') {
-    // For S3, use in-memory database and create views
-    const db = new duckdb.Database(':memory:');
-    logger.info('Setting up S3 database connection');
-    
-    // Set up S3 authentication
-    const s3SecretQuery = `CREATE SECRET secret2 (
-      TYPE s3,
-      PROVIDER credential_chain,
-      REGION 'us-east-1'
-    )`;
-    logger.info('Executing S3 secret creation', { query: s3SecretQuery });
-    db.exec(s3SecretQuery, (err) => {
-      if (err) {
-        logger.error('Error creating S3 secret:', err.message);
-      } else {
-        logger.info('S3 authentication configured');
-      }
-    });
-    
-    // Create views for S3 tables
-    if (config.database.tables) {
-      for (const [tableName, tableConfig] of Object.entries(config.database.tables)) {
-        const s3Path = typeof tableConfig === 'string' ? tableConfig : tableConfig.url;
-        const viewQuery = `CREATE VIEW ${tableName} AS SELECT * FROM '${s3Path}'`;
-        logger.info('Creating S3 view', { tableName, query: viewQuery });
-        db.exec(viewQuery, (err) => {
-          if (err) {
-            logger.error(`Error creating view ${tableName}:`, err.message);
-          } else {
-            logger.info(`Created S3 view: ${tableName}`);
-          }
-        });
-      }
-    }
-    return db;
-  } else {
-    const db = new duckdb.Database(':memory:');
-    logger.info('Using in-memory database');
-    return db;
-  }
-}
 
 // Create server function that accepts a database connection and config
 export function createServer(db: duckdb.Database, config: Config) {

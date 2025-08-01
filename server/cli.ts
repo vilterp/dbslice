@@ -1,4 +1,6 @@
-import { createServer, loadConfig, initializeDatabase } from './server';
+import { createServer } from './server';
+import { loadConfig } from './config';
+import { initializeDatabase } from './initDB';
 import logger from './logger';
 
 // Parse command line arguments
