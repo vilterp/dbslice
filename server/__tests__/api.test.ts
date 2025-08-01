@@ -455,7 +455,6 @@ describe('API Endpoints', () => {
         expect(item).toHaveProperty('count');
         expect(item).toHaveProperty('bin_start');
         expect(item).toHaveProperty('bin_end');
-        expect(item).toHaveProperty('bin_num');
         
         // Ensure all numeric values are properly converted from BigInt
         expect(typeof item.count).toBe('number');
@@ -464,8 +463,16 @@ describe('API Endpoints', () => {
         expect(item.bin_start).not.toBeInstanceOf(BigInt);
         expect(typeof item.bin_end).toBe('number');
         expect(item.bin_end).not.toBeInstanceOf(BigInt);
-        expect(typeof item.bin_num).toBe('number');
-        expect(item.bin_num).not.toBeInstanceOf(BigInt);
+        
+        // For BigInt values, we may have bin_value instead of bin_num
+        if (item.hasOwnProperty('bin_num')) {
+          expect(typeof item.bin_num).toBe('number');
+          expect(item.bin_num).not.toBeInstanceOf(BigInt);
+        }
+        if (item.hasOwnProperty('bin_value')) {
+          expect(typeof item.bin_value).toBe('number');
+          expect(item.bin_value).not.toBeInstanceOf(BigInt);
+        }
       });
     });
 

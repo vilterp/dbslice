@@ -44,7 +44,17 @@ import {
   sanitizeIdentifier, 
   buildWhereClause, 
   buildOrderByClause,
-  buildHistogramWhereClause
+  buildHistogramWhereClause,
+  isNumericalColumnType,
+  isBigIntOverflowRisk,
+  buildRangeQuery,
+  buildBigIntHistogramQuery,
+  buildNumericalHistogramQuery,
+  buildTopValuesQuery,
+  buildCategoricalHistogramQuery,
+  transformBigIntHistogramResults,
+  transformNumericalHistogramResults,
+  transformCategoricalHistogramResults
 } from './query';
 
 // Request logging middleware
@@ -319,8 +329,7 @@ export function createServer(db: duckdb.Database, config: Config) {
       const { tableName, columnName } = req.params;
       const { bins = 20, column_type = 'text', filters = {}, rangeFilters = {} } = req.body;
       
-      // Sanitize names
-      const sanitizedTableName = sanitizeIdentifier(tableName);
+      // Sanitize column name for result processing
       const sanitizedColumnName = sanitizeIdentifier(columnName);
       
       // Build WHERE clause for histogram using the direct filters from request body
@@ -330,67 +339,56 @@ export function createServer(db: duckdb.Database, config: Config) {
       const columnTypeStr = column_type as string;
       
       // Check if column is numerical for binning
-      const isNumerical = ['INTEGER', 'BIGINT', 'DECIMAL', 'DOUBLE', 'FLOAT', 'NUMERIC', 'REAL'].some(type => 
-        columnTypeStr.toUpperCase().includes(type)
-      );
+      const isNumerical = isNumericalColumnType(columnTypeStr);
       
       if (isNumerical) {
-        // For numerical columns, create binned histogram
-        const binsCount = Math.min(Number(bins), 10); // Limit bins for numerical
+        // For numerical columns, use DuckDB's built-in histogram function
+        const binsCount = Math.min(Number(bins), config.api.maxHistogramBins);
         
-        // Get min/max values for binning
-        const rangeQuery = `SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val FROM ${sanitizedTableName}${whereClause}`;
+        // Get min/max values for boundary calculation
+        const rangeQuery = buildRangeQuery(tableName, columnName, whereClause);
         const rangeResult = await runQuery(rangeQuery);
         
         if (rangeResult.length > 0 && rangeResult[0].min_val !== null && rangeResult[0].max_val !== null) {
           const minVal = Number(rangeResult[0].min_val);
           const maxVal = Number(rangeResult[0].max_val);
-          const binWidth = (maxVal - minVal) / binsCount;
           
-          // Create binned histogram query
-          const binQuery = `
-            SELECT 
-              FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) as bin_num,
-              COUNT(*) as count,
-              ${minVal} + FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) * ${binWidth} as bin_start,
-              ${minVal} + (FLOOR((${sanitizedColumnName} - ${minVal}) / ${binWidth}) + 1) * ${binWidth} as bin_end
-            FROM ${sanitizedTableName}
-            ${whereClause}
-            GROUP BY bin_num, bin_start, bin_end
-            ORDER BY bin_start
-            LIMIT 10
-          `;
+          // Check if we're dealing with BigInt values that might cause overflow
+          const isBigIntRange = isBigIntOverflowRisk(columnTypeStr, minVal, maxVal);
           
-          histogram = await runQuery(binQuery);
+          if (isBigIntRange) {
+            // For BigInt ranges that might overflow, use simpler histogram without boundaries
+            const histogramQuery = buildBigIntHistogramQuery(tableName, columnName, whereClause);
+            const rawHistogram = await runQuery(histogramQuery);
+            histogram = transformBigIntHistogramResults(rawHistogram);
+          } else {
+            // Create boundaries for histogram bins
+            const boundaries: number[] = [];
+            for (let i = 1; i <= binsCount; i++) {
+              boundaries.push(minVal + (i * (maxVal - minVal)) / binsCount);
+            }
+            
+            // Use DuckDB's histogram function with boundaries
+            const histogramQuery = buildNumericalHistogramQuery(tableName, columnName, whereClause, boundaries);
+            const rawHistogram = await runQuery(histogramQuery);
+            histogram = transformNumericalHistogramResults(rawHistogram, boundaries, minVal);
+          }
         } else {
           histogram = [];
         }
       } else {
-
-        // For categorical columns, show top 5 values and number of distinct 'other' values
-        const topValuesQuery = `SELECT ${sanitizedColumnName}, COUNT(*) as count FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY count DESC, ${sanitizedColumnName} ASC LIMIT 5`;
+        // For categorical columns, use DuckDB's histogram function for exact values
+        // First get top values to use as exact elements
+        const topValuesQuery = buildTopValuesQuery(tableName, columnName, whereClause);
         const topValues = await runQuery(topValuesQuery);
-
-        // Get all distinct values
-        const allDistinctQuery = `SELECT DISTINCT ${sanitizedColumnName} FROM ${sanitizedTableName}${whereClause}`;
-        const allDistinct = await runQuery(allDistinctQuery);
-        const allDistinctSet = new Set(allDistinct.map(row => row[sanitizedColumnName]));
-
-        // Remove top values from the set to get 'other' distincts
-        for (const top of topValues) {
-          allDistinctSet.delete(top[sanitizedColumnName]);
-        }
-        const othersDistinctCount = allDistinctSet.size;
-
-        histogram = [...topValues];
-
-        // Add "others" entry if there are more distinct values
-        if (othersDistinctCount > 0) {
-          histogram.push({
-            [sanitizedColumnName]: '(others)',
-            count: othersDistinctCount,
-            is_others: true
-          });
+        
+        if (topValues.length > 0) {
+          // Use histogram_exact for categorical data
+          const histogramQuery = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topValues);
+          const rawHistogram = await runQuery(histogramQuery);
+          histogram = transformCategoricalHistogramResults(rawHistogram, sanitizedColumnName);
+        } else {
+          histogram = [];
         }
       }
       
