@@ -156,8 +156,8 @@ export const buildRangeQuery = (tableName: string, columnName: string, whereClau
   return `SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val FROM ${sanitizedTableName}${whereClause}`;
 };
 
-// Build histogram query for BigInt columns that might overflow
-export const buildBigIntHistogramQuery = (tableName: string, columnName: string, whereClause: string): string => {
+// Build optimized numerical histogram query using DuckDB's automatic binning
+export const buildNumericalHistogramQuery = (tableName: string, columnName: string, whereClause: string): string => {
   const sanitizedTableName = sanitizeIdentifier(tableName);
   const sanitizedColumnName = sanitizeIdentifier(columnName);
   
@@ -170,59 +170,30 @@ export const buildBigIntHistogramQuery = (tableName: string, columnName: string,
   `;
 };
 
-// Build numerical histogram query with boundaries
-export const buildNumericalHistogramQuery = (
-  tableName: string, 
-  columnName: string, 
-  whereClause: string, 
-  boundaries: number[]
-): string => {
-  const sanitizedTableName = sanitizeIdentifier(tableName);
-  const sanitizedColumnName = sanitizeIdentifier(columnName);
-  
-  return `
-    SELECT 
-      unnest(map_keys(histogram(${sanitizedColumnName}, [${boundaries.join(', ')}]))) as bin_upper,
-      unnest(map_values(histogram(${sanitizedColumnName}, [${boundaries.join(', ')}]))) as count
-    FROM ${sanitizedTableName}
-    ${whereClause}
-  `;
-};
-
-// Build query to get top values for categorical histogram
-export const buildTopValuesQuery = (tableName: string, columnName: string, whereClause: string, limit: number = 5): string => {
-  const sanitizedTableName = sanitizeIdentifier(tableName);
-  const sanitizedColumnName = sanitizeIdentifier(columnName);
-  
-  return `SELECT ${sanitizedColumnName} FROM ${sanitizedTableName}${whereClause} GROUP BY ${sanitizedColumnName} ORDER BY COUNT(*) DESC, ${sanitizedColumnName} ASC LIMIT ${limit}`;
-};
-
-// Build categorical histogram query using histogram_exact
+// Build categorical histogram query using simple GROUP BY COUNT
 export const buildCategoricalHistogramQuery = (
   tableName: string, 
   columnName: string, 
   whereClause: string, 
-  topValues: any[]
+  limit: number = 20
 ): string => {
   const sanitizedTableName = sanitizeIdentifier(tableName);
   const sanitizedColumnName = sanitizeIdentifier(columnName);
   
-  const topValuesList = topValues.map(row => {
-    const value = row[sanitizedColumnName];
-    return typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : value;
-  });
-  
   return `
     SELECT 
-      unnest(map_keys(histogram_exact(${sanitizedColumnName}, [${topValuesList.join(', ')}]))) as ${sanitizedColumnName},
-      unnest(map_values(histogram_exact(${sanitizedColumnName}, [${topValuesList.join(', ')}]))) as count
+      ${sanitizedColumnName},
+      COUNT(*) as count
     FROM ${sanitizedTableName}
     ${whereClause}
+    GROUP BY ${sanitizedColumnName}
+    ORDER BY count DESC, ${sanitizedColumnName} ASC
+    LIMIT ${limit}
   `;
 };
 
-// Transform BigInt histogram results to expected format
-export const transformBigIntHistogramResults = (rawHistogram: any[]): any[] => {
+// Transform numerical histogram results to expected format (for both regular and BigInt)
+export const transformNumericalHistogramResults = (rawHistogram: any[]): any[] => {
   return rawHistogram.map(row => ({
     bin_start: Number(row.bin_value),
     bin_end: Number(row.bin_value),
@@ -231,24 +202,11 @@ export const transformBigIntHistogramResults = (rawHistogram: any[]): any[] => {
   })).filter(bin => bin.count > 0);
 };
 
-// Transform numerical histogram results to expected format
-export const transformNumericalHistogramResults = (rawHistogram: any[], boundaries: number[], minVal: number): any[] => {
-  return rawHistogram.map((row, index) => {
-    const binUpper = Number(row.bin_upper);
-    const binLower = index === 0 ? minVal : Number(boundaries[index - 1]);
-    return {
-      bin_start: binLower,
-      bin_end: binUpper,
-      count: Number(row.count)
-    };
-  }).filter(bin => bin.count > 0);
-};
-
 // Transform categorical histogram results to expected format
-export const transformCategoricalHistogramResults = (rawHistogram: any[], columnName: string): any[] => {
+export const transformCategoricalHistogramResults = (rawHistogram: any[]): any[] => {
   return rawHistogram.filter(row => Number(row.count) > 0).map(row => ({
     ...row,
     count: Number(row.count),
-    is_others: row[columnName] === 'other'
+    is_others: false // No longer using 'other' concept since we're getting top results directly
   }));
 };
