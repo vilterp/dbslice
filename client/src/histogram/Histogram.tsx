@@ -42,7 +42,6 @@ const Histogram: React.FC<HistogramProps> = (props) => {
   if (loading) {
     return (
       <div className="histogram-container">
-        <h3>{columnName}</h3>
         <div className="histogram-loading">Loading...</div>
       </div>
     );
