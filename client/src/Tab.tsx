@@ -107,7 +107,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
             <div className="loading">Loading...</div>
           ) : (
             <div className="data-table">
-              <h3>Data ({abbreviateNumber(tab.tableTotal)} rows)</h3>
+              <h3>Data ({tab.tableDataLoading ? 'Loading...' : `${abbreviateNumber(tab.tableTotal)} rows`})</h3>
               <DataTable
                 tableData={tab.tableData}
                 sortColumn={tab.sortColumn}

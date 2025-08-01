@@ -88,25 +88,6 @@ const DataTable: React.FC<DataTableProps> = ({
     );
   }
 
-  if (loading) {
-    return (
-      <div className="data-table">
-        <div className="table-loading" style={{
-          padding: '40px',
-          textAlign: 'center',
-          color: '#666',
-          backgroundColor: '#f5f5f5',
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          margin: '20px',
-          fontSize: '16px'
-        }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '18px' }}>Loading Table Data</div>
-          <div>Please wait while we fetch the data...</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="data-table">
