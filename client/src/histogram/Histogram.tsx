@@ -1,6 +1,7 @@
 import "./Histogram.css";
 import React, { useState, useEffect } from 'react';
-import { Filter, HistogramResult, Column, fetchHistogram } from '../api';
+import { Filter } from '../../../src/common';
+import { HistogramResult, Column, fetchHistogram } from '../api';
 import NumericHistogram from './NumericHistogram';
 import DiscreteHistogram from './DiscreteHistogram';
 

@@ -1,40 +1,19 @@
-import { Filter } from '../../src/common';
+import { 
+  Filter, 
+  SortDirection, 
+  Table, 
+  Column, 
+  HistogramData, 
+  HistogramResult, 
+  TableDataResponse 
+} from '../../src/common';
 
-export type SortDirection = 'asc' | 'desc' | '';
+// Re-export for client components
+export type { Filter, SortDirection, Table, Column, HistogramData, HistogramResult, TableDataResponse };
 
 // Configuration constants
 const DEFAULT_TOP_N_CATEGORIES = 5;
 const DEFAULT_HISTOGRAM_BINS = 20;
-
-export interface Table {
-  table_name: string;
-}
-
-export interface Column {
-  column_name: string;
-  data_type: string;
-  no_histogram?: boolean;
-}
-
-export interface HistogramData {
-  [key: string]: any;
-  count: number;
-  bin_start?: number;
-  bin_end?: number;
-  bin_num?: number;
-  is_others?: boolean;
-}
-
-export interface HistogramResult {
-  data: HistogramData[];
-  error?: string;
-  isEmpty?: boolean;
-}
-
-export interface TableDataResponse {
-  data: any[];
-  total: number;
-}
 
 
 export async function fetchTables(): Promise<Table[]> {

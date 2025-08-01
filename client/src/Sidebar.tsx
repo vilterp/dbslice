@@ -1,6 +1,7 @@
 import "./Sidebar.css";
 import React from 'react';
-import { Column, Filter } from './api';
+import { Filter } from '../../src/common';
+import { Column } from './api';
 import Histogram from './histogram/Histogram';
 
 interface SidebarProps {

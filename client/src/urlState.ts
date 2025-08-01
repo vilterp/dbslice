@@ -1,7 +1,8 @@
 // urlState.ts
 // Handles reading and writing app state to the URL (table, filters, sorting)
 
-import { Filter, SortDirection } from './api';
+import { Filter } from '../../src/common';
+import { SortDirection } from './api';
 
 export function updateURL(
   table: string,

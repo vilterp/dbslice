@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import "./App.css";
 import Tab from "./Tab";
 import TabBar from "./TabBar";
+import { Filter } from '../../src/common';
 import {
   Table,
   Column,
   SortDirection,
-  Filter,
   fetchTables,
   fetchColumns,
   fetchTableData,
