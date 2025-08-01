@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { HistogramData, Filter } from '../api';
+import { HistogramData } from '../api';
 import Tooltip from '../components/Tooltip';
+import { Filter } from '../../../src/common';
 
 type NumericHistogramProps = {
   columnName: string;

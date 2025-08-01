@@ -1,19 +1,14 @@
 import React, { useState } from 'react';
-import { abbreviateNumber } from '../utils';
 import Tooltip from '../components/Tooltip';
 
 type OtherValuesProps = {
-  barWidth: number;
   displayValue: string;
-  count: number;
   addFilter: (column: string, value: string) => void;
   columnName: string;
 };
 
 const OtherValues: React.FC<OtherValuesProps> = ({
-  barWidth,
   displayValue,
-  count,
   addFilter,
   columnName,
 }) => {

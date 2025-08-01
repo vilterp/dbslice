@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import OtherValues from './OtherValues';
-import { HistogramData, Filter } from '../api';
+import { HistogramData } from '../api';
 import { abbreviateNumber } from '../utils';
 import Tooltip from '../components/Tooltip';
+import { Filter } from '../../../src/common';
 
 type DiscreteHistogramProps = {
   columnName: string;
@@ -82,9 +83,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
           return (
             <OtherValues
               key={index}
-              barWidth={barWidth}
               displayValue={displayValue}
-              count={item.count}
               addFilter={addFilter}
               columnName={columnName}
             />
