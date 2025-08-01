@@ -429,21 +429,18 @@ const transformCategoricalHistogramResults = async (
   
   // Calculate "others" if there are more than topLimit categories
   if (filteredResults.length > topLimit) {
-    // Get total count
-    const sanitizedTableName = sanitizeIdentifier(tableName);
-    const totalQuery = `SELECT COUNT(*) as total FROM ${sanitizedTableName} ${whereClause}`;
-    const totalResult = await runQuery(totalQuery);
-    const totalCount = totalResult[0]?.total || 0;
+    // Count the number of distinct values that are not in the top N
+    const otherDistinctCount = filteredResults.length - topLimit;
     
-    // Calculate count for "others"
-    const topCount = topResults.reduce((sum, item) => sum + item.count, 0);
-    const othersCount = totalCount - topCount;
+    // Sum the row counts for all the "other" categories
+    const otherRowCount = filteredResults.slice(topLimit).reduce((sum, item) => sum + Number(item.count), 0);
     
-    if (othersCount > 0) {
+    if (otherDistinctCount > 0) {
       topResults.push({
-        [columnName]: '(others)',
-        count: othersCount,
-        is_others: true
+        [columnName]: `(${otherDistinctCount} other value${otherDistinctCount === 1 ? '' : 's'})`,
+        count: otherRowCount,
+        is_others: true,
+        distinct_count: otherDistinctCount
       });
     }
   }
