@@ -1,3 +1,4 @@
+import { NUMERICAL_COLUMN_TYPES } from '../../src/constants';
 import React from "react";
 import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
@@ -76,15 +77,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
   };
 
   const isNumericalColumn = (dataType: string) => {
-    return [
-      "INTEGER",
-      "BIGINT",
-      "DECIMAL",
-      "DOUBLE",
-      "FLOAT",
-      "NUMERIC",
-      "REAL",
-    ].some((type) => dataType.toUpperCase().includes(type));
+    return NUMERICAL_COLUMN_TYPES.some((type) => dataType.toUpperCase().includes(type));
   };
 
 

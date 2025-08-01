@@ -15,7 +15,8 @@
     "sourceMap": true
   },
   "include": [
-    "**/*.ts"
+    "**/*.ts",
+    "../src/constants.ts"
   ],
   "exclude": [
     "node_modules",

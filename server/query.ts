@@ -1,3 +1,4 @@
+import { NUMERICAL_COLUMN_TYPES } from '../src/constants';
 // Query building utilities for DuckDB
 import * as duckdb from 'duckdb';
 import logger from './logger';
@@ -254,7 +255,7 @@ export const buildHistogramWhereClause = (
 
 // Check if a column type is numerical
 export const isNumericalColumnType = (columnType: string): boolean => {
-  return ['INTEGER', 'BIGINT', 'DECIMAL', 'DOUBLE', 'FLOAT', 'NUMERIC', 'REAL'].some(type => 
+  return NUMERICAL_COLUMN_TYPES.some(type => 
     columnType.toUpperCase().includes(type)
   );
 };
