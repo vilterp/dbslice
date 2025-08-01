@@ -91,7 +91,7 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
     const topLimit = Math.max(1, Math.min(topN, 20)); // Limit between 1 and 20
     const histogramQuerySQL = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topLimit + 1);
     const rawHistogram = await queryRunner(histogramQuerySQL);
-    return await transformCategoricalHistogramResults(rawHistogram, topLimit, columnName);
+    return await transformCategoricalHistogramResults(rawHistogram, topLimit, columnName, tableName, whereClause, queryRunner);
   }
 };
 
@@ -413,7 +413,10 @@ const transformNumericalHistogramResults = (rawHistogram: any[], maxBins?: numbe
 const transformCategoricalHistogramResults = async (
   rawHistogram: any[], 
   topLimit: number, 
-  columnName: string
+  columnName: string,
+  tableName: string,
+  whereClause: string,
+  queryRunner: QueryRunner
 ): Promise<any[]> => {
   const filteredResults = rawHistogram.filter(row => Number(row.count) > 0);
   
@@ -426,10 +429,18 @@ const transformCategoricalHistogramResults = async (
   
   // Calculate "others" if there are more than topLimit categories
   if (filteredResults.length > topLimit) {
-    // Count the number of distinct values that are not in the top N
-    const otherDistinctCount = filteredResults.length - topLimit;
+    // We queried for topLimit + 1, so if we got more than topLimit, there might be even more
+    // Query for total distinct count to get accurate count of "other" values
+    const sanitizedTableName = sanitizeIdentifier(tableName);
+    const sanitizedColumnName = sanitizeIdentifier(columnName);
+    const distinctCountQuery = `SELECT COUNT(DISTINCT ${sanitizedColumnName}) as total_distinct FROM ${sanitizedTableName}${whereClause}`;
+    const distinctResult = await queryRunner(distinctCountQuery);
+    const totalDistinctCount = distinctResult[0]?.total_distinct || 0;
     
-    // Sum the row counts for all the "other" categories
+    // Count the number of distinct values that are not in the top N
+    const otherDistinctCount = Math.max(0, totalDistinctCount - topLimit);
+    
+    // Sum the row counts for all the "other" categories (those beyond topLimit)
     const otherRowCount = filteredResults.slice(topLimit).reduce((sum, item) => sum + Number(item.count), 0);
     
     if (otherDistinctCount > 0) {

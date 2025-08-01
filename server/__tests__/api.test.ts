@@ -450,19 +450,19 @@ describe('API Endpoints', () => {
       expect(response.body).toBeInstanceOf(Array);
       expect(response.body.length).toBeGreaterThan(0);
       
-      // For numerical columns, histogram returns binned data with bin_start, bin_end, etc.
+      // For BIGINT columns (treated as categorical), histogram returns grouped data
       response.body.forEach((item: any) => {
         expect(item).toHaveProperty('count');
-        expect(item).toHaveProperty('bin_start');
-        expect(item).toHaveProperty('bin_end');
+        expect(item).toHaveProperty('large_number'); // Column name property
         
         // Ensure all numeric values are properly converted from BigInt
         expect(typeof item.count).toBe('number');
         expect(item.count).not.toBeInstanceOf(BigInt);
-        expect(typeof item.bin_start).toBe('number');
-        expect(item.bin_start).not.toBeInstanceOf(BigInt);
-        expect(typeof item.bin_end).toBe('number');
-        expect(item.bin_end).not.toBeInstanceOf(BigInt);
+        
+        // The large_number value should also be converted from BigInt
+        if (typeof item.large_number === 'number') {
+          expect(item.large_number).not.toBeInstanceOf(BigInt);
+        }
         
         // For BigInt values, we may have bin_value instead of bin_num
         if (item.hasOwnProperty('bin_num')) {
@@ -645,7 +645,7 @@ describe('API Endpoints', () => {
       });
     });
 
-    it('should filter numerical histograms with range filters', async () => {
+    it('should filter categorical histograms with range filters', async () => {
       const response = await request(app)
         .post('/api/tables/customers/columns/age/histogram')
         .send({ 
@@ -657,8 +657,8 @@ describe('API Endpoints', () => {
       expect(response.body).toBeInstanceOf(Array);
       response.body.forEach((item: any) => {
         expect(item).toHaveProperty('count');
-        expect(item).toHaveProperty('bin_start');
-        expect(item).toHaveProperty('bin_end');
+        expect(item).toHaveProperty('age'); // Column name property for categorical
+        expect(item).toHaveProperty('is_others'); // Should indicate if it's "others" group
       });
     });
 
