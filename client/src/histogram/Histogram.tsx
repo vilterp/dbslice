@@ -1,74 +1,78 @@
 import "./Histogram.css";
-import React from 'react';
-import { HistogramData, Filter, HistogramResult } from '../api';
+import React, { useState, useEffect } from 'react';
+import { Filter, HistogramResult, Column, fetchHistogram } from '../api';
 import NumericHistogram from './NumericHistogram';
 import DiscreteHistogram from './DiscreteHistogram';
 
 type HistogramProps = {
   columnName: string;
-  data: HistogramData[] | HistogramResult;
+  column: Column;
+  selectedTable: string;
   isNumerical: boolean;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
 };
 
-const Histogram: React.FC<HistogramProps> = ({
-  columnName,
-  data,
-  isNumerical,
-  addFilter,
-  removeFilter,
-  filters = [],
-}) => {
-  // Handle HistogramResult type (new API format)
-  if (data && typeof data === 'object' && 'data' in data) {
-    const result = data as HistogramResult;
-    const histogramData = result.data;
-    const error = result.error;
-    const isEmpty = result.isEmpty;
-    
-    if (isNumerical) {
-      return (
-        <NumericHistogram 
-          columnName={columnName} 
-          data={histogramData} 
-          error={error}
-          isEmpty={isEmpty}
-          addFilter={addFilter} 
-          removeFilter={removeFilter} 
-          filters={filters} 
-        />
-      );
-    }
+const Histogram: React.FC<HistogramProps> = (props) => {
+  const [histogramResult, setHistogramResult] = useState<HistogramResult | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
+  const { columnName, column, selectedTable, isNumerical, addFilter, removeFilter, filters = [] } = props;
+
+  useEffect(() => {
+    const loadHistogram = async () => {
+      setLoading(true);
+      try {
+        const result = await fetchHistogram(selectedTable, column, filters);
+        setHistogramResult(result);
+      } catch (error) {
+        setHistogramResult({
+          data: [],
+          error: error instanceof Error ? error.message : 'Failed to load histogram'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHistogram();
+  }, [selectedTable, column, filters]);
+
+  if (loading) {
     return (
-      <DiscreteHistogram
-        columnName={columnName}
-        data={histogramData}
-        error={error}
-        isEmpty={isEmpty}
-        addFilter={addFilter}
-        removeFilter={removeFilter}
-        filters={filters}
-      />
+      <div className="histogram-container">
+        <h3>{columnName}</h3>
+        <div className="histogram-loading">Loading...</div>
+      </div>
     );
   }
-  
-  // Handle legacy HistogramData[] type for backward compatibility
-  const histogramData = Array.isArray(data) ? data : [];
-  if (histogramData.length === 0) {
-    return <div className="histogram-loading">Loading histogram...</div>;
-  }
 
+  const data = histogramResult?.data || [];
+  const error = histogramResult?.error;
+  const isEmpty = histogramResult?.isEmpty;
+
+  // Render the appropriate histogram component
   if (isNumerical) {
-    return <NumericHistogram columnName={columnName} data={histogramData} addFilter={addFilter} removeFilter={removeFilter} filters={filters} />;
+    return (
+      <NumericHistogram 
+        columnName={columnName} 
+        data={data} 
+        error={error}
+        isEmpty={isEmpty}
+        addFilter={addFilter} 
+        removeFilter={removeFilter} 
+        filters={filters} 
+      />
+    );
   }
 
   return (
     <DiscreteHistogram
       columnName={columnName}
-      data={histogramData}
+      data={data}
+      error={error}
+      isEmpty={isEmpty}
       addFilter={addFilter}
       removeFilter={removeFilter}
       filters={filters}

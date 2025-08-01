@@ -97,12 +97,12 @@ export async function fetchTableData(
   return response.json();
 }
 
-export async function fetchHistograms(
+// Individual histogram fetch function for single column - can be used by individual components
+export async function fetchHistogram(
   selectedTable: string,
-  columns: Column[],
+  column: Column,
   filters: Filter[]
-): Promise<{ [key: string]: HistogramResult }> {
-  if (columns.length === 0) return {};
+): Promise<HistogramResult> {
   const exactFilters = filters.reduce((acc, filter) => {
     if (filter.type === 'exact' || !filter.type) {
       acc[filter.column] = filter.value;
@@ -117,64 +117,45 @@ export async function fetchHistograms(
     return acc;
   }, {} as { [key: string]: { min: number; max: number } });
 
-  const histogramPromises = columns.map(async (column) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/tables/${selectedTable}/columns/${column.column_name}/histogram`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bins: 10,
-          column_type: column.data_type,
-          filters: exactFilters,
-          rangeFilters: rangeFilters,
-        }),
-      });
-      
-      if (!response.ok) {
-        return { 
-          column: column.column_name, 
-          result: { 
-            data: [], 
-            error: `HTTP ${response.status}: ${response.statusText}` 
-          } 
-        };
-      }
-      
-      const data = await response.json();
-      if (data.error) {
-        return { 
-          column: column.column_name, 
-          result: { 
-            data: [], 
-            error: data.error 
-          } 
-        };
-      }
-      
-      const histogramData = Array.isArray(data) ? data : [];
+  try {
+    const response = await fetch(`http://localhost:3001/api/tables/${selectedTable}/columns/${column.column_name}/histogram`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bins: 10,
+        column_type: column.data_type,
+        filters: exactFilters,
+        rangeFilters: rangeFilters,
+      }),
+    });
+    
+    if (!response.ok) {
       return { 
-        column: column.column_name, 
-        result: { 
-          data: histogramData, 
-          isEmpty: histogramData.length === 0 
-        } 
-      };
-    } catch (error) {
-      return { 
-        column: column.column_name, 
-        result: { 
-          data: [], 
-          error: error instanceof Error ? error.message : 'Unknown error occurred' 
-        } 
+        data: [], 
+        error: `HTTP ${response.status}: ${response.statusText}` 
       };
     }
-  });
-
-  const results = await Promise.all(histogramPromises);
-  return results.reduce((acc, result) => {
-    acc[result.column] = result.result;
-    return acc;
-  }, {} as { [key: string]: HistogramResult });
+    
+    const data = await response.json();
+    if (data.error) {
+      return { 
+        data: [], 
+        error: data.error 
+      };
+    }
+    
+    const histogramData = Array.isArray(data) ? data : [];
+    return { 
+      data: histogramData, 
+      isEmpty: histogramData.length === 0 
+    };
+  } catch (error) {
+    return { 
+      data: [], 
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
+  }
 }
+

@@ -14,6 +14,7 @@ interface DataTableProps {
   setSortColumn: (col: string) => void;
   setSortDirection: (dir: SortDirection) => void;
   addFilter: (column: string, value: any) => void;
+  loading?: boolean;
   error?: string;
 }
 
@@ -27,6 +28,7 @@ const DataTable: React.FC<DataTableProps> = ({
   setSortColumn,
   setSortDirection,
   addFilter,
+  loading = false,
   error,
 }) => {
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
@@ -81,6 +83,26 @@ const DataTable: React.FC<DataTableProps> = ({
         }}>
           <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '18px' }}>Error Loading Table Data</div>
           <div>{error}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="data-table">
+        <div className="table-loading" style={{
+          padding: '40px',
+          textAlign: 'center',
+          color: '#666',
+          backgroundColor: '#f5f5f5',
+          border: '1px solid #ddd',
+          borderRadius: '8px',
+          margin: '20px',
+          fontSize: '16px'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '18px' }}>Loading Table Data</div>
+          <div>Please wait while we fetch the data...</div>
         </div>
       </div>
     );

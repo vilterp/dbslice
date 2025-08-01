@@ -1,11 +1,11 @@
 import "./Sidebar.css";
 import React from 'react';
-import { Column, HistogramResult, Filter } from './api';
+import { Column, Filter } from './api';
 import Histogram from './histogram/Histogram';
 
 interface SidebarProps {
   columns: Column[];
-  histograms: { [key: string]: HistogramResult };
+  selectedTable: string;
   filters: Filter[];
   collapsedColumns: Set<string>;
   toggleColumnCollapse: (columnName: string) => void;
@@ -16,7 +16,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({
   columns,
-  histograms,
+  selectedTable,
   filters,
   collapsedColumns,
   toggleColumnCollapse,
@@ -41,18 +41,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           </h4>
           {!isCollapsed && (
             <div className="histogram">
-              {!histograms[column.column_name] ? (
-                <div className="histogram-loading">Loading histogram...</div>
-              ) : (
-                <Histogram
-                  columnName={column.column_name}
-                  data={histograms[column.column_name]}
-                  isNumerical={isNumerical}
-                  addFilter={addFilter}
-                  removeFilter={removeFilter}
-                  filters={filters}
-                />
-              )}
+              <Histogram
+                columnName={column.column_name}
+                column={column}
+                selectedTable={selectedTable}
+                isNumerical={isNumerical}
+                addFilter={addFilter}
+                removeFilter={removeFilter}
+                filters={filters}
+              />
             </div>
           )}
         </div>

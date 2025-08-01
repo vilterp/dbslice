@@ -3,7 +3,7 @@ import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
 import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
-import { Column, HistogramResult, Filter, SortDirection } from "./api";
+import { Column, Filter, SortDirection } from "./api";
 
 interface RangeSelection {
   start: number;
@@ -18,8 +18,8 @@ type TabState = {
   filters: Filter[];
   tableData: any[];
   tableTotal: number;
-  histograms: { [key: string]: HistogramResult };
   tableDataError?: string;
+  tableDataLoading: boolean;
   loading: boolean;
   collapsedColumns: Set<string>;
   rangeSelections: { [key: string]: RangeSelection };
@@ -94,7 +94,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
       <div className="content-wrapper">
         <Sidebar
           columns={tab.columns}
-          histograms={tab.histograms}
+          selectedTable={tab.table}
           filters={tab.filters}
           collapsedColumns={tab.collapsedColumns}
           toggleColumnCollapse={toggleColumnCollapse}
@@ -113,6 +113,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
                 sortColumn={tab.sortColumn}
                 sortDirection={tab.sortDirection}
                 headerMenu={tab.headerMenu}
+                loading={tab.tableDataLoading}
                 setHeaderMenu={(menu) =>
                   updateTab(tab.id, (t) => ({
                     ...t,

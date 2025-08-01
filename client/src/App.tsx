@@ -5,14 +5,11 @@ import TabBar from "./TabBar";
 import {
   Table,
   Column,
-  HistogramData,
-  HistogramResult,
   SortDirection,
   Filter,
   fetchTables,
   fetchColumns,
   fetchTableData,
-  fetchHistograms,
 } from "./api";
 import { updateURL } from "./urlState";
 
@@ -29,8 +26,8 @@ type TabState = {
   filters: Filter[];
   tableData: any[];
   tableTotal: number;
-  histograms: { [key: string]: HistogramResult };
   tableDataError?: string;
+  tableDataLoading: boolean;
   loading: boolean;
   collapsedColumns: Set<string>;
   rangeSelections: { [key: string]: RangeSelection };
@@ -46,8 +43,8 @@ const makeDefaultTab = (table: string): TabState => ({
   filters: [],
   tableData: [],
   tableTotal: 0,
-  histograms: {},
   tableDataError: undefined,
+  tableDataLoading: false,
   loading: false,
   collapsedColumns: new Set(),
   rangeSelections: {},
@@ -116,6 +113,13 @@ function App() {
         );
       })
       .catch((e) => console.error("Error fetching columns:", e));
+    // Set loading state before fetching table data
+    setTabs((tabs) =>
+      tabs.map((t) =>
+        t.id === tab.id ? { ...t, tableDataLoading: true } : t
+      )
+    );
+    
     // Fetch table data
     fetchTableData(tab.table, tab.filters, tab.sortColumn, tab.sortDirection)
       .then((result) => {
@@ -128,6 +132,7 @@ function App() {
                   tableTotal:
                     typeof result.total === "number" ? result.total : 0,
                   tableDataError: undefined,
+                  tableDataLoading: false,
                 }
               : t
           )
@@ -141,7 +146,8 @@ function App() {
               ...t, 
               tableData: [], 
               tableTotal: 0,
-              tableDataError: e instanceof Error ? e.message : 'Failed to load table data'
+              tableDataError: e instanceof Error ? e.message : 'Failed to load table data',
+              tableDataLoading: false,
             } : t
           )
         );
@@ -153,22 +159,6 @@ function App() {
     tabs.find((t) => t.id === selectedTabId)?.sortDirection,
   ]);
 
-  useEffect(() => {
-    const tab = tabs.find((t) => t.id === selectedTabId);
-    if (!tab) return;
-    if (!tab.table || tab.columns.length === 0) return;
-    fetchHistograms(tab.table, tab.columns, tab.filters)
-      .then((data) => {
-        setTabs((tabs) =>
-          tabs.map((t) => (t.id === tab.id ? { ...t, histograms: data } : t))
-        );
-      })
-      .catch((e) => console.error("Error fetching histograms:", e));
-  }, [
-    selectedTabId,
-    tabs.find((t) => t.id === selectedTabId)?.columns,
-    tabs.find((t) => t.id === selectedTabId)?.filters,
-  ]);
 
   // All data loading functions are now imported from api.ts
 
