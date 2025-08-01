@@ -7,22 +7,23 @@ import { Config } from './config';
 import { 
   createQueryRunner,
   sanitizeIdentifier, 
-  buildWhereClause, 
-  buildOrderByClause,
   buildHistogramWhereClause,
   isNumericalColumnType,
   buildNumericalHistogramQuery,
   buildCategoricalHistogramQuery,
   transformNumericalHistogramResults,
-  transformCategoricalHistogramResults
+  transformCategoricalHistogramResults,
+  runQuery,
+  runCountQuery
 } from './query';
+import { Query } from '../src/common';
 
 
 
 // Create server function that accepts a database connection and config
 export function createServer(db: duckdb.Database, config: Config) {
   // Create query runner with shared connection and queuing
-  const runQuery = createQueryRunner(db);
+  const runSQLQuery = createQueryRunner(db);
 
   // Create Express app
   const app = express();
@@ -35,7 +36,7 @@ export function createServer(db: duckdb.Database, config: Config) {
   // Get all tables
   app.get('/api/tables', async (_req: Request, res: Response) => {
     try {
-      const tables = await runQuery(`
+      const tables = await runSQLQuery(`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'main'
@@ -52,7 +53,7 @@ export function createServer(db: duckdb.Database, config: Config) {
       const { tableName } = req.params;
       // Sanitize table name to prevent SQL injection
       const sanitizedTableName = sanitizeIdentifier(tableName);
-      const columns = await runQuery(`
+      const columns = await runSQLQuery(`
         SELECT column_name, data_type 
         FROM information_schema.columns 
         WHERE table_name = '${sanitizedTableName}'
@@ -85,27 +86,28 @@ export function createServer(db: duckdb.Database, config: Config) {
       const { tableName } = req.params;
       const { filters = {}, rangeFilters = {}, limit = config.api.maxRows, offset = 0, orderBy, orderDir } = req.body;
       
-      // Sanitize table name
-      const sanitizedTableName = sanitizeIdentifier(tableName);
-      
-      // Build WHERE clause using query utilities
-      const whereClause = buildWhereClause(filters, rangeFilters);
-      const baseQuery = `FROM ${sanitizedTableName}${whereClause}`;
-      
-      // Build ORDER BY clause
-      const orderClause = buildOrderByClause(orderBy, orderDir);
-
-      // Query for paginated data
-      const limitValue = Math.min(limit as number, config.api.maxRows);
-      const dataQuery = `SELECT * ${baseQuery}${orderClause} LIMIT ${limitValue} OFFSET ${offset}`;
+      // Create Query object
+      const query: Query = {
+        tableName,
+        exactFilters: filters,
+        rangeFilters,
+        orderBy,
+        orderDir: orderDir?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC',
+        limit: Math.min(limit as number, config.api.maxRows),
+        offset: offset as number
+      };
       
       try {
-        const data = await runQuery(dataQuery);
+        // Get paginated data using new runQuery function
+        const data = await runQuery(query, runSQLQuery);
 
-        // Query for total count (without LIMIT/OFFSET)
-        const countQuery = `SELECT COUNT(*) as total ${baseQuery}`;
-        const countResult = await runQuery(countQuery);
-        const total = countResult[0]?.total ?? 0;
+        // Get total count using new runCountQuery function
+        const countQuery: Query = {
+          tableName,
+          exactFilters: filters,
+          rangeFilters
+        };
+        const total = await runCountQuery(countQuery, runSQLQuery);
 
         res.json({ data, total });
       } catch (queryError) {
@@ -135,7 +137,7 @@ export function createServer(db: duckdb.Database, config: Config) {
       if (isNumerical) {
         // For numerical columns, use DuckDB's automatic histogram binning
         const histogramQuery = buildNumericalHistogramQuery(tableName, columnName, whereClause);
-        const rawHistogram = await runQuery(histogramQuery);
+        const rawHistogram = await runSQLQuery(histogramQuery);
         const numBins = Math.max(1, Math.min(bins, 100)); // Limit between 1 and 100 bins
         histogram = transformNumericalHistogramResults(rawHistogram, numBins);
       } else {
@@ -143,8 +145,8 @@ export function createServer(db: duckdb.Database, config: Config) {
         // Get top N categories plus calculate "others"
         const topLimit = Math.max(1, Math.min(top_n, 20)); // Limit between 1 and 20
         const histogramQuery = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topLimit + 1);
-        const rawHistogram = await runQuery(histogramQuery);
-        histogram = await transformCategoricalHistogramResults(rawHistogram, topLimit, tableName, columnName, whereClause, runQuery);
+        const rawHistogram = await runSQLQuery(histogramQuery);
+        histogram = await transformCategoricalHistogramResults(rawHistogram, topLimit, tableName, columnName, whereClause, runSQLQuery);
       }
       
       res.json(histogram);
@@ -156,7 +158,7 @@ export function createServer(db: duckdb.Database, config: Config) {
   // Get database info endpoint
   app.get('/api/info', async (_req: Request, res: Response) => {
     try {
-      const tables = await runQuery(`
+      const tables = await runSQLQuery(`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'main'
@@ -188,5 +190,5 @@ export function createServer(db: duckdb.Database, config: Config) {
   }
 
   // Return app and runQuery for testing
-  return { app, runQuery };
+  return { app, runQuery: runSQLQuery };
 }

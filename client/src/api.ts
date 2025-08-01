@@ -1,3 +1,5 @@
+import { Filter } from '../../src/common';
+
 export type SortDirection = 'asc' | 'desc' | '';
 
 // Configuration constants
@@ -34,13 +36,6 @@ export interface TableDataResponse {
   total: number;
 }
 
-export interface Filter {
-  column: string;
-  value: string;
-  type?: 'exact' | 'range';
-  min?: number;
-  max?: number;
-}
 
 export async function fetchTables(): Promise<Table[]> {
   const response = await fetch('http://localhost:3001/api/tables');

@@ -1,4 +1,4 @@
-import { NUMERICAL_COLUMN_TYPES } from '../src/constants';
+import { NUMERICAL_COLUMN_TYPES, Query, RangeFilter } from '../src/common';
 // Query building utilities for DuckDB
 import * as duckdb from 'duckdb';
 import logger from './logger';
@@ -39,7 +39,7 @@ export function createQueryRunner(db: duckdb.Database) {
   };
   
   // Promisified query function using the shared connection with queuing
-  const runQuery = (query: string, params: any[] = []): Promise<any[]> => {
+  const runSQLQuery = (query: string, params: any[] = []): Promise<any[]> => {
     const startTime = Date.now();
     const queryId = Math.random().toString(36).substring(2, 8); // Generate short unique ID
     
@@ -115,7 +115,7 @@ export function createQueryRunner(db: duckdb.Database) {
     });
   };
 
-  return runQuery;
+  return runSQLQuery;
 }
 
 // Utility function to sanitize identifiers
@@ -136,7 +136,7 @@ export const buildExactFilterConditions = (filters: Record<string, any>): string
 };
 
 // Build WHERE conditions for range filters
-export const buildRangeFilterConditions = (rangeFilters: Record<string, { min: number; max: number }>): string[] => {
+export const buildRangeFilterConditions = (rangeFilters: Record<string, RangeFilter>): string[] => {
   if (Object.keys(rangeFilters).length === 0) return [];
   
   return Object.entries(rangeFilters).map(([column, range]) => {
@@ -159,7 +159,7 @@ export const buildRangeFilterConditions = (rangeFilters: Record<string, { min: n
 // Build complete WHERE clause from filters
 export const buildWhereClause = (
   filters: Record<string, any>, 
-  rangeFilters: Record<string, { min: number; max: number }>
+  rangeFilters: Record<string, RangeFilter>
 ): string => {
   const conditions: string[] = [];
   
@@ -189,9 +189,9 @@ export const buildOrderByClause = (orderBy?: string, orderDir?: string): string 
 export const parseHistogramFilters = (
   queryParams: Record<string, any>,
   excludeColumn: string
-): { exactFilters: Record<string, any>; rangeFilters: Record<string, { min: number; max: number }> } => {
+): { exactFilters: Record<string, any>; rangeFilters: Record<string, RangeFilter> } => {
   const exactFilters: Record<string, any> = {};
-  const rangeFilters: Record<string, { min: number; max: number }> = {};
+  const rangeFilters: Record<string, RangeFilter> = {};
   const sanitizedExcludeColumn = sanitizeIdentifier(excludeColumn);
   
   Object.entries(queryParams).forEach(([key, value]) => {
@@ -207,7 +207,7 @@ export const parseHistogramFilters = (
         const min = parseFloat(parts[0]);
         const max = parseFloat(parts[1]);
         if (!isNaN(min) && !isNaN(max)) {
-          rangeFilters[key] = { min, max };
+          rangeFilters[key] = { column: key, min, max };
           return;
         }
       }
@@ -222,7 +222,7 @@ export const parseHistogramFilters = (
 // Build WHERE clause for histograms (using direct substitution to avoid parameter binding issues)
 export const buildHistogramWhereClause = (
   exactFilters: Record<string, any>,
-  rangeFilters: Record<string, { min: number; max: number }>,
+  rangeFilters: Record<string, RangeFilter>,
   excludeColumn: string
 ): { whereClause: string; params: any[] } => {
   const conditions: string[] = [];
@@ -412,4 +412,61 @@ export const transformCategoricalHistogramResults = async (
   }
   
   return topResults;
+};
+
+// Top-level runQuery function that takes a Query object and executes it
+export const runQuery = async (query: Query, queryRunner: (sql: string, params?: any[]) => Promise<any[]>): Promise<any[]> => {
+  const {
+    tableName,
+    exactFilters = {},
+    rangeFilters = {},
+    orderBy,
+    orderDir = 'ASC',
+    limit,
+    offset
+  } = query;
+
+  const sanitizedTableName = sanitizeIdentifier(tableName);
+  
+  // Build WHERE clause
+  const whereClause = buildWhereClause(exactFilters, rangeFilters);
+  
+  // Build ORDER BY clause
+  const orderByClause = buildOrderByClause(orderBy, orderDir);
+  
+  // Build LIMIT clause
+  let limitClause = '';
+  if (limit !== undefined) {
+    limitClause = ` LIMIT ${limit}`;
+    if (offset !== undefined) {
+      limitClause += ` OFFSET ${offset}`;
+    }
+  }
+  
+  // Construct final SQL query
+  const sql = `SELECT * FROM ${sanitizedTableName}${whereClause}${orderByClause}${limitClause}`;
+  
+  // Execute query
+  return await queryRunner(sql);
+};
+
+// Count query function that takes a Query object and returns the count
+export const runCountQuery = async (query: Query, queryRunner: (sql: string, params?: any[]) => Promise<any[]>): Promise<number> => {
+  const {
+    tableName,
+    exactFilters = {},
+    rangeFilters = {}
+  } = query;
+
+  const sanitizedTableName = sanitizeIdentifier(tableName);
+  
+  // Build WHERE clause
+  const whereClause = buildWhereClause(exactFilters, rangeFilters);
+  
+  // Construct count SQL query
+  const sql = `SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
+  
+  // Execute query
+  const result = await queryRunner(sql);
+  return result[0]?.total ?? 0;
 };

@@ -16,7 +16,7 @@
   },
   "include": [
     "**/*.ts",
-    "../src/constants.ts"
+    "../src/common.ts"
   ],
   "exclude": [
     "node_modules",
