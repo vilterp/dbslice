@@ -91,7 +91,7 @@ const DataTable: React.FC<DataTableProps> = ({
 
   return (
     <div className="data-table">
-      {tableData.length > 0 && (
+      {!loading && tableData.length > 0 && (
         <div style={{ position: "relative" }}>
           <table>
             <thead>
