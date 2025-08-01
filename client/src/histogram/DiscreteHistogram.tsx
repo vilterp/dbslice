@@ -61,7 +61,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   
   // Exclude 'others' from scaling calculation
   const nonOthersData = data.filter(h => !h.is_others);
-  const maxCount = nonOthersData.length > 0 ? Math.max(...nonOthersData.map(h => h.count)) : 1;
+  const maxCount = nonOthersData.length > 0 ? nonOthersData.reduce((max, h) => Math.max(max, h.count), 0) : 1;
   
   // Data is assumed to be sorted by the backend
   const sortedData = data;

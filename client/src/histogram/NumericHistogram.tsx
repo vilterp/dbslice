@@ -101,9 +101,9 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
     }
   };
   
-  const maxCount = Math.max(...sortedData.map(d => d.count));
-  const minValue = Math.min(...sortedData.map(d => d.bin_start || 0));
-  const maxValue = Math.max(...sortedData.map(d => d.bin_end || 0));
+  const maxCount = sortedData.reduce((max, d) => Math.max(max, d.count), 0);
+  const minValue = sortedData.reduce((min, d) => Math.min(min, d.bin_start || 0), Infinity);
+  const maxValue = sortedData.reduce((max, d) => Math.max(max, d.bin_end || 0), -Infinity);
 
   // Tighten up chart and padding
   const chartHeight = 80;
