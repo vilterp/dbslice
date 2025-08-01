@@ -5,6 +5,10 @@ import { abbreviateNumber } from '../utils';
 import Tooltip from '../components/Tooltip';
 import { Filter } from '../../../src/common';
 
+// Configuration constants (should match api.ts)
+const DEFAULT_TOP_N_CATEGORIES = 5;
+const BAR_HEIGHT = 24;
+
 type DiscreteHistogramProps = {
   columnName: string;
   data: HistogramData[];
@@ -27,18 +31,13 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: '' });
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
+  // Calculate proper height: (DEFAULT_TOP_N_CATEGORIES + 1 for "others") * BAR_HEIGHT
+  const calculatedHeight = (DEFAULT_TOP_N_CATEGORIES + 1) * BAR_HEIGHT;
+  
   if (error) {
     return (
-      <div className="histogram-error" style={{
-        padding: '20px',
-        textAlign: 'center',
-        color: '#d32f2f',
-        backgroundColor: '#ffeaea',
-        border: '1px solid #ffcccc',
-        borderRadius: '4px',
-        fontSize: '14px'
-      }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Error loading histogram</div>
+      <div className="histogram-error" style={{ minHeight: `${calculatedHeight}px` }}>
+        <div className="histogram-error-title">Error loading histogram</div>
         <div>{error}</div>
       </div>
     );
@@ -46,15 +45,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   
   if (isEmpty || !data || data.length === 0) {
     return (
-      <div className="histogram-empty" style={{
-        padding: '20px',
-        textAlign: 'center',
-        color: '#666',
-        backgroundColor: '#f9f9f9',
-        border: '1px solid #e0e0e0',
-        borderRadius: '4px',
-        fontSize: '14px'
-      }}>
+      <div className="histogram-empty" style={{ minHeight: `${calculatedHeight}px` }}>
         No data available for this column
       </div>
     );
@@ -67,7 +58,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
   // Data is assumed to be sorted by the backend
   const sortedData = data;
   return (
-    <div className="discrete-histogram">
+    <div className="discrete-histogram" style={{ minHeight: `${calculatedHeight}px` }}>
       {sortedData.map((item, index) => {
         const barWidth = (item.count / maxCount) * 100;
         const isOthers = item.is_others === true;
@@ -85,7 +76,8 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
           return (
             <OtherValues
               key={index}
-              displayValue={displayValue}
+              distinctCount={item.distinct_count || item.count}
+              count={item.count}
               addFilter={addFilter}
               columnName={columnName}
             />
@@ -95,7 +87,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
         return (
           <div
             key={index}
-            className={`histogram-bar discrete-bar`}
+            className={`histogram-bar discrete-bar${checked ? ' checked' : ''}`}
             onClick={() => {
               if (checked) {
                 removeFilter(columnName, value);
@@ -116,59 +108,21 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
             }}
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              minHeight: 24,
-              cursor: 'pointer',
-              outline: 'none',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
           >
             <input
               type="checkbox"
               checked={checked}
               readOnly
               tabIndex={-1}
-              style={{ marginRight: 6, pointerEvents: 'none' }}
+              className="histogram-checkbox"
             />
-            <div style={{ 
-              position: 'relative', 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center',
-              minWidth: 0 // Allow flex item to shrink
-            }}>
+            <div className="bar-label-container">
               <div
-                className="bar-fill"
-                style={{
-                  width: `${barWidth}%`,
-                  minWidth: 16,
-                  height: 24,
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  fontWeight: 500,
-                  borderRadius: 2,
-                  zIndex: 1,
-                  boxSizing: 'border-box',
-                  filter: hoveredIndex === index ? 'brightness(0.85)' : 'none',
-                }}
+                className={`bar-fill${hoveredIndex === index ? ' hovered' : ''}`}
+                style={{ width: `${barWidth}%` }}
               />
               <span 
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 2, 
-                  paddingLeft: 6,
-                  paddingRight: 6,
-                  fontWeight: 500,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  minWidth: 0, // Allow text to shrink
-                  flexShrink: 1 // Allow this text to shrink
-                }}
+                className="bar-label"
                 onMouseEnter={(e) => {
                   const element = e.currentTarget;
                   const isOverflowing = element.scrollWidth > element.clientWidth;
@@ -190,15 +144,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               </span>
             </div>
             <span 
-              className="bar-count" 
-              style={{ 
-                marginLeft: 8, 
-                minWidth: 30, 
-                textAlign: 'right', 
-                color: '#999', 
-                fontSize: 12, 
-                flexShrink: 0 // Don't let the count shrink
-              }}
+              className="bar-count"
             >
               {abbreviateNumber(item.count)}
             </span>

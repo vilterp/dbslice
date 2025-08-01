@@ -42,16 +42,8 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
 
   if (error) {
     return (
-      <div className="histogram-error" style={{
-        padding: '20px',
-        textAlign: 'center',
-        color: '#d32f2f',
-        backgroundColor: '#ffeaea',
-        border: '1px solid #ffcccc',
-        borderRadius: '4px',
-        fontSize: '14px'
-      }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Error loading histogram</div>
+      <div className="histogram-error min100px">
+        <div className="histogram-error-title">Error loading histogram</div>
         <div>{error}</div>
       </div>
     );
@@ -59,15 +51,7 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   
   if (isEmpty || !data || data.length === 0) {
     return (
-      <div className="histogram-empty" style={{
-        padding: '20px',
-        textAlign: 'center',
-        color: '#666',
-        backgroundColor: '#f9f9f9',
-        border: '1px solid #e0e0e0',
-        borderRadius: '4px',
-        fontSize: '14px'
-      }}>
+      <div className="histogram-empty min100px">
         No data available for this column
       </div>
     );
@@ -115,12 +99,12 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
   const marginBottom = 8;
 
   return (
-    <div className="numeric-histogram" style={{ padding: '4px 4px 0 4px' }}>
+    <div className="numeric-histogram min100px" >
       <svg 
         ref={svgRef}
         width={chartWidth + marginLeft + marginRight}
         height={chartHeight + marginTop + marginBottom}
-        style={{ overflow: 'visible' }}
+        className="numeric-histogram-svg"
       >
         {/* Y-axis line */}
         <line
