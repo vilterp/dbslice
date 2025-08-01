@@ -82,19 +82,6 @@ const OtherValues: React.FC<OtherValuesProps> = ({
           >
             {displayValue}
           </span>
-          <span
-            className="bar-count"
-            style={{
-              marginLeft: 8,
-              minWidth: 30,
-              textAlign: 'right',
-              color: '#999',
-              fontSize: 12,
-              flexShrink: 0,
-            }}
-          >
-            {abbreviateNumber(count)}
-          </span>
         </>
       ) : (
         <input
