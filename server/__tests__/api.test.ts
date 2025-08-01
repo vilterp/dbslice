@@ -717,6 +717,133 @@ describe('API Endpoints', () => {
     });
   });
 
+  describe('Histogram "others" count calculation', () => {
+    beforeAll(async () => {
+      // Create a test table with many distinct values to test "others" calculation
+      await runQuery(`
+        CREATE TABLE many_categories (
+          id INTEGER,
+          category VARCHAR,
+          value INTEGER
+        )
+      `);
+
+      // Insert data with 10 distinct categories, each with different row counts
+      await runQuery(`
+        INSERT INTO many_categories VALUES
+        (1, 'cat_a', 100), (2, 'cat_a', 101), (3, 'cat_a', 102), (4, 'cat_a', 103), (5, 'cat_a', 104),
+        (6, 'cat_b', 200), (7, 'cat_b', 201), (8, 'cat_b', 202), (9, 'cat_b', 203),
+        (10, 'cat_c', 300), (11, 'cat_c', 301), (12, 'cat_c', 302),
+        (13, 'cat_d', 400), (14, 'cat_d', 401),
+        (15, 'cat_e', 500),
+        (16, 'cat_f', 600),
+        (17, 'cat_g', 700),
+        (18, 'cat_h', 800),
+        (19, 'cat_i', 900),
+        (20, 'cat_j', 1000)
+      `);
+    });
+
+    it('should calculate others count correctly when there are more categories than top_n', async () => {
+      // Request top 3 categories - should get 3 individual + 1 "others" entry
+      const response = await request(app)
+        .post('/api/tables/many_categories/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          top_n: 3
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      
+      // Should have 4 items: top 3 categories + 1 "others"
+      expect(response.body.length).toBe(4);
+
+      // Find the "others" entry
+      const othersItem = response.body.find((item: any) => item.is_others === true);
+      expect(othersItem).toBeDefined();
+      
+      // Calculate expected others count:
+      // Total rows = 20, Top 3 categories have 5+4+3=12 rows, so others should have 8 rows
+      expect(othersItem.count).toBe(8);
+      
+      // Others should represent 7 distinct categories (10 total - 3 top = 7 others)
+      expect(othersItem.distinct_count).toBe(7);
+      expect(othersItem.category).toContain('7 other value');
+
+      // Verify total count adds up correctly
+      const totalCount = response.body.reduce((sum: number, item: any) => sum + item.count, 0);
+      expect(totalCount).toBe(20); // Should equal total rows in table
+
+      // Verify top 3 categories are the ones with highest counts
+      const nonOthersItems = response.body.filter((item: any) => !item.is_others);
+      expect(nonOthersItems.length).toBe(3);
+      
+      // Sort by count descending to verify order
+      const sortedItems = nonOthersItems.sort((a: any, b: any) => b.count - a.count);
+      expect(sortedItems[0].count).toBe(5); // cat_a
+      expect(sortedItems[1].count).toBe(4); // cat_b  
+      expect(sortedItems[2].count).toBe(3); // cat_c
+    });
+
+    it('should not show others when top_n includes all categories', async () => {
+      // Request top 15 categories - should get all 10 categories, no "others"
+      const response = await request(app)
+        .post('/api/tables/many_categories/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          top_n: 15
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      
+      // Should have exactly 10 items (all categories, no "others")
+      expect(response.body.length).toBe(10);
+
+      // Should not have any "others" entry
+      const othersItem = response.body.find((item: any) => item.is_others === true);
+      expect(othersItem).toBeUndefined();
+
+      // Verify total count is still correct
+      const totalCount = response.body.reduce((sum: number, item: any) => sum + item.count, 0);
+      expect(totalCount).toBe(20);
+    });
+
+    it('should calculate others count correctly with filters applied', async () => {
+      // Test with a filter that excludes some rows
+      const response = await request(app)
+        .post('/api/tables/many_categories/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          top_n: 2,
+          rangeFilters: {
+            value: { min: 200, max: 800 } // This should exclude cat_a (100s) and cat_i/cat_j (900+)
+          }
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      
+      // Find the "others" entry
+      const othersItem = response.body.find((item: any) => item.is_others === true);
+      if (othersItem) {
+        // Verify that the others count represents the correct number of remaining rows
+        // after applying filters and excluding the top N
+        const topItems = response.body.filter((item: any) => !item.is_others);
+        const topCount = topItems.reduce((sum: number, item: any) => sum + item.count, 0);
+        const totalCount = topCount + othersItem.count;
+        
+        // Total should be less than 20 due to the value filter
+        expect(totalCount).toBeLessThan(20);
+        expect(totalCount).toBeGreaterThan(0);
+        
+        // Verify arithmetic: total filtered rows = top N rows + others rows
+        expect(totalCount).toBe(topCount + othersItem.count);
+      }
+    });
+  });
+
   describe('Error handling', () => {
     it('should handle invalid table name in data endpoint', async () => {
       const response = await request(app)

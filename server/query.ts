@@ -441,8 +441,16 @@ const transformCategoricalHistogramResults = async (
     // Count the number of distinct values that are not in the top N
     const otherDistinctCount = Math.max(0, totalDistinctCount - topLimit);
     
-    // Sum the row counts for all the "other" categories (those beyond topLimit)
-    const otherRowCount = filteredResults.slice(topLimit).reduce((sum, item) => sum + Number(item.count), 0);
+    // Get total row count and subtract the top N counts to get accurate "others" row count
+    const totalRowCountQuery = `SELECT COUNT(*) as total_rows FROM ${sanitizedTableName}${whereClause}`;
+    const totalRowResult = await queryRunner(totalRowCountQuery);
+    const totalRowCount = totalRowResult[0]?.total_rows || 0;
+    
+    // Sum the row counts for the top N categories
+    const topNRowCount = topResults.reduce((sum, item) => sum + item.count, 0);
+    
+    // Calculate others row count as difference
+    const otherRowCount = Math.max(0, totalRowCount - topNRowCount);
     
     if (otherDistinctCount > 0) {
       topResults.push({
