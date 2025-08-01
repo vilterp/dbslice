@@ -1,10 +1,11 @@
-import { NUMERICAL_COLUMN_TYPES } from '../../src/constants';
+import { NUMERICAL_COLUMN_TYPES } from '../../src/common';
 import React from "react";
 import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
 import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
-import { Column, Filter, SortDirection } from "./api";
+import { Column, SortDirection } from "./api";
+import { Filter } from '../../src/common';
 
 interface RangeSelection {
   start: number;
