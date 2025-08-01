@@ -1,4 +1,8 @@
 
+.histogram-loading {
+  font-style: italic;
+}
+
 .histogram-bar {
   cursor: pointer;
 }
