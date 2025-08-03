@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./SidePanel.css";
 import "./DataTable.css"; // Import for pill styles
 import CopyButton from "./CopyButton";
 import SidePanelCell from "./SidePanelCell";
+import DropdownMenu from "../components/DropdownMenu";
 import { Column } from "../api";
 
 interface SidePanelProps {
@@ -10,7 +11,7 @@ interface SidePanelProps {
   onClose: () => void;
   columns: Column[];
   onForeignKeyClick: (column: string, value: any) => void;
-  onReverseForeignKeyPillClick: (e: React.MouseEvent, column: string, value: any) => void;
+  onNavigateToReferencingTable?: (targetTable: string, targetColumn: string, value: any) => void;
 }
 
 const SidePanel: React.FC<SidePanelProps> = ({ 
@@ -18,9 +19,15 @@ const SidePanel: React.FC<SidePanelProps> = ({
   onClose, 
   columns, 
   onForeignKeyClick, 
-  onReverseForeignKeyPillClick 
+  onNavigateToReferencingTable
 }) => {
   const [isClosing, setIsClosing] = useState(false);
+  const [reverseForeignKeyMenu, setReverseForeignKeyMenu] = useState<{
+    column: string;
+    value: any;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Create a map of column names to column info for quick lookup
   const columnMap = new Map<string, Column>();
@@ -40,15 +47,29 @@ const SidePanel: React.FC<SidePanelProps> = ({
     onForeignKeyClick(column, value);
   };
 
-  // Handler for reverse foreign key pill clicks - show menu first, then close panel
+  // Handler for reverse foreign key pill clicks - show local dropdown
   const handleReverseForeignKeyPillClick = (e: React.MouseEvent, column: string, value: any) => {
-    // Show the menu first
-    onReverseForeignKeyPillClick(e, column, value);
-    // Close the panel after a short delay to allow the menu to be positioned
-    setTimeout(() => {
-      handleClose();
-    }, 50);
+    setReverseForeignKeyMenu({
+      column,
+      value,
+      x: e.clientX,
+      y: e.clientY,
+    });
   };
+
+  // Close dropdown menu on outside click
+  const reverseForeignKeyMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (reverseForeignKeyMenuRef.current && !reverseForeignKeyMenuRef.current.contains(e.target as Node)) {
+        setReverseForeignKeyMenu(null);
+      }
+    }
+    if (reverseForeignKeyMenu) {
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }
+  }, [reverseForeignKeyMenu]);
 
   if (!selectedRow) return null;
 
@@ -78,6 +99,42 @@ const SidePanel: React.FC<SidePanelProps> = ({
             </div>
           ))}
         </div>
+        {/* Reverse foreign key navigation menu */}
+        {reverseForeignKeyMenu && (
+          <div
+            ref={reverseForeignKeyMenuRef}
+            style={{
+              position: 'fixed',
+              top: reverseForeignKeyMenu.y,
+              left: reverseForeignKeyMenu.x,
+              right: 'auto',
+              zIndex: 1001, // Higher than side panel
+            }}
+          >
+            <DropdownMenu align="left">
+              {(() => {
+                const columnInfo = columnMap.get(reverseForeignKeyMenu.column);
+                if (!columnInfo?.reverse_foreign_keys) return null;
+                
+                return columnInfo.reverse_foreign_keys.map((reverseFk, index) => (
+                  <div
+                    key={`reverse-fk-${index}`}
+                    style={{ padding: '8px 16px', cursor: 'pointer' }}
+                    onClick={() => {
+                      if (onNavigateToReferencingTable) {
+                        onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, reverseForeignKeyMenu.value);
+                      }
+                      setReverseForeignKeyMenu(null);
+                      handleClose(); // Close the panel after navigation
+                    }}
+                  >
+                    Go to {reverseFk.source_table}
+                  </div>
+                ));
+              })()}
+            </DropdownMenu>
+          </div>
+        )}
       </div>
     </div>
   );

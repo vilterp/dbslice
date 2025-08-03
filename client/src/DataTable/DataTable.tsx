@@ -91,6 +91,8 @@ const DataTable: React.FC<DataTableProps> = ({
         );
       }
       setCellMenu(null);
+      // Close the side panel when navigation occurs
+      setSelectedRow(null);
     }
   };
 
@@ -235,6 +237,8 @@ const DataTable: React.FC<DataTableProps> = ({
                               onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, cellMenu.value);
                             }
                             setCellMenu(null);
+                            // Close the side panel when navigation occurs
+                            setSelectedRow(null);
                           }}
                         >
                           Show {reverseFk.source_table} → {cellMenu.column}
@@ -274,6 +278,8 @@ const DataTable: React.FC<DataTableProps> = ({
                           onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, reverseForeignKeyMenu.value);
                         }
                         setReverseForeignKeyMenu(null);
+                        // Close the side panel when navigation occurs
+                        setSelectedRow(null);
                       }}
                     >
                       Go to {reverseFk.source_table}
@@ -288,7 +294,7 @@ const DataTable: React.FC<DataTableProps> = ({
             onClose={() => setSelectedRow(null)}
             columns={columns}
             onForeignKeyClick={handleForeignKeyClick}
-            onReverseForeignKeyPillClick={handleReverseForeignKeyPillClick}
+            onNavigateToReferencingTable={onNavigateToReferencingTable}
           />
         </div>
       )}
