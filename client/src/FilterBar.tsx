@@ -1,6 +1,6 @@
 import "./FilterBar.css";
 import React from 'react';
-import { Filter } from '../../src/common';
+import { Filter } from '../../src/types';
 
 interface FilterBarProps {
   filters: Filter[];

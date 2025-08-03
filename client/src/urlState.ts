@@ -1,7 +1,7 @@
 // urlState.ts
 // Handles reading and writing app state to the URL (table, filters, sorting)
 
-import { Filter } from '../../src/common';
+import { Filter } from '../../src/types';
 import { SortDirection } from './api';
 
 export function updateURL(
@@ -61,13 +61,21 @@ export function loadFromURL(
     if (key.startsWith('filter_')) {
       const column = key.replace('filter_', '');
       const [filterValue, type = 'exact', min, max] = value.split(':');
-      urlFilters.push({
-        column,
-        value: filterValue,
-        type: type as 'exact' | 'range',
-        min: min ? parseFloat(min) : undefined,
-        max: max ? parseFloat(max) : undefined
-      });
+      
+      if (type === 'range' && min && max) {
+        urlFilters.push({
+          type: 'range',
+          column,
+          min: parseFloat(min),
+          max: parseFloat(max)
+        });
+      } else {
+        urlFilters.push({
+          type: 'exact',
+          column,
+          value: filterValue
+        });
+      }
     }
   }
 

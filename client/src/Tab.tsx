@@ -1,11 +1,11 @@
-import { NUMERICAL_COLUMN_TYPES } from '../../src/common';
+import { NUMERICAL_COLUMN_TYPES } from '../../src/types';
 import React from "react";
 import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
 import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
 import { Column } from "./api";
-import { QueryState } from '../../src/common';
+import { QueryState } from './clientTypes';
 
 export type TabState = {
   id: string;

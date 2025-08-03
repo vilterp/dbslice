@@ -1,6 +1,6 @@
 import "./Sidebar.css";
 import React from 'react';
-import { Filter } from '../../src/common';
+import { Filter } from '../../src/types';
 import { Column } from './api';
 import Histogram from './histogram/Histogram';
 

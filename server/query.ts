@@ -1,4 +1,4 @@
-import { NUMERICAL_COLUMN_TYPES, Query, Filter, RangeFilter, HistogramQuery } from '../src/common';
+import { NUMERICAL_COLUMN_TYPES, Query, Filter, RangeFilter, HistogramQuery } from '../src/types';
 import { sanitizeQueryResult, sanitizeIdentifier } from './sanitize';
 import * as duckdb from 'duckdb';
 import logger from './logger';

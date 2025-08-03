@@ -11,7 +11,7 @@ import {
   runHistogramQuery
 } from './query';
 import { sanitizeIdentifier } from './sanitize';
-import { Query, HistogramQuery, Filter } from '../src/common';
+import { Query, HistogramQuery, Filter } from '../src/types';
 
 
 

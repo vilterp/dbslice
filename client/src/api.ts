@@ -6,7 +6,7 @@ import {
   HistogramData, 
   HistogramResult, 
   TableDataResponse 
-} from '../../src/common';
+} from '../../src/types';
 
 // Re-export for client components
 export type { Filter, SortDirection, Table, Column, HistogramData, HistogramResult, TableDataResponse };

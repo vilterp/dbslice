@@ -5,7 +5,7 @@ import { abbreviateNumber } from '../utils';
 import { formatValue } from '../utils/formatValue';
 import Tooltip from '../components/Tooltip';
 import { useTooltip } from '../components/Tooltip';
-import { Filter } from '../../../src/common';
+import { Filter } from '../../../src/types';
 
 // Configuration constants (should match api.ts)
 const DEFAULT_TOP_N_CATEGORIES = 5;
@@ -65,7 +65,9 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
         const barWidth = (item.count / maxCount) * 100;
         const isOthers = item.is_others === true;
         const value = String(item[columnName]);
-        const checked = filters.some((f: Filter) => f.column === columnName && f.value === value);
+        const checked = filters.some((f: Filter) => 
+          f.column === columnName && f.type === 'exact' && f.value === value
+        );
         let displayValue;
         if (isOthers) {
           // Use distinct_count for the "X other values" text, not the row count
