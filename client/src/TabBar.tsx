@@ -1,5 +1,4 @@
 import React from "react";
-import DropdownMenu from "./components/DropdownMenu";
 import { TabState } from './Tab';
 
 interface TabBarProps {
@@ -7,29 +6,37 @@ interface TabBarProps {
   selectedTabId: string | null;
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
-  tables: Array<{ table_name: string }>;
-  onAddTab: (table: string) => void;
+  onAddTab: () => void;
+  onTabRename: (tabId: string, newName: string) => void;
 }
 
 
-const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabClose, tables, onAddTab }) => {
-  const [showDropdown, setShowDropdown] = React.useState(false);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
+const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabClose, onAddTab, onTabRename }) => {
+  const [editingTabId, setEditingTabId] = React.useState<string | null>(null);
+  const [editingName, setEditingName] = React.useState<string>("");
 
-  // Close dropdown on outside click
-  React.useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
+  const handleTabNameClick = (tab: TabState, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTabId(tab.id);
+    setEditingName(tab.name || tab.queryState.query.tableName || "Untitled");
+  };
+
+  const handleNameSubmit = (tabId: string) => {
+    if (editingName.trim()) {
+      onTabRename(tabId, editingName.trim());
     }
-    if (showDropdown) {
-      document.addEventListener("mousedown", handleClick);
-    } else {
-      document.removeEventListener("mousedown", handleClick);
+    setEditingTabId(null);
+    setEditingName("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent, tabId: string) => {
+    if (e.key === 'Enter') {
+      handleNameSubmit(tabId);
+    } else if (e.key === 'Escape') {
+      setEditingTabId(null);
+      setEditingName("");
     }
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showDropdown]);
+  };
 
   return (
     <div
@@ -56,7 +63,32 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabC
           }}
           onClick={() => onTabClick(tab.id)}
         >
-          <span>{tab.queryState.query.tableName}</span>
+          {editingTabId === tab.id ? (
+            <input
+              type="text"
+              value={editingName}
+              onChange={(e) => setEditingName(e.target.value)}
+              onBlur={() => handleNameSubmit(tab.id)}
+              onKeyDown={(e) => handleKeyPress(e, tab.id)}
+              autoFocus
+              style={{
+                background: "transparent",
+                border: "1px solid #ccc",
+                borderRadius: "2px",
+                padding: "2px 4px",
+                fontSize: "inherit",
+                fontFamily: "inherit",
+                minWidth: "80px",
+              }}
+            />
+          ) : (
+            <span 
+              onDoubleClick={(e) => handleTabNameClick(tab, e)}
+              style={{ cursor: "text" }}
+            >
+              {tab.name || tab.queryState.query.tableName || "Untitled"}
+            </span>
+          )}
           <button
             style={{
               marginLeft: 8,
@@ -76,50 +108,21 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabC
           </button>
         </div>
       ))}
-      <div style={{ position: "relative" }} ref={dropdownRef}>
-        <button
-          style={{
-            marginLeft: 8,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#333",
-            fontSize: 22,
-            padding: "0 0.5rem",
-          }}
-          aria-label="Open table"
-          onClick={() => setShowDropdown((v) => !v)}
-        >
-          +
-        </button>
-        {showDropdown && (
-          <div style={{ position: "absolute", left: 0, top: "100%", zIndex: 20 }}>
-            <DropdownMenu align="left">
-              {tables.map((table) => (
-                <div
-                  key={table.table_name}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    cursor: "pointer",
-                    borderBottom: "1px solid #eee",
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    maxWidth: 300,
-                  }}
-                  title={table.table_name}
-                  onClick={() => {
-                    setShowDropdown(false);
-                    onAddTab(table.table_name);
-                  }}
-                >
-                  {table.table_name}
-                </div>
-              ))}
-            </DropdownMenu>
-          </div>
-        )}
-      </div>
+      <button
+        style={{
+          marginLeft: 8,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "#333",
+          fontSize: 22,
+          padding: "0 0.5rem",
+        }}
+        aria-label="Add new tab"
+        onClick={onAddTab}
+      >
+        +
+      </button>
     </div>
   );
 };

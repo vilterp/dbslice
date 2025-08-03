@@ -14,11 +14,11 @@ import { updateURL } from "./urlState";
 // Import the TabState type from Tab component to avoid duplication
 import { TabState } from './Tab';
 
-const makeDefaultTab = (table: string): TabState => ({
+const makeDefaultTab = (table?: string): TabState => ({
   id: Math.random().toString(36).slice(2),
   queryState: {
     query: {
-      tableName: table,
+      tableName: table || "",
       filters: [],
       orderBy: "",
       orderDir: undefined,
@@ -192,6 +192,14 @@ function App() {
     });
   };
 
+  const handleTabRename = (tabId: string, newName: string) => {
+    setTabs((tabs) => 
+      tabs.map((tab) => 
+        tab.id === tabId ? { ...tab, name: newName } : tab
+      )
+    );
+  };
+
 
   const currentTab = tabs.find((t) => t.id === selectedTabId);
 
@@ -227,31 +235,15 @@ function App() {
         selectedTabId={selectedTabId}
         onTabClick={handleTabClick}
         onTabClose={handleTabClose}
-        tables={tables}
-        onAddTab={(table) => {
-          if (!table) return;
-          
-          // Check if tab already exists for this table
-          const existingTab = tabs.find(t => t.queryState.query.tableName === table);
-          if (existingTab) {
-            setSelectedTabId(existingTab.id);
-            updateURL(
-              table, 
-              existingTab.queryState.query.filters, 
-              existingTab.queryState.query.orderBy || "", 
-              existingTab.queryState.query.orderDir === "ASC" ? "asc" : existingTab.queryState.query.orderDir === "DESC" ? "desc" : ""
-            );
-            return;
-          }
-          
-          const newTab = makeDefaultTab(table);
+        onAddTab={() => {
+          const newTab = makeDefaultTab();
           setTabs((tabs) => [...tabs, newTab]);
           setSelectedTabId(newTab.id);
-          updateURL(table, [], "", "");
         }}
+        onTabRename={handleTabRename}
       />
 
-      {currentTab && <Tab tab={currentTab} updateTab={updateTab} />}
+      {currentTab && <Tab tab={currentTab} updateTab={updateTab} tables={tables} />}
     </div>
   );
 }

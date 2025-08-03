@@ -77,3 +77,24 @@
   font-size: 1.1rem;
   color: #666;
 }
+
+.no-table-selected {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  text-align: center;
+  color: #666;
+}
+
+.no-table-selected h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.no-table-selected p {
+  margin: 0;
+  font-size: 1rem;
+}
