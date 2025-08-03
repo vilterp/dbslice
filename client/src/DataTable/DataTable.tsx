@@ -1,9 +1,9 @@
 import "./DataTable.css";
 import React, { useState, useRef, useEffect } from "react";
-import { formatValue } from '../utils/formatValue';
 import TableHeader from "./TableHeader";
 import HeaderMenu from "./HeaderMenu";
 import SidePanel from "./SidePanel";
+import TableCell from "./TableCell";
 import DropdownMenu from "../components/DropdownMenu";
 import { SortDirection, Column } from "../api";
 
@@ -142,51 +142,18 @@ const DataTable: React.FC<DataTableProps> = ({
             <tbody>
               {tableData.map((row, rowIndex) => (
                 <tr key={rowIndex} onClick={() => setSelectedRow(row)} className="table-row">
-                  {columnNames.map((col, cellIndex) => {
-                    const value = row[col];
-                    const isNumber = typeof value === 'number' || (!isNaN(Number(value)) && value !== null && value !== '');
-                    const columnInfo = columnMap.get(col);
-                    const isForeignKey = columnInfo?.foreign_key !== undefined;
-                    const hasReverseForeignKeys = columnInfo?.reverse_foreign_keys && columnInfo.reverse_foreign_keys.length > 0;
-                    
-                    // Determine the click handler based on the type of relationship
-                    let clickHandler: ((e: React.MouseEvent) => void) | undefined;
-                    if (isForeignKey) {
-                      clickHandler = (e) => {
-                        e.stopPropagation();
-                        handleForeignKeyClick(col, value);
-                      };
-                    } else if (hasReverseForeignKeys && columnInfo.reverse_foreign_keys!.length === 1) {
-                      // If there's only one reverse FK, click goes directly there
-                      const reverseFk = columnInfo.reverse_foreign_keys![0];
-                      clickHandler = (e) => {
-                        e.stopPropagation();
-                        handleReverseForeignKeyClick(col, value, reverseFk.source_table, reverseFk.source_column);
-                      };
-                    }
-                    
-                    return (
-                      <td
-                        key={cellIndex}
-                        style={isNumber ? { textAlign: 'right' } : {}}
-                        className={`table-cell ${isForeignKey ? 'foreign-key-cell' : hasReverseForeignKeys ? 'reverse-foreign-key-cell' : ''}`}
-                        onContextMenu={e => handleCellContextMenu(e, col, value)}
-                        onClick={clickHandler}
-                      >
-                        {isForeignKey ? (
-                          <span className="foreign-key-pill">
-                            {formatValue(value)}
-                          </span>
-                        ) : hasReverseForeignKeys ? (
-                          <span className="reverse-foreign-key-pill">
-                            {formatValue(value)}
-                          </span>
-                        ) : (
-                          formatValue(value)
-                        )}
-                      </td>
-                    );
-                  })}
+                  {columnNames.map((col, cellIndex) => (
+                    <TableCell
+                      key={cellIndex}
+                      value={row[col]}
+                      column={col}
+                      columnInfo={columnMap.get(col)}
+                      cellIndex={cellIndex}
+                      onContextMenu={handleCellContextMenu}
+                      onForeignKeyClick={handleForeignKeyClick}
+                      onReverseForeignKeyClick={handleReverseForeignKeyClick}
+                    />
+                  ))}
                 </tr>
               ))}
             </tbody>
