@@ -10,7 +10,7 @@ import {
   runCountQuery,
   runHistogramQuery
 } from './query';
-import { sanitizeIdentifier } from './helpers';
+import { sanitizeIdentifier } from './sanitize';
 import { Query, HistogramQuery } from '../src/common';
 
 

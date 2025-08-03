@@ -1,4 +1,4 @@
-import { sanitizeQueryResult } from '../helpers';
+import { sanitizeQueryResult } from '../sanitize';
 
 describe('sanitizeQueryResult', () => {
   it('converts Date objects to ISO strings', () => {
