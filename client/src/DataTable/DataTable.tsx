@@ -16,8 +16,6 @@ interface DataTableProps {
   setSortColumn: (col: string) => void;
   setSortDirection: (dir: SortDirection) => void;
   addFilter: (column: string, value: any) => void;
-  loading?: boolean;
-  error?: string;
 }
 
 
@@ -30,8 +28,6 @@ const DataTable: React.FC<DataTableProps> = ({
   setSortColumn,
   setSortDirection,
   addFilter,
-  loading = false,
-  error,
 }) => {
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [cellMenu, setCellMenu] = useState<{
@@ -81,30 +77,9 @@ const DataTable: React.FC<DataTableProps> = ({
     }
   }, [cellMenu]);
 
-  if (error) {
-    return (
-      <div className="data-table">
-        <div className="table-error" style={{
-          padding: '40px',
-          textAlign: 'center',
-          color: '#d32f2f',
-          backgroundColor: '#ffeaea',
-          border: '1px solid #ffcccc',
-          borderRadius: '8px',
-          margin: '20px',
-          fontSize: '16px'
-        }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '18px' }}>Error Loading Table Data</div>
-          <div>{error}</div>
-        </div>
-      </div>
-    );
-  }
-
-
   return (
     <div className="data-table">
-      {!loading && tableData.length > 0 && (
+      {tableData.length > 0 && (
         <div style={{ position: "relative" }}>
           <table>
             <thead>

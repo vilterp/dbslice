@@ -38,13 +38,15 @@ export interface Query extends BaseQuery {
   filters: Filter[];
 }
 
+export type LoadingState = 
+  | { type: "idle" }
+  | { type: "loading" }
+  | { type: "loaded"; data: any[]; total: number }
+  | { type: "error"; error: string };
+
 export interface QueryState {
   query: Query;
-  data: any[];
-  total: number;
-  error?: string;
-  loading: boolean;
-  dataLoading: boolean;
+  state: LoadingState;
 }
 
 export interface HistogramQuery extends BaseQuery {

@@ -88,40 +88,47 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
           removeFilter={removeFilter}
         />
         <div className="main-panel">
-          {tab.queryState.loading ? (
-            <div className="loading">Loading...</div>
-          ) : (
-            <div className="data-table">
-              <h3>Data ({tab.queryState.dataLoading ? 'Loading...' : `${abbreviateNumber(tab.queryState.total)} rows`})</h3>
-              <DataTable
-                tableData={tab.queryState.data}
-                sortColumn={tab.queryState.query.orderBy || ''}
-                sortDirection={tab.queryState.query.orderDir === 'ASC' ? 'asc' : tab.queryState.query.orderDir === 'DESC' ? 'desc' : ''}
-                headerMenu={tab.headerMenu}
-                loading={tab.queryState.dataLoading}
-                setHeaderMenu={(menu) =>
-                  updateTab(tab.id, (t) => ({
-                    ...t,
-                    headerMenu: menu,
-                  }))
-                }
-                setSortColumn={(col) =>
-                  updateTab(tab.id, (t) => ({
-                    ...t,
-                    queryState: { ...t.queryState, query: { ...t.queryState.query, orderBy: col } },
-                  }))
-                }
-                setSortDirection={(dir) =>
-                  updateTab(tab.id, (t) => ({
-                    ...t,
-                    queryState: { ...t.queryState, query: { ...t.queryState.query, orderDir: dir === 'asc' ? 'ASC' : dir === 'desc' ? 'DESC' : undefined } },
-                  }))
-                }
-                addFilter={addFilter}
-                error={tab.queryState.error}
-              />
-            </div>
-          )}
+          {(() => {
+            switch (tab.queryState.state.type) {
+              case "idle":
+                return <div className="idle">No data loaded</div>;
+              case "loading":
+                return <div className="loading">Loading...</div>;
+              case "error":
+                return <div className="error">Error: {tab.queryState.state.error}</div>;
+              case "loaded":
+                return (
+                  <div className="data-table">
+                    <h3>Data ({`${abbreviateNumber(tab.queryState.state.total)} rows`})</h3>
+                    <DataTable
+                      tableData={tab.queryState.state.data}
+                      sortColumn={tab.queryState.query.orderBy || ''}
+                      sortDirection={tab.queryState.query.orderDir === 'ASC' ? 'asc' : tab.queryState.query.orderDir === 'DESC' ? 'desc' : ''}
+                      headerMenu={tab.headerMenu}
+                      setHeaderMenu={(menu) =>
+                        updateTab(tab.id, (t) => ({
+                          ...t,
+                          headerMenu: menu,
+                        }))
+                      }
+                      setSortColumn={(col) =>
+                        updateTab(tab.id, (t) => ({
+                          ...t,
+                          queryState: { ...t.queryState, query: { ...t.queryState.query, orderBy: col } },
+                        }))
+                      }
+                      setSortDirection={(dir) =>
+                        updateTab(tab.id, (t) => ({
+                          ...t,
+                          queryState: { ...t.queryState, query: { ...t.queryState.query, orderDir: dir === 'asc' ? 'ASC' : dir === 'desc' ? 'DESC' : undefined } },
+                        }))
+                      }
+                      addFilter={addFilter}
+                    />
+                  </div>
+                );
+            }
+          })()}
         </div>
       </div>
     </div>
