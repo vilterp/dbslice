@@ -4,7 +4,7 @@ import FilterBar from "./FilterBar";
 import Sidebar from "./Sidebar";
 import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
-import { Column, SortDirection } from "./api";
+import { Column } from "./api";
 import { QueryState } from '../../src/common';
 
 export type TabState = {

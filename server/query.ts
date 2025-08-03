@@ -1,4 +1,4 @@
-import { NUMERICAL_COLUMN_TYPES, Query, Filter, HistogramQuery } from '../src/common';
+import { NUMERICAL_COLUMN_TYPES, Query, Filter, RangeFilter, HistogramQuery } from '../src/common';
 import { sanitizeQueryResult, sanitizeIdentifier } from './sanitize';
 import * as duckdb from 'duckdb';
 import logger from './logger';
@@ -192,54 +192,7 @@ export function createQueryRunner(db: duckdb.Database): QueryRunner {
   return runSQLQuery;
 }
 
-// Build WHERE conditions for exact filters
-const buildExactFilterConditions = (filters: Record<string, string | number | boolean>): string[] => {
-  if (Object.keys(filters).length === 0) return [];
-  
-  return Object.entries(filters).map(([column, value]) => {
-    const sanitizedColumn = sanitizeIdentifier(column);
-    // Use direct substitution with proper escaping
-    const safeValue = typeof value === 'string' ? `'${value.replace(/'/g, "''")}'` : value;
-    return `${sanitizedColumn} = ${safeValue}`;
-  });
-};
 
-// Build WHERE conditions for range filters
-const buildRangeFilterConditions = (rangeFilters: Record<string, RangeFilter>): string[] => {
-  if (Object.keys(rangeFilters).length === 0) return [];
-  
-  return Object.entries(rangeFilters).map(([column, range]) => {
-    const sanitizedColumn = sanitizeIdentifier(column);
-    
-    if (typeof range !== 'object' || range === null) {
-      throw new Error(`Invalid range filter for column ${column}: expected object, got ${typeof range}`);
-    }
-    
-    const { min, max } = range;
-    
-    if (typeof min !== 'number' || typeof max !== 'number') {
-      throw new Error(`Invalid range values for column ${column}: min=${min} (${typeof min}), max=${max} (${typeof max})`);
-    }
-    
-    return `${sanitizedColumn} >= ${min} AND ${sanitizedColumn} <= ${max}`;
-  });
-};
-
-// Build complete WHERE clause from filters
-const buildWhereClause = (
-  filters: Record<string, string | number | boolean>, 
-  rangeFilters: Record<string, RangeFilter>
-): string => {
-  const conditions: string[] = [];
-  
-  // Add exact filter conditions
-  conditions.push(...buildExactFilterConditions(filters));
-  
-  // Add range filter conditions
-  conditions.push(...buildRangeFilterConditions(rangeFilters));
-  
-  return conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
-};
 
 // Build ORDER BY clause
 const buildOrderByClause = (orderBy?: string, orderDir?: string): string => {

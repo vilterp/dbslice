@@ -10,9 +10,20 @@ export const NUMERICAL_COLUMN_TYPES = [
   // 'BIGINT',
 ];
 
-export type Filter = 
-  | { type: 'exact'; column: string; value: string }
-  | { type: 'range'; column: string; min: number; max: number };
+export interface ExactFilter {
+  type: 'exact';
+  column: string;
+  value: string;
+}
+
+export interface RangeFilter {
+  type: 'range';
+  column: string;
+  min: number;
+  max: number;
+}
+
+export type Filter = ExactFilter | RangeFilter;
 
 
 export interface BaseQuery {
