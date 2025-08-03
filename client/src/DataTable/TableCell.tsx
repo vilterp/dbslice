@@ -9,7 +9,7 @@ interface TableCellProps {
   cellIndex: number;
   onContextMenu: (e: React.MouseEvent, column: string, value: any) => void;
   onForeignKeyClick: (column: string, value: any) => void;
-  onReverseForeignKeyClick: (column: string, value: any, targetTable: string, targetColumn: string) => void;
+  onReverseForeignKeyPillClick: (e: React.MouseEvent, column: string, value: any) => void;
 }
 
 const TableCell: React.FC<TableCellProps> = ({
@@ -19,7 +19,7 @@ const TableCell: React.FC<TableCellProps> = ({
   cellIndex,
   onContextMenu,
   onForeignKeyClick,
-  onReverseForeignKeyClick,
+  onReverseForeignKeyPillClick,
 }) => {
   const isNumber = typeof value === 'number' || (!isNaN(Number(value)) && value !== null && value !== '');
   const isForeignKey = columnInfo?.foreign_key !== undefined;
@@ -32,12 +32,11 @@ const TableCell: React.FC<TableCellProps> = ({
       e.stopPropagation();
       onForeignKeyClick(column, value);
     };
-  } else if (hasReverseForeignKeys && columnInfo.reverse_foreign_keys!.length === 1) {
-    // If there's only one reverse FK, click goes directly there
-    const reverseFk = columnInfo.reverse_foreign_keys![0];
+  } else if (hasReverseForeignKeys) {
+    // For reverse foreign keys, always show a menu (even if there's only one)
     clickHandler = (e) => {
       e.stopPropagation();
-      onReverseForeignKeyClick(column, value, reverseFk.source_table, reverseFk.source_column);
+      onReverseForeignKeyPillClick(e, column, value);
     };
   }
   

@@ -42,6 +42,12 @@ const DataTable: React.FC<DataTableProps> = ({
     x: number;
     y: number;
   } | null>(null);
+  const [reverseForeignKeyMenu, setReverseForeignKeyMenu] = useState<{
+    column: string;
+    value: any;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Get column names from first row
   const columnNames = tableData.length > 0 ? Object.keys(tableData[0]) : [];
@@ -109,19 +115,33 @@ const DataTable: React.FC<DataTableProps> = ({
     }
   };
 
+  // Handler for clicking on reverse foreign key pill - shows menu
+  const handleReverseForeignKeyPillClick = (e: React.MouseEvent, column: string, value: any) => {
+    setReverseForeignKeyMenu({
+      column,
+      value,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
   // Close cell menu on outside click
   const cellMenuRef = useRef<HTMLDivElement>(null);
+  const reverseForeignKeyMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (cellMenuRef.current && !cellMenuRef.current.contains(e.target as Node)) {
         setCellMenu(null);
       }
+      if (reverseForeignKeyMenuRef.current && !reverseForeignKeyMenuRef.current.contains(e.target as Node)) {
+        setReverseForeignKeyMenu(null);
+      }
     }
-    if (cellMenu) {
+    if (cellMenu || reverseForeignKeyMenu) {
       document.addEventListener("mousedown", handleClick);
       return () => document.removeEventListener("mousedown", handleClick);
     }
-  }, [cellMenu]);
+  }, [cellMenu, reverseForeignKeyMenu]);
 
   return (
     <div className="data-table">
@@ -151,7 +171,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       cellIndex={cellIndex}
                       onContextMenu={handleCellContextMenu}
                       onForeignKeyClick={handleForeignKeyClick}
-                      onReverseForeignKeyClick={handleReverseForeignKeyClick}
+                      onReverseForeignKeyPillClick={handleReverseForeignKeyPillClick}
                     />
                   ))}
                 </tr>
@@ -224,6 +244,41 @@ const DataTable: React.FC<DataTableProps> = ({
                   }
                   
                   return menuItems;
+                })()}
+              </DropdownMenu>
+            </div>
+          )}
+          {/* Reverse foreign key navigation menu */}
+          {reverseForeignKeyMenu && (
+            <div
+              ref={reverseForeignKeyMenuRef}
+              style={{
+                position: 'fixed',
+                top: reverseForeignKeyMenu.y,
+                left: reverseForeignKeyMenu.x,
+                right: 'auto',
+                zIndex: 1000,
+              }}
+            >
+              <DropdownMenu align="left">
+                {(() => {
+                  const columnInfo = columnMap.get(reverseForeignKeyMenu.column);
+                  if (!columnInfo?.reverse_foreign_keys) return null;
+                  
+                  return columnInfo.reverse_foreign_keys.map((reverseFk, index) => (
+                    <div
+                      key={`reverse-fk-${index}`}
+                      style={{ padding: '8px 16px', cursor: 'pointer' }}
+                      onClick={() => {
+                        if (onNavigateToReferencingTable) {
+                          onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, reverseForeignKeyMenu.value);
+                        }
+                        setReverseForeignKeyMenu(null);
+                      }}
+                    >
+                      Go to {reverseFk.source_table}
+                    </div>
+                  ));
                 })()}
               </DropdownMenu>
             </div>
