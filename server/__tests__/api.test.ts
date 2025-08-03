@@ -1169,5 +1169,158 @@ describe('API Endpoints', () => {
         expect(typeof orderIdColumn.foreign_key.referenced_column).toBe('string');
       });
     });
+
+    describe('Reverse Foreign Key (Inward) Detection', () => {
+      it('should return reverse foreign key info for test_customers table', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_customers/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(3); // customer_id, name, email
+        
+        // Find the customer_id column which should have reverse foreign key info
+        const customerIdColumn = response.body.find((col: any) => col.column_name === 'customer_id');
+        expect(customerIdColumn).toBeDefined();
+        expect(customerIdColumn).toHaveProperty('reverse_foreign_keys');
+        expect(Array.isArray(customerIdColumn.reverse_foreign_keys)).toBe(true);
+        expect(customerIdColumn.reverse_foreign_keys.length).toBe(1);
+        
+        const reverseFk = customerIdColumn.reverse_foreign_keys[0];
+        expect(reverseFk).toHaveProperty('source_table');
+        expect(reverseFk).toHaveProperty('source_column');
+        expect(reverseFk.source_table).toBe('test_orders');
+        expect(reverseFk.source_column).toBe('customer_id');
+
+        // Other columns should not have reverse foreign key info
+        const otherColumns = response.body.filter((col: any) => col.column_name !== 'customer_id');
+        otherColumns.forEach((column: any) => {
+          expect(column.reverse_foreign_keys).toBeUndefined();
+        });
+      });
+
+      it('should return reverse foreign key info for test_categories table', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_categories/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(3); // category_id, category_name, description
+        
+        // Find the category_id column which should have reverse foreign key info
+        const categoryIdColumn = response.body.find((col: any) => col.column_name === 'category_id');
+        expect(categoryIdColumn).toBeDefined();
+        expect(categoryIdColumn).toHaveProperty('reverse_foreign_keys');
+        expect(Array.isArray(categoryIdColumn.reverse_foreign_keys)).toBe(true);
+        expect(categoryIdColumn.reverse_foreign_keys.length).toBe(1);
+        
+        const reverseFk = categoryIdColumn.reverse_foreign_keys[0];
+        expect(reverseFk.source_table).toBe('test_products');
+        expect(reverseFk.source_column).toBe('category_id');
+      });
+
+      it('should return multiple reverse foreign key relationships for test_products table', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_products/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(4); // product_id, product_name, category_id, price
+        
+        // Find the product_id column which should have reverse foreign key info
+        const productIdColumn = response.body.find((col: any) => col.column_name === 'product_id');
+        expect(productIdColumn).toBeDefined();
+        expect(productIdColumn).toHaveProperty('reverse_foreign_keys');
+        expect(Array.isArray(productIdColumn.reverse_foreign_keys)).toBe(true);
+        expect(productIdColumn.reverse_foreign_keys.length).toBe(1);
+        
+        const reverseFk = productIdColumn.reverse_foreign_keys[0];
+        expect(reverseFk.source_table).toBe('test_order_items');
+        expect(reverseFk.source_column).toBe('product_id');
+
+        // category_id should have a regular foreign key but no reverse foreign keys
+        const categoryIdColumn = response.body.find((col: any) => col.column_name === 'category_id');
+        expect(categoryIdColumn).toBeDefined();
+        expect(categoryIdColumn.foreign_key).toBeDefined();
+        expect(categoryIdColumn.reverse_foreign_keys).toBeUndefined();
+      });
+
+      it('should return multiple reverse foreign key relationships for test_orders table', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_orders/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(4); // order_id, customer_id, order_date, total_amount
+        
+        // Find the order_id column which should have reverse foreign key info
+        const orderIdColumn = response.body.find((col: any) => col.column_name === 'order_id');
+        expect(orderIdColumn).toBeDefined();
+        expect(orderIdColumn).toHaveProperty('reverse_foreign_keys');
+        expect(Array.isArray(orderIdColumn.reverse_foreign_keys)).toBe(true);
+        expect(orderIdColumn.reverse_foreign_keys.length).toBe(1);
+        
+        const reverseFk = orderIdColumn.reverse_foreign_keys[0];
+        expect(reverseFk.source_table).toBe('test_order_items');
+        expect(reverseFk.source_column).toBe('order_id');
+
+        // customer_id should have a regular foreign key but no reverse foreign keys
+        const customerIdColumn = response.body.find((col: any) => col.column_name === 'customer_id');
+        expect(customerIdColumn).toBeDefined();
+        expect(customerIdColumn.foreign_key).toBeDefined();
+        expect(customerIdColumn.reverse_foreign_keys).toBeUndefined();
+      });
+
+      it('should include both foreign_key and reverse_foreign_keys alongside no_histogram flag', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_products/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        response.body.forEach((column: any) => {
+          expect(column).toHaveProperty('column_name');
+          expect(column).toHaveProperty('data_type');
+          expect(column).toHaveProperty('no_histogram');
+          
+          // The no_histogram flag should be a boolean
+          expect(typeof column.no_histogram).toBe('boolean');
+          
+          // If foreign_key exists, it should have the correct structure
+          if (column.foreign_key) {
+            expect(column.foreign_key).toHaveProperty('referenced_table');
+            expect(column.foreign_key).toHaveProperty('referenced_column');
+            expect(typeof column.foreign_key.referenced_table).toBe('string');
+            expect(typeof column.foreign_key.referenced_column).toBe('string');
+          }
+
+          // If reverse_foreign_keys exist, they should have the correct structure
+          if (column.reverse_foreign_keys) {
+            expect(Array.isArray(column.reverse_foreign_keys)).toBe(true);
+            column.reverse_foreign_keys.forEach((reverseFk: any) => {
+              expect(reverseFk).toHaveProperty('source_table');
+              expect(reverseFk).toHaveProperty('source_column');
+              expect(typeof reverseFk.source_table).toBe('string');
+              expect(typeof reverseFk.source_column).toBe('string');
+            });
+          }
+        });
+      });
+
+      it('should handle tables with no reverse foreign keys', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_order_items/columns') // Leaf table with no reverse FKs
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        response.body.forEach((column: any) => {
+          expect(column).toHaveProperty('column_name');
+          expect(column).toHaveProperty('data_type');
+          expect(column).toHaveProperty('no_histogram');
+          
+          // test_order_items is a leaf table, so no columns should have reverse foreign keys
+          expect(column.reverse_foreign_keys).toBeUndefined();
+        });
+      });
+    });
   });
 });

@@ -54,11 +54,19 @@ export function createServer(db: duckdb.Database, config: Config) {
         WHERE table_name = '${sanitizedTableName}'
       `);
       
-      // Get foreign key information for this table
+      // Get foreign key information for this table (outward references)
       const foreignKeys = await runSQLQuery(`
         SELECT constraint_column_names, referenced_table, referenced_column_names
         FROM duckdb_constraints 
         WHERE table_name = '${sanitizedTableName}' 
+        AND constraint_type = 'FOREIGN KEY'
+      `);
+      
+      // Get reverse foreign key information (inward references)
+      const reverseForeignKeys = await runSQLQuery(`
+        SELECT constraint_column_names, table_name as source_table, referenced_column_names
+        FROM duckdb_constraints 
+        WHERE referenced_table = '${sanitizedTableName}' 
         AND constraint_type = 'FOREIGN KEY'
       `);
       
@@ -75,6 +83,23 @@ export function createServer(db: duckdb.Database, config: Config) {
           referenced_column: referencedColumn
         });
       });
+
+      // Create reverse foreign key mapping
+      const reverseForeignKeyMap = new Map<string, { source_table: string; source_column: string }[]>();
+      reverseForeignKeys.forEach((rfk: any) => {
+        // Column that is being referenced in this table
+        const referencedColumn = rfk.referenced_column_names[0];
+        const sourceTable = rfk.source_table;
+        const sourceColumn = rfk.constraint_column_names[0];
+        
+        if (!reverseForeignKeyMap.has(referencedColumn)) {
+          reverseForeignKeyMap.set(referencedColumn, []);
+        }
+        reverseForeignKeyMap.get(referencedColumn)!.push({
+          source_table: sourceTable,
+          source_column: sourceColumn
+        });
+      });
       
       // Add no_histogram information from config
       const noHistogramColumns = new Set<string>();
@@ -89,7 +114,8 @@ export function createServer(db: duckdb.Database, config: Config) {
       const enhancedColumns = columns.map((column: any) => ({
         ...column,
         no_histogram: noHistogramColumns.has(column.column_name),
-        foreign_key: foreignKeyMap.get(column.column_name)
+        foreign_key: foreignKeyMap.get(column.column_name),
+        reverse_foreign_keys: reverseForeignKeyMap.get(column.column_name)
       }));
       
       res.json(enhancedColumns);

@@ -18,6 +18,7 @@ interface DataTableProps {
   setSortDirection: (dir: SortDirection) => void;
   addFilter: (column: string, value: any) => void;
   onNavigateToForeignKey?: (targetTable: string, targetColumn: string, value: any) => void;
+  onNavigateToReferencingTable?: (targetTable: string, targetColumn: string, value: any) => void;
 }
 
 
@@ -32,6 +33,7 @@ const DataTable: React.FC<DataTableProps> = ({
   setSortDirection,
   addFilter,
   onNavigateToForeignKey,
+  onNavigateToReferencingTable,
 }) => {
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [cellMenu, setCellMenu] = useState<{
@@ -100,6 +102,13 @@ const DataTable: React.FC<DataTableProps> = ({
     }
   };
 
+  // Handler for clicking on reverse foreign key cell
+  const handleReverseForeignKeyClick = (column: string, value: any, targetTable: string, targetColumn: string) => {
+    if (onNavigateToReferencingTable) {
+      onNavigateToReferencingTable(targetTable, targetColumn, value);
+    }
+  };
+
   // Close cell menu on outside click
   const cellMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -138,19 +147,43 @@ const DataTable: React.FC<DataTableProps> = ({
                     const isNumber = typeof value === 'number' || (!isNaN(Number(value)) && value !== null && value !== '');
                     const columnInfo = columnMap.get(col);
                     const isForeignKey = columnInfo?.foreign_key !== undefined;
+                    const hasReverseForeignKeys = columnInfo?.reverse_foreign_keys && columnInfo.reverse_foreign_keys.length > 0;
+                    
+                    // Determine the click handler based on the type of relationship
+                    let clickHandler: ((e: React.MouseEvent) => void) | undefined;
+                    if (isForeignKey) {
+                      clickHandler = (e) => {
+                        e.stopPropagation();
+                        handleForeignKeyClick(col, value);
+                      };
+                    } else if (hasReverseForeignKeys && columnInfo.reverse_foreign_keys!.length === 1) {
+                      // If there's only one reverse FK, click goes directly there
+                      const reverseFk = columnInfo.reverse_foreign_keys![0];
+                      clickHandler = (e) => {
+                        e.stopPropagation();
+                        handleReverseForeignKeyClick(col, value, reverseFk.source_table, reverseFk.source_column);
+                      };
+                    }
                     
                     return (
                       <td
                         key={cellIndex}
                         style={isNumber ? { textAlign: 'right' } : {}}
-                        className={`table-cell ${isForeignKey ? 'foreign-key-cell' : ''}`}
+                        className={`table-cell ${isForeignKey ? 'foreign-key-cell' : hasReverseForeignKeys ? 'reverse-foreign-key-cell' : ''}`}
                         onContextMenu={e => handleCellContextMenu(e, col, value)}
-                        onClick={isForeignKey ? (e) => {
-                          e.stopPropagation();
-                          handleForeignKeyClick(col, value);
-                        } : undefined}
+                        onClick={clickHandler}
                       >
-                        {formatValue(value)}
+                        {isForeignKey ? (
+                          <span className="foreign-key-pill">
+                            {formatValue(value)}
+                          </span>
+                        ) : hasReverseForeignKeys ? (
+                          <span className="reverse-foreign-key-pill">
+                            {formatValue(value)}
+                          </span>
+                        ) : (
+                          formatValue(value)
+                        )}
                       </td>
                     );
                   })}
@@ -188,9 +221,13 @@ const DataTable: React.FC<DataTableProps> = ({
                 </div>
                 {(() => {
                   const columnInfo = columnMap.get(cellMenu.column);
+                  const menuItems = [];
+                  
+                  // Add outward foreign key navigation
                   if (columnInfo?.foreign_key) {
-                    return (
+                    menuItems.push(
                       <div
+                        key="outward-fk"
                         style={{ padding: '8px 16px', cursor: 'pointer', borderTop: '1px solid #eee' }}
                         onClick={handleNavigateToForeignKey}
                       >
@@ -198,7 +235,28 @@ const DataTable: React.FC<DataTableProps> = ({
                       </div>
                     );
                   }
-                  return null;
+                  
+                  // Add inward foreign key navigation options
+                  if (columnInfo?.reverse_foreign_keys && columnInfo.reverse_foreign_keys.length > 0) {
+                    columnInfo.reverse_foreign_keys.forEach((reverseFk, index) => {
+                      menuItems.push(
+                        <div
+                          key={`inward-fk-${index}`}
+                          style={{ padding: '8px 16px', cursor: 'pointer', borderTop: '1px solid #eee' }}
+                          onClick={() => {
+                            if (onNavigateToReferencingTable) {
+                              onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, cellMenu.value);
+                            }
+                            setCellMenu(null);
+                          }}
+                        >
+                          Show {reverseFk.source_table} → {cellMenu.column}
+                        </div>
+                      );
+                    });
+                  }
+                  
+                  return menuItems;
                 })()}
               </DropdownMenu>
             </div>

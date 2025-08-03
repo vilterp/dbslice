@@ -11,6 +11,7 @@
     "build": "yarn server:build && cd client && yarn build",
     "start": "node server/dist/cli.js",
     "create-test-db": "duckdb test_foreign_keys.db < create_test_db.sql",
+    "add-tpch-fks": "duckdb tpch.db < add_tpch_foreign_keys.sql",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

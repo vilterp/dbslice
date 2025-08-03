@@ -66,11 +66,17 @@ export interface Column {
   data_type: string;
   no_histogram?: boolean;
   foreign_key?: ForeignKeyInfo;
+  reverse_foreign_keys?: ReverseForeignKeyInfo[];
 }
 
 export interface ForeignKeyInfo {
   referenced_table: string;
   referenced_column: string;
+}
+
+export interface ReverseForeignKeyInfo {
+  source_table: string;
+  source_column: string;
 }
 
 // Basic types
