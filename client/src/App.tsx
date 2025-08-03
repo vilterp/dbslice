@@ -9,6 +9,7 @@ import {
   fetchColumns,
   fetchTableData,
 } from "./api";
+import { Query } from "../../src/types";
 import { updateURL } from "./urlState";
 
 // Import the TabState type from Tab component to avoid duplication
@@ -34,6 +35,9 @@ function App() {
   const [tables, setTables] = useState<Table[]>([]);
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
+  
+  // Track query signatures to avoid unnecessary reloads
+  const [querySignatures, setQuerySignatures] = useState<Map<string, string>>(new Map());
 
   // On mount, fetch tables and check for URL state
   useEffect(() => {
@@ -50,13 +54,21 @@ function App() {
             if (key.startsWith("filter_")) {
               const column = key.replace("filter_", "");
               const [filterValue, type = "exact", min, max] = value.split(":");
-              urlFilters.push({
-                column,
-                value: filterValue,
-                type: type as "exact" | "range",
-                min: min ? parseFloat(min) : undefined,
-                max: max ? parseFloat(max) : undefined,
-              });
+              
+              if (type === "range" && min && max) {
+                urlFilters.push({
+                  type: "range" as const,
+                  column,
+                  min: parseFloat(min),
+                  max: parseFloat(max),
+                });
+              } else {
+                urlFilters.push({
+                  type: "exact" as const,
+                  column,
+                  value: filterValue,
+                });
+              }
             }
           }
           // Parse sort
@@ -77,81 +89,99 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load data for the selected tab
+  // Helper function to create query signature
+  const getQuerySignature = (query: Query) => {
+    return JSON.stringify({
+      tableName: query.tableName,
+      filters: query.filters,
+      orderBy: query.orderBy,
+      orderDir: query.orderDir,
+    });
+  };
+
+  // Load data when query changes (not just when switching tabs)
   useEffect(() => {
-    const tab = tabs.find((t) => t.id === selectedTabId);
-    if (!tab) return;
-    if (!tab.queryState.query.tableName) return;
-    // Fetch columns
-    fetchColumns(tab.queryState.query.tableName)
-      .then((data) => {
-        setTabs((tabs) =>
-          tabs.map((t) => (t.id === tab.id ? { ...t, columns: data } : t))
-        );
-      })
-      .catch((e) => console.error("Error fetching columns:", e));
-    // Set loading state before fetching table data
-    setTabs((tabs) =>
-      tabs.map((t) =>
-        t.id === tab.id ? { 
-          ...t, 
-          queryState: { 
-            ...t.queryState, 
-            state: { type: "loading" } 
-          } 
-        } : t
-      )
-    );
-    
-    // Fetch table data
-    fetchTableData(
-      tab.queryState.query.tableName, 
-      tab.queryState.query.filters, 
-      tab.queryState.query.orderBy || "", 
-      tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
-    )
-      .then((result) => {
-        setTabs((tabs) =>
-          tabs.map((t) =>
-            t.id === tab.id
-              ? {
-                  ...t,
-                  queryState: {
-                    ...t.queryState,
-                    state: { 
-                      type: "loaded", 
-                      data: result.data || [], 
-                      total: typeof result.total === "number" ? result.total : 0 
-                    }
-                  }
-                }
-              : t
-          )
-        );
-      })
-      .catch((e) => {
-        console.error("Error fetching table data:", e);
-        setTabs((tabs) =>
-          tabs.map((t) =>
+    tabs.forEach((tab) => {
+      if (!tab.queryState.query.tableName) return;
+      
+      const currentSignature = getQuerySignature(tab.queryState.query);
+      const lastSignature = querySignatures.get(tab.id);
+      
+      // Check if we need to fetch columns
+      if (tab.columns.length === 0) {
+        fetchColumns(tab.queryState.query.tableName)
+          .then((data) => {
+            setTabs((prevTabs) =>
+              prevTabs.map((t) => (t.id === tab.id ? { ...t, columns: data } : t))
+            );
+          })
+          .catch((e) => console.error("Error fetching columns:", e));
+      }
+      
+      // Only reload data if the query signature has changed
+      if (currentSignature !== lastSignature && tab.queryState.state.type !== "loading") {
+        // Update query signature
+        setQuerySignatures((prev) => new Map(prev).set(tab.id, currentSignature));
+        
+        // Set loading state before fetching table data
+        setTabs((prevTabs) =>
+          prevTabs.map((t) =>
             t.id === tab.id ? { 
               ...t, 
-              queryState: {
-                ...t.queryState,
-                state: { 
-                  type: "error", 
-                  error: e instanceof Error ? e.message : 'Failed to load table data' 
-                }
-              }
+              queryState: { 
+                ...t.queryState, 
+                state: { type: "loading" } 
+              } 
             } : t
           )
         );
-      });
-  }, [
-    selectedTabId,
-    tabs.find((t) => t.id === selectedTabId)?.queryState.query.filters,
-    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderBy,
-    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderDir,
-  ]);
+        
+        // Fetch table data
+        fetchTableData(
+          tab.queryState.query.tableName, 
+          tab.queryState.query.filters, 
+          tab.queryState.query.orderBy || "", 
+          tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
+        )
+          .then((result) => {
+            setTabs((prevTabs) =>
+              prevTabs.map((t) =>
+                t.id === tab.id
+                  ? {
+                      ...t,
+                      queryState: {
+                        ...t.queryState,
+                        state: { 
+                          type: "loaded", 
+                          data: result.data || [], 
+                          total: typeof result.total === "number" ? result.total : 0 
+                        }
+                      }
+                    }
+                  : t
+              )
+            );
+          })
+          .catch((e) => {
+            console.error("Error fetching table data:", e);
+            setTabs((prevTabs) =>
+              prevTabs.map((t) =>
+                t.id === tab.id ? { 
+                  ...t, 
+                  queryState: {
+                    ...t.queryState,
+                    state: { 
+                      type: "error", 
+                      error: e instanceof Error ? e.message : 'Failed to load table data' 
+                    }
+                  }
+                } : t
+              )
+            );
+          });
+      }
+    });
+  }, [tabs, querySignatures]);
 
 
   // All data loading functions are now imported from api.ts
@@ -189,6 +219,13 @@ function App() {
         }
       }
       return newTabs;
+    });
+    
+    // Clean up query signature for closed tab
+    setQuerySignatures((prev) => {
+      const newMap = new Map(prev);
+      newMap.delete(tabId);
+      return newMap;
     });
   };
 
