@@ -191,6 +191,18 @@ function App() {
     setTabs((tabs) => tabs.map((t) => (t.id === tabId ? updater(t) : t)));
   };
 
+  const handleForeignKeyNavigation = (targetTable: string, targetColumn: string, value: any) => {
+    const newTab = makeDefaultTab(targetTable);
+    // Add filter for the foreign key value
+    newTab.queryState.query.filters = [{
+      type: 'exact',
+      column: targetColumn,
+      value: String(value)
+    }];
+    setTabs((tabs) => [...tabs, newTab]);
+    setSelectedTabId(newTab.id);
+  };
+
   // Tab bar UI
   // When switching tabs, update the URL to reflect the selected tab's query state
   const handleTabClick = (tabId: string) => {
@@ -280,7 +292,7 @@ function App() {
         onTabRename={handleTabRename}
       />
 
-      {currentTab && <Tab tab={currentTab} updateTab={updateTab} tables={tables} />}
+      {currentTab && <Tab tab={currentTab} updateTab={updateTab} tables={tables} onForeignKeyNavigation={handleForeignKeyNavigation} />}
     </div>
   );
 }

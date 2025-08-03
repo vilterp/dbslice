@@ -20,9 +20,10 @@ interface TabProps {
   tab: TabState;
   updateTab: (tabId: string, updater: (tab: TabState) => TabState) => void;
   tables: Array<{ table_name: string }>;
+  onForeignKeyNavigation?: (targetTable: string, targetColumn: string, value: any) => void;
 }
 
-const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
+const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigation }) => {
   // Helper function to update query state
   const updateQuery = (updater: (query: typeof tab.queryState.query) => typeof tab.queryState.query) => {
     updateTab(tab.id, (tab) => ({
@@ -143,6 +144,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
                         <h3>Data ({`${abbreviateNumber(tab.queryState.state.total)} rows`})</h3>
                         <DataTable
                           tableData={tab.queryState.state.data}
+                          columns={tab.columns}
                           sortColumn={tab.queryState.query.orderBy || ''}
                           sortDirection={tab.queryState.query.orderDir === 'ASC' ? 'asc' : tab.queryState.query.orderDir === 'DESC' ? 'desc' : ''}
                           headerMenu={tab.headerMenu}
@@ -162,6 +164,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
                             }))
                           }
                           addFilter={addFilter}
+                          onNavigateToForeignKey={onForeignKeyNavigation}
                         />
                       </div>
                     );

@@ -65,6 +65,12 @@ export interface Column {
   column_name: string;
   data_type: string;
   no_histogram?: boolean;
+  foreign_key?: ForeignKeyInfo;
+}
+
+export interface ForeignKeyInfo {
+  referenced_table: string;
+  referenced_column: string;
 }
 
 // Basic types

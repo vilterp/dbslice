@@ -58,6 +58,55 @@ beforeAll(async () => {
     )
   `);
 
+  // Create tables with foreign key constraints for testing foreign key introspection
+  await runQuery(`
+    CREATE TABLE test_customers (
+      customer_id INTEGER PRIMARY KEY,
+      name VARCHAR,
+      email VARCHAR
+    )
+  `);
+
+  await runQuery(`
+    CREATE TABLE test_categories (
+      category_id INTEGER PRIMARY KEY,
+      category_name VARCHAR,
+      description VARCHAR
+    )
+  `);
+
+  await runQuery(`
+    CREATE TABLE test_products (
+      product_id INTEGER PRIMARY KEY,
+      product_name VARCHAR,
+      category_id INTEGER,
+      price DECIMAL(10,2),
+      FOREIGN KEY (category_id) REFERENCES test_categories(category_id)
+    )
+  `);
+
+  await runQuery(`
+    CREATE TABLE test_orders (
+      order_id INTEGER PRIMARY KEY,
+      customer_id INTEGER,
+      order_date DATE,
+      total_amount DECIMAL(10,2),
+      FOREIGN KEY (customer_id) REFERENCES test_customers(customer_id)
+    )
+  `);
+
+  await runQuery(`
+    CREATE TABLE test_order_items (
+      order_item_id INTEGER PRIMARY KEY,
+      order_id INTEGER,
+      product_id INTEGER,
+      quantity INTEGER,
+      unit_price DECIMAL(10,2),
+      FOREIGN KEY (order_id) REFERENCES test_orders(order_id),
+      FOREIGN KEY (product_id) REFERENCES test_products(product_id)
+    )
+  `);
+
   await runQuery(`
     CREATE TABLE bigint_test (
       id INTEGER,
@@ -125,13 +174,18 @@ describe('API Endpoints', () => {
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(4);
+      expect(response.body.length).toBe(9);
       
       const tableNames = response.body.map((table: any) => table.table_name);
       expect(tableNames).toContain('products');
       expect(tableNames).toContain('customers');
       expect(tableNames).toContain('orders');
       expect(tableNames).toContain('bigint_test');
+      expect(tableNames).toContain('test_customers');
+      expect(tableNames).toContain('test_categories');
+      expect(tableNames).toContain('test_products');
+      expect(tableNames).toContain('test_orders');
+      expect(tableNames).toContain('test_order_items');
     });
   });
 
@@ -400,7 +454,7 @@ describe('API Endpoints', () => {
       
       expect(response.body.database.path).toBe(':memory:');
       expect(response.body.database.type).toBe('memory');
-      expect(response.body.database.tables).toBe(4);
+      expect(response.body.database.tables).toBe(9);
       
       expect(response.body.config.maxRows).toBe(1000);
       expect(response.body.config.maxHistogramBins).toBe(50);
@@ -881,6 +935,238 @@ describe('API Endpoints', () => {
         expect(typeof row.created_date).toBe('string');
         // Should match ISO date format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)
         expect(row.created_date).toMatch(/^\d{4}-\d{2}-\d{2}/);
+      });
+    });
+  });
+
+  describe('Foreign Key Introspection', () => {
+    describe('GET /api/tables/:tableName/columns with foreign keys', () => {
+      it('should return columns without foreign key info for tables without foreign keys', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_customers/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(3); // customer_id, name, email
+        
+        response.body.forEach((column: any) => {
+          expect(column).toHaveProperty('column_name');
+          expect(column).toHaveProperty('data_type');
+          expect(column).toHaveProperty('no_histogram');
+          expect(column).not.toHaveProperty('foreign_key');
+        });
+
+        const columnNames = response.body.map((col: any) => col.column_name);
+        expect(columnNames).toContain('customer_id');
+        expect(columnNames).toContain('name');
+        expect(columnNames).toContain('email');
+      });
+
+      it('should return foreign key info for test_products table', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_products/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(4); // product_id, product_name, category_id, price
+        
+        const columnNames = response.body.map((col: any) => col.column_name);
+        expect(columnNames).toContain('product_id');
+        expect(columnNames).toContain('product_name');
+        expect(columnNames).toContain('category_id');
+        expect(columnNames).toContain('price');
+
+        // Find the category_id column which should have foreign key info
+        const categoryIdColumn = response.body.find((col: any) => col.column_name === 'category_id');
+        expect(categoryIdColumn).toBeDefined();
+        expect(categoryIdColumn).toHaveProperty('foreign_key');
+        expect(categoryIdColumn.foreign_key).toHaveProperty('referenced_table');
+        expect(categoryIdColumn.foreign_key).toHaveProperty('referenced_column');
+        expect(categoryIdColumn.foreign_key.referenced_table).toBe('test_categories');
+        expect(categoryIdColumn.foreign_key.referenced_column).toBe('category_id');
+
+        // Other columns should not have foreign key info
+        const productIdColumn = response.body.find((col: any) => col.column_name === 'product_id');
+        const productNameColumn = response.body.find((col: any) => col.column_name === 'product_name');
+        const priceColumn = response.body.find((col: any) => col.column_name === 'price');
+        
+        expect(productIdColumn.foreign_key).toBeUndefined();
+        expect(productNameColumn.foreign_key).toBeUndefined();
+        expect(priceColumn.foreign_key).toBeUndefined();
+      });
+
+      it('should return foreign key info for test_orders table', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_orders/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(4); // order_id, customer_id, order_date, total_amount
+        
+        // Find the customer_id column which should have foreign key info
+        const customerIdColumn = response.body.find((col: any) => col.column_name === 'customer_id');
+        expect(customerIdColumn).toBeDefined();
+        expect(customerIdColumn).toHaveProperty('foreign_key');
+        expect(customerIdColumn.foreign_key.referenced_table).toBe('test_customers');
+        expect(customerIdColumn.foreign_key.referenced_column).toBe('customer_id');
+
+        // Other columns should not have foreign key info
+        const otherColumns = response.body.filter((col: any) => col.column_name !== 'customer_id');
+        otherColumns.forEach((column: any) => {
+          expect(column.foreign_key).toBeUndefined();
+        });
+      });
+
+      it('should return multiple foreign key relationships for test_order_items table', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_order_items/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(5); // order_item_id, order_id, product_id, quantity, unit_price
+        
+        // Find the order_id column which should have foreign key info
+        const orderIdColumn = response.body.find((col: any) => col.column_name === 'order_id');
+        expect(orderIdColumn).toBeDefined();
+        expect(orderIdColumn).toHaveProperty('foreign_key');
+        expect(orderIdColumn.foreign_key.referenced_table).toBe('test_orders');
+        expect(orderIdColumn.foreign_key.referenced_column).toBe('order_id');
+
+        // Find the product_id column which should have foreign key info
+        const productIdColumn = response.body.find((col: any) => col.column_name === 'product_id');
+        expect(productIdColumn).toBeDefined();
+        expect(productIdColumn).toHaveProperty('foreign_key');
+        expect(productIdColumn.foreign_key.referenced_table).toBe('test_products');
+        expect(productIdColumn.foreign_key.referenced_column).toBe('product_id');
+
+        // Other columns should not have foreign key info
+        const otherColumns = response.body.filter((col: any) => 
+          col.column_name !== 'order_id' && col.column_name !== 'product_id'
+        );
+        otherColumns.forEach((column: any) => {
+          expect(column.foreign_key).toBeUndefined();
+        });
+      });
+
+      it('should handle tables without foreign key constraints', async () => {
+        const response = await request(app)
+          .get('/api/tables/products/columns') // Original products table without foreign keys
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        response.body.forEach((column: any) => {
+          expect(column).toHaveProperty('column_name');
+          expect(column).toHaveProperty('data_type');
+          expect(column).toHaveProperty('no_histogram');
+          expect(column.foreign_key).toBeUndefined();
+        });
+      });
+
+      it('should handle non-existent tables gracefully', async () => {
+        const response = await request(app)
+          .get('/api/tables/non_existent_table/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        expect(response.body.length).toBe(0);
+      });
+
+      it('should include foreign key info alongside no_histogram flag', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_products/columns')
+          .expect(200);
+
+        expect(response.body).toBeInstanceOf(Array);
+        response.body.forEach((column: any) => {
+          expect(column).toHaveProperty('column_name');
+          expect(column).toHaveProperty('data_type');
+          expect(column).toHaveProperty('no_histogram');
+          
+          // The no_histogram flag should be a boolean
+          expect(typeof column.no_histogram).toBe('boolean');
+          
+          // If foreign_key exists, it should have the correct structure
+          if (column.foreign_key) {
+            expect(column.foreign_key).toHaveProperty('referenced_table');
+            expect(column.foreign_key).toHaveProperty('referenced_column');
+            expect(typeof column.foreign_key.referenced_table).toBe('string');
+            expect(typeof column.foreign_key.referenced_column).toBe('string');
+          }
+        });
+      });
+    });
+
+    describe('Foreign key constraint validation', () => {
+      it('should correctly identify single foreign key constraint', async () => {
+        // Test that we can query the constraint information directly
+        const constraints = await runQuery(`
+          SELECT constraint_column_names, referenced_table, referenced_column_names
+          FROM duckdb_constraints 
+          WHERE table_name = 'test_products' 
+          AND constraint_type = 'FOREIGN KEY'
+        `);
+
+        expect(Array.isArray(constraints)).toBe(true);
+        expect(constraints.length).toBe(1);
+        expect(constraints[0].constraint_column_names).toEqual(['category_id']);
+        expect(constraints[0].referenced_table).toBe('test_categories');
+        expect(constraints[0].referenced_column_names).toEqual(['category_id']);
+      });
+
+      it('should correctly identify multiple foreign key constraints', async () => {
+        const constraints = await runQuery(`
+          SELECT constraint_column_names, referenced_table, referenced_column_names
+          FROM duckdb_constraints 
+          WHERE table_name = 'test_order_items' 
+          AND constraint_type = 'FOREIGN KEY'
+          ORDER BY constraint_column_names[1] -- Sort by first column name
+        `);
+
+        expect(Array.isArray(constraints)).toBe(true);
+        expect(constraints.length).toBe(2);
+
+        // Should have order_id -> test_orders and product_id -> test_products
+        const orderConstraint = constraints.find((c: any) => c.constraint_column_names[0] === 'order_id');
+        const productConstraint = constraints.find((c: any) => c.constraint_column_names[0] === 'product_id');
+
+        expect(orderConstraint).toBeDefined();
+        expect(orderConstraint.referenced_table).toBe('test_orders');
+        expect(orderConstraint.referenced_column_names).toEqual(['order_id']);
+
+        expect(productConstraint).toBeDefined();
+        expect(productConstraint.referenced_table).toBe('test_products');
+        expect(productConstraint.referenced_column_names).toEqual(['product_id']);
+      });
+
+      it('should return empty array for tables without foreign keys', async () => {
+        const constraints = await runQuery(`
+          SELECT constraint_column_names, referenced_table, referenced_column_names
+          FROM duckdb_constraints 
+          WHERE table_name = 'test_customers' 
+          AND constraint_type = 'FOREIGN KEY'
+        `);
+
+        expect(Array.isArray(constraints)).toBe(true);
+        expect(constraints.length).toBe(0);
+      });
+    });
+
+    describe('Foreign key data types validation', () => {
+      it('should maintain correct data types for all column properties', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_order_items/columns')
+          .expect(200);
+
+        const orderIdColumn = response.body.find((col: any) => col.column_name === 'order_id');
+        
+        // Validate the structure and types
+        expect(typeof orderIdColumn.column_name).toBe('string');
+        expect(typeof orderIdColumn.data_type).toBe('string');
+        expect(typeof orderIdColumn.no_histogram).toBe('boolean');
+        expect(typeof orderIdColumn.foreign_key).toBe('object');
+        expect(orderIdColumn.foreign_key).not.toBeNull();
+        expect(typeof orderIdColumn.foreign_key.referenced_table).toBe('string');
+        expect(typeof orderIdColumn.foreign_key.referenced_column).toBe('string');
       });
     });
   });

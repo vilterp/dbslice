@@ -10,6 +10,7 @@
     "client:dev": "cd client && yarn dev",
     "build": "yarn server:build && cd client && yarn build",
     "start": "node server/dist/cli.js",
+    "create-test-db": "duckdb test_foreign_keys.db < create_test_db.sql",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

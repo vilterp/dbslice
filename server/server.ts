@@ -54,6 +54,28 @@ export function createServer(db: duckdb.Database, config: Config) {
         WHERE table_name = '${sanitizedTableName}'
       `);
       
+      // Get foreign key information for this table
+      const foreignKeys = await runSQLQuery(`
+        SELECT constraint_column_names, referenced_table, referenced_column_names
+        FROM duckdb_constraints 
+        WHERE table_name = '${sanitizedTableName}' 
+        AND constraint_type = 'FOREIGN KEY'
+      `);
+      
+      // Create foreign key mapping
+      const foreignKeyMap = new Map<string, { referenced_table: string; referenced_column: string }>();
+      foreignKeys.forEach((fk: any) => {
+        // DuckDB returns arrays for these fields
+        const columnName = fk.constraint_column_names[0];
+        const referencedTable = fk.referenced_table;
+        const referencedColumn = fk.referenced_column_names[0];
+        
+        foreignKeyMap.set(columnName, {
+          referenced_table: referencedTable,
+          referenced_column: referencedColumn
+        });
+      });
+      
       // Add no_histogram information from config
       const noHistogramColumns = new Set<string>();
       if (config.database.tables && config.database.tables[tableName]) {
@@ -63,10 +85,11 @@ export function createServer(db: duckdb.Database, config: Config) {
         }
       }
       
-      // Add no_histogram flag to each column
+      // Add no_histogram flag and foreign key info to each column
       const enhancedColumns = columns.map((column: any) => ({
         ...column,
-        no_histogram: noHistogramColumns.has(column.column_name)
+        no_histogram: noHistogramColumns.has(column.column_name),
+        foreign_key: foreignKeyMap.get(column.column_name)
       }));
       
       res.json(enhancedColumns);

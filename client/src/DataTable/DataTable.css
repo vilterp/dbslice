@@ -56,3 +56,15 @@
   margin-left: auto;
 }
 
+.foreign-key-cell {
+  color: #0066cc;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.foreign-key-cell:hover {
+  color: #0052a3;
+  text-decoration-style: solid;
+}
+

@@ -5,10 +5,11 @@ import TableHeader from "./TableHeader";
 import HeaderMenu from "./HeaderMenu";
 import SidePanel from "./SidePanel";
 import DropdownMenu from "../components/DropdownMenu";
-import { SortDirection } from "../api";
+import { SortDirection, Column } from "../api";
 
 interface DataTableProps {
   tableData: any[];
+  columns: Column[];
   sortColumn: string;
   sortDirection: SortDirection;
   headerMenu: { column: string; x: number; y: number } | null;
@@ -16,11 +17,13 @@ interface DataTableProps {
   setSortColumn: (col: string) => void;
   setSortDirection: (dir: SortDirection) => void;
   addFilter: (column: string, value: any) => void;
+  onNavigateToForeignKey?: (targetTable: string, targetColumn: string, value: any) => void;
 }
 
 
 const DataTable: React.FC<DataTableProps> = ({
   tableData,
+  columns,
   sortColumn,
   sortDirection,
   headerMenu,
@@ -28,6 +31,7 @@ const DataTable: React.FC<DataTableProps> = ({
   setSortColumn,
   setSortDirection,
   addFilter,
+  onNavigateToForeignKey,
 }) => {
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [cellMenu, setCellMenu] = useState<{
@@ -37,8 +41,12 @@ const DataTable: React.FC<DataTableProps> = ({
     y: number;
   } | null>(null);
 
-  // Get columns from first row
-  const columns = tableData.length > 0 ? Object.keys(tableData[0]) : [];
+  // Get column names from first row
+  const columnNames = tableData.length > 0 ? Object.keys(tableData[0]) : [];
+  
+  // Create a map of column names to column info for quick lookup
+  const columnMap = new Map<string, Column>();
+  columns.forEach(col => columnMap.set(col.column_name, col));
 
   // Handler for right-click on cell
   const handleCellContextMenu = (
@@ -60,6 +68,35 @@ const DataTable: React.FC<DataTableProps> = ({
     if (cellMenu) {
       addFilter(cellMenu.column, cellMenu.value);
       setCellMenu(null);
+    }
+  };
+
+  // Handler for navigating to foreign key
+  const handleNavigateToForeignKey = () => {
+    if (cellMenu && onNavigateToForeignKey) {
+      const columnInfo = columnMap.get(cellMenu.column);
+      if (columnInfo?.foreign_key) {
+        onNavigateToForeignKey(
+          columnInfo.foreign_key.referenced_table,
+          columnInfo.foreign_key.referenced_column,
+          cellMenu.value
+        );
+      }
+      setCellMenu(null);
+    }
+  };
+
+  // Handler for clicking on foreign key cell
+  const handleForeignKeyClick = (column: string, value: any) => {
+    if (onNavigateToForeignKey) {
+      const columnInfo = columnMap.get(column);
+      if (columnInfo?.foreign_key) {
+        onNavigateToForeignKey(
+          columnInfo.foreign_key.referenced_table,
+          columnInfo.foreign_key.referenced_column,
+          value
+        );
+      }
     }
   };
 
@@ -85,7 +122,7 @@ const DataTable: React.FC<DataTableProps> = ({
             <thead>
               <tr>
                 <TableHeader
-                  columns={columns}
+                  columns={columnNames}
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   headerMenu={headerMenu}
@@ -96,15 +133,22 @@ const DataTable: React.FC<DataTableProps> = ({
             <tbody>
               {tableData.map((row, rowIndex) => (
                 <tr key={rowIndex} onClick={() => setSelectedRow(row)} className="table-row">
-                  {columns.map((col, cellIndex) => {
+                  {columnNames.map((col, cellIndex) => {
                     const value = row[col];
                     const isNumber = typeof value === 'number' || (!isNaN(Number(value)) && value !== null && value !== '');
+                    const columnInfo = columnMap.get(col);
+                    const isForeignKey = columnInfo?.foreign_key !== undefined;
+                    
                     return (
                       <td
                         key={cellIndex}
                         style={isNumber ? { textAlign: 'right' } : {}}
-                        className="table-cell"
+                        className={`table-cell ${isForeignKey ? 'foreign-key-cell' : ''}`}
                         onContextMenu={e => handleCellContextMenu(e, col, value)}
+                        onClick={isForeignKey ? (e) => {
+                          e.stopPropagation();
+                          handleForeignKeyClick(col, value);
+                        } : undefined}
                       >
                         {formatValue(value)}
                       </td>
@@ -142,6 +186,20 @@ const DataTable: React.FC<DataTableProps> = ({
                 >
                   Filter to this value
                 </div>
+                {(() => {
+                  const columnInfo = columnMap.get(cellMenu.column);
+                  if (columnInfo?.foreign_key) {
+                    return (
+                      <div
+                        style={{ padding: '8px 16px', cursor: 'pointer', borderTop: '1px solid #eee' }}
+                        onClick={handleNavigateToForeignKey}
+                      >
+                        Go to {columnInfo.foreign_key.referenced_table}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </DropdownMenu>
             </div>
           )}
