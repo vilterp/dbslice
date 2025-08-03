@@ -10,24 +10,14 @@ export const NUMERICAL_COLUMN_TYPES = [
   // 'BIGINT',
 ];
 
-export interface Filter {
-  column: string;
-  value: string;
-  type?: 'exact' | 'range';
-  min?: number;
-  max?: number;
-}
+export type Filter = 
+  | { type: 'exact'; column: string; value: string }
+  | { type: 'range'; column: string; min: number; max: number };
 
-export interface RangeFilter {
-  column: string;
-  min: number;
-  max: number;
-}
 
 export interface BaseQuery {
   tableName: string;
-  exactFilters?: Record<string, string | number | boolean>;
-  rangeFilters?: Record<string, RangeFilter>;
+  filters: Filter[];
 }
 
 export interface Query extends BaseQuery {
@@ -35,7 +25,6 @@ export interface Query extends BaseQuery {
   orderDir?: 'ASC' | 'DESC';
   limit?: number;
   offset?: number;
-  filters: Filter[];
 }
 
 export type LoadingState = 

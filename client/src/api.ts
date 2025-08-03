@@ -40,14 +40,14 @@ export async function fetchTableData(
   sortDirection: SortDirection
 ): Promise<TableDataResponse> {
   const exactFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'exact' || !filter.type) {
+    if (filter.type === 'exact') {
       acc[filter.column] = filter.value;
     }
     return acc;
   }, {} as { [key: string]: string });
 
   const rangeFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'range' && filter.min !== undefined && filter.max !== undefined) {
+    if (filter.type === 'range') {
       acc[filter.column] = { min: filter.min, max: filter.max };
     }
     return acc;
@@ -83,14 +83,14 @@ export async function fetchHistogram(
   filters: Filter[]
 ): Promise<HistogramResult> {
   const exactFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'exact' || !filter.type) {
+    if (filter.type === 'exact') {
       acc[filter.column] = filter.value;
     }
     return acc;
   }, {} as { [key: string]: string });
 
   const rangeFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'range' && filter.min !== undefined && filter.max !== undefined) {
+    if (filter.type === 'range') {
       acc[filter.column] = { min: filter.min, max: filter.max };
     }
     return acc;

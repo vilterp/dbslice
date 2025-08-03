@@ -1,4 +1,4 @@
-import { NUMERICAL_COLUMN_TYPES, Query, RangeFilter, HistogramQuery } from '../src/common';
+import { NUMERICAL_COLUMN_TYPES, Query, Filter, HistogramQuery } from '../src/common';
 import { sanitizeQueryResult, sanitizeIdentifier } from './sanitize';
 import * as duckdb from 'duckdb';
 import logger from './logger';
@@ -9,8 +9,7 @@ export type QueryRunner = (sql: string, params?: any[]) => Promise<any[]>;
 export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<any[]> => {
   const {
     tableName,
-    exactFilters = {},
-    rangeFilters = {},
+    filters = [],
     orderBy,
     orderDir = 'ASC',
     limit,
@@ -20,7 +19,7 @@ export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<
   const sanitizedTableName = sanitizeIdentifier(tableName);
   
   // Build WHERE clause
-  const whereClause = buildWhereClause(exactFilters, rangeFilters);
+  const whereClause = buildWhereClauseFromFilters(filters);
   
   // Build ORDER BY clause
   const orderByClause = buildOrderByClause(orderBy, orderDir);
@@ -45,14 +44,13 @@ export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<
 export const runCountQuery = async (query: Query, queryRunner: QueryRunner): Promise<number> => {
   const {
     tableName,
-    exactFilters = {},
-    rangeFilters = {}
+    filters = []
   } = query;
 
   const sanitizedTableName = sanitizeIdentifier(tableName);
   
   // Build WHERE clause
-  const whereClause = buildWhereClause(exactFilters, rangeFilters);
+  const whereClause = buildWhereClauseFromFilters(filters);
   
   // Construct count SQL query
   const sql = `SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
@@ -68,14 +66,13 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
     tableName,
     columnName,
     columnType,
-    exactFilters = {},
-    rangeFilters = {},
+    filters = [],
     topN = 5,
     bins = 20
   } = histogramQuery;
 
-  // Build WHERE clause for histogram using the direct filters
-  const { whereClause } = buildHistogramWhereClause(exactFilters, rangeFilters, columnName);
+  // Build WHERE clause for histogram using the unified filters
+  const { whereClause } = buildHistogramWhereClauseFromFilters(filters, columnName);
   
   // Check if column is numerical for binning
   const isNumerical = isNumericalColumnType(columnType);
@@ -464,3 +461,29 @@ const transformCategoricalHistogramResults = async (
   
   return topResults;
 };
+
+// New unified filter helper functions
+function buildWhereClauseFromFilters(filters: Filter[]): string {
+  if (filters.length === 0) return '';
+  
+  const conditions: string[] = [];
+  
+  for (const filter of filters) {
+    switch (filter.type) {
+      case 'exact':
+        conditions.push(`${sanitizeIdentifier(filter.column)} = '${filter.value.replace(/'/g, "''")}'`);
+        break;
+      case 'range':
+        conditions.push(`${sanitizeIdentifier(filter.column)} BETWEEN ${filter.min} AND ${filter.max}`);
+        break;
+    }
+  }
+  
+  return conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+}
+
+function buildHistogramWhereClauseFromFilters(filters: Filter[], excludeColumn: string): { whereClause: string } {
+  const filteredConditions = filters.filter(filter => filter.column !== excludeColumn);
+  const whereClause = buildWhereClauseFromFilters(filteredConditions);
+  return { whereClause };
+}

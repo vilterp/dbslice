@@ -1,11 +1,9 @@
 import React from "react";
 import DropdownMenu from "./components/DropdownMenu";
+import { TabState } from './Tab';
 
 interface TabBarProps {
-  tabs: Array<{
-    id: string;
-    table: string;
-  }>;
+  tabs: TabState[];
   selectedTabId: string | null;
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
@@ -58,7 +56,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabC
           }}
           onClick={() => onTabClick(tab.id)}
         >
-          <span>{tab.table}</span>
+          <span>{tab.queryState.query.tableName}</span>
           <button
             style={{
               marginLeft: 8,

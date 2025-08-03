@@ -2,10 +2,8 @@ import React, { useState, useEffect } from "react";
 import "./App.css";
 import Tab from "./Tab";
 import TabBar from "./TabBar";
-import { Filter } from '../../src/common';
 import {
   Table,
-  Column,
   SortDirection,
   fetchTables,
   fetchColumns,
@@ -13,43 +11,22 @@ import {
 } from "./api";
 import { updateURL } from "./urlState";
 
-interface RangeSelection {
-  start: number;
-  end: number;
-  isSelecting: boolean;
-}
-
-type TabState = {
-  id: string;
-  table: string;
-  columns: Column[];
-  filters: Filter[];
-  tableData: any[];
-  tableTotal: number;
-  tableDataError?: string;
-  tableDataLoading: boolean;
-  loading: boolean;
-  collapsedColumns: Set<string>;
-  rangeSelections: { [key: string]: RangeSelection };
-  sortColumn: string;
-  sortDirection: SortDirection;
-  headerMenu: { column: string; x: number; y: number } | null;
-};
+// Import the TabState type from Tab component to avoid duplication
+import { TabState } from './Tab';
 
 const makeDefaultTab = (table: string): TabState => ({
   id: Math.random().toString(36).slice(2),
-  table,
+  queryState: {
+    query: {
+      tableName: table,
+      filters: [],
+      orderBy: "",
+      orderDir: undefined,
+    },
+    state: { type: "idle" },
+  },
   columns: [],
-  filters: [],
-  tableData: [],
-  tableTotal: 0,
-  tableDataError: undefined,
-  tableDataLoading: false,
-  loading: false,
   collapsedColumns: new Set(),
-  rangeSelections: {},
-  sortColumn: "",
-  sortDirection: "",
   headerMenu: null,
 });
 
@@ -66,7 +43,7 @@ function App() {
         // Custom URL state loader for tabs
         const url = new URL(window.location.href);
         const tableFromURL = url.searchParams.get("table");
-        if (tableFromURL && !tabs.some((t) => t.table === tableFromURL)) {
+        if (tableFromURL && !tabs.some((t) => t.queryState.query.tableName === tableFromURL)) {
           // Parse filters
           const urlFilters = [];
           for (const [key, value] of url.searchParams.entries()) {
@@ -86,9 +63,9 @@ function App() {
           const sortCol = url.searchParams.get("sort") || "";
           const sortDir = (url.searchParams.get("dir") as SortDirection) || "";
           const newTab = makeDefaultTab(tableFromURL);
-          newTab.filters = urlFilters;
-          newTab.sortColumn = sortCol;
-          newTab.sortDirection = sortDir;
+          newTab.queryState.query.filters = urlFilters;
+          newTab.queryState.query.orderBy = sortCol;
+          newTab.queryState.query.orderDir = sortDir === "asc" ? "ASC" : sortDir === "desc" ? "DESC" : undefined;
           setTabs((tabs) => [...tabs, newTab]);
           setSelectedTabId(newTab.id);
         }
@@ -104,9 +81,9 @@ function App() {
   useEffect(() => {
     const tab = tabs.find((t) => t.id === selectedTabId);
     if (!tab) return;
-    if (!tab.table) return;
+    if (!tab.queryState.query.tableName) return;
     // Fetch columns
-    fetchColumns(tab.table)
+    fetchColumns(tab.queryState.query.tableName)
       .then((data) => {
         setTabs((tabs) =>
           tabs.map((t) => (t.id === tab.id ? { ...t, columns: data } : t))
@@ -116,23 +93,37 @@ function App() {
     // Set loading state before fetching table data
     setTabs((tabs) =>
       tabs.map((t) =>
-        t.id === tab.id ? { ...t, tableDataLoading: true } : t
+        t.id === tab.id ? { 
+          ...t, 
+          queryState: { 
+            ...t.queryState, 
+            state: { type: "loading" } 
+          } 
+        } : t
       )
     );
     
     // Fetch table data
-    fetchTableData(tab.table, tab.filters, tab.sortColumn, tab.sortDirection)
+    fetchTableData(
+      tab.queryState.query.tableName, 
+      tab.queryState.query.filters, 
+      tab.queryState.query.orderBy || "", 
+      tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
+    )
       .then((result) => {
         setTabs((tabs) =>
           tabs.map((t) =>
             t.id === tab.id
               ? {
                   ...t,
-                  tableData: result.data || [],
-                  tableTotal:
-                    typeof result.total === "number" ? result.total : 0,
-                  tableDataError: undefined,
-                  tableDataLoading: false,
+                  queryState: {
+                    ...t.queryState,
+                    state: { 
+                      type: "loaded", 
+                      data: result.data || [], 
+                      total: typeof result.total === "number" ? result.total : 0 
+                    }
+                  }
                 }
               : t
           )
@@ -144,19 +135,22 @@ function App() {
           tabs.map((t) =>
             t.id === tab.id ? { 
               ...t, 
-              tableData: [], 
-              tableTotal: 0,
-              tableDataError: e instanceof Error ? e.message : 'Failed to load table data',
-              tableDataLoading: false,
+              queryState: {
+                ...t.queryState,
+                state: { 
+                  type: "error", 
+                  error: e instanceof Error ? e.message : 'Failed to load table data' 
+                }
+              }
             } : t
           )
         );
       });
   }, [
     selectedTabId,
-    tabs.find((t) => t.id === selectedTabId)?.filters,
-    tabs.find((t) => t.id === selectedTabId)?.sortColumn,
-    tabs.find((t) => t.id === selectedTabId)?.sortDirection,
+    tabs.find((t) => t.id === selectedTabId)?.queryState.query.filters,
+    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderBy,
+    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderDir,
   ]);
 
 
@@ -173,7 +167,12 @@ function App() {
     setSelectedTabId(tabId);
     const tab = tabs.find((t) => t.id === tabId);
     if (tab) {
-      updateURL(tab.table, tab.filters, tab.sortColumn, tab.sortDirection);
+      updateURL(
+        tab.queryState.query.tableName, 
+        tab.queryState.query.filters, 
+        tab.queryState.query.orderBy || "", 
+        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
+      );
     }
   };
   const handleTabClose = (tabId: string) => {
@@ -193,25 +192,6 @@ function App() {
     });
   };
 
-  // When selecting a table, open a new tab
-  const handleTableSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const table = e.target.value;
-    if (!table) return;
-    
-    // Check if tab already exists for this table
-    const existingTab = tabs.find(t => t.table === table);
-    if (existingTab) {
-      setSelectedTabId(existingTab.id);
-      updateURL(table, existingTab.filters, existingTab.sortColumn, existingTab.sortDirection);
-      return;
-    }
-    
-    const newTab = makeDefaultTab(table);
-    setTabs((tabs) => [...tabs, newTab]);
-    setSelectedTabId(newTab.id);
-    // Update URL for new tab
-    updateURL(table, [], "", "");
-  };
 
   const currentTab = tabs.find((t) => t.id === selectedTabId);
 
@@ -219,14 +199,19 @@ function App() {
   useEffect(() => {
     const tab = tabs.find((t) => t.id === selectedTabId);
     if (tab) {
-      updateURL(tab.table, tab.filters, tab.sortColumn, tab.sortDirection);
+      updateURL(
+        tab.queryState.query.tableName, 
+        tab.queryState.query.filters, 
+        tab.queryState.query.orderBy || "", 
+        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
+      );
     }
     // Only run when selectedTabId or relevant tab state changes
   }, [
     selectedTabId,
-    tabs.find((t) => t.id === selectedTabId)?.filters,
-    tabs.find((t) => t.id === selectedTabId)?.sortColumn,
-    tabs.find((t) => t.id === selectedTabId)?.sortDirection,
+    tabs.find((t) => t.id === selectedTabId)?.queryState.query.filters,
+    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderBy,
+    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderDir,
   ]);
 
   return (
@@ -247,10 +232,15 @@ function App() {
           if (!table) return;
           
           // Check if tab already exists for this table
-          const existingTab = tabs.find(t => t.table === table);
+          const existingTab = tabs.find(t => t.queryState.query.tableName === table);
           if (existingTab) {
             setSelectedTabId(existingTab.id);
-            updateURL(table, existingTab.filters, existingTab.sortColumn, existingTab.sortDirection);
+            updateURL(
+              table, 
+              existingTab.queryState.query.filters, 
+              existingTab.queryState.query.orderBy || "", 
+              existingTab.queryState.query.orderDir === "ASC" ? "asc" : existingTab.queryState.query.orderDir === "DESC" ? "desc" : ""
+            );
             return;
           }
           

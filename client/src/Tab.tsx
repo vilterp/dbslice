@@ -7,7 +7,7 @@ import { abbreviateNumber } from "./utils";
 import { Column, SortDirection } from "./api";
 import { QueryState } from '../../src/common';
 
-type TabState = {
+export type TabState = {
   id: string;
   queryState: QueryState;
   columns: Column[];
@@ -30,15 +30,20 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
     max?: number
   ) => {
     updateTab(tab.id, (tab) => {
-      const existingFilter = tab.queryState.query.filters.find((f) => f.column === column);
+      const existingFilterIndex = tab.queryState.query.filters.findIndex((f) => f.column === column);
       let newFilters;
-      if (existingFilter) {
-        newFilters = tab.queryState.query.filters.map((f) =>
-          f.column === column ? { column, value, type, min, max } : f
-        );
+      
+      const newFilter = type === "exact" 
+        ? { type: "exact" as const, column, value }
+        : { type: "range" as const, column, min: min!, max: max! };
+      
+      if (existingFilterIndex >= 0) {
+        newFilters = [...tab.queryState.query.filters];
+        newFilters[existingFilterIndex] = newFilter;
       } else {
-        newFilters = [...tab.queryState.query.filters, { column, value, type, min, max }];
+        newFilters = [...tab.queryState.query.filters, newFilter];
       }
+      
       return { ...tab, queryState: { ...tab.queryState, query: { ...tab.queryState.query, filters: newFilters } } };
     });
   };

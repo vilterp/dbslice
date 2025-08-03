@@ -11,7 +11,7 @@ import {
   runHistogramQuery
 } from './query';
 import { sanitizeIdentifier } from './sanitize';
-import { Query, HistogramQuery } from '../src/common';
+import { Query, HistogramQuery, Filter } from '../src/common';
 
 
 
@@ -81,11 +81,33 @@ export function createServer(db: duckdb.Database, config: Config) {
       const { tableName } = req.params;
       const { filters = {}, rangeFilters = {}, limit = config.api.maxRows, offset = 0, orderBy, orderDir } = req.body;
       
+      // Convert old filter format to unified filters array
+      const unifiedFilters: Filter[] = [];
+      
+      // Add exact filters
+      for (const [column, value] of Object.entries(filters)) {
+        unifiedFilters.push({
+          type: 'exact',
+          column,
+          value: String(value)
+        });
+      }
+      
+      // Add range filters
+      for (const [column, rangeFilter] of Object.entries(rangeFilters)) {
+        const rf = rangeFilter as { min: number; max: number };
+        unifiedFilters.push({
+          type: 'range',
+          column,
+          min: rf.min,
+          max: rf.max
+        });
+      }
+      
       // Create Query object
       const query: Query = {
         tableName,
-        exactFilters: filters,
-        rangeFilters,
+        filters: unifiedFilters,
         orderBy,
         orderDir: orderDir?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC',
         limit: Math.min(limit as number, config.api.maxRows),
@@ -99,8 +121,7 @@ export function createServer(db: duckdb.Database, config: Config) {
         // Get total count using new runCountQuery function
         const countQuery: Query = {
           tableName,
-          exactFilters: filters,
-          rangeFilters
+          filters: unifiedFilters
         };
         const total = await runCountQuery(countQuery, runSQLQuery);
 
@@ -119,13 +140,35 @@ export function createServer(db: duckdb.Database, config: Config) {
       const { tableName, columnName } = req.params;
       const { column_type = 'text', filters = {}, rangeFilters = {}, top_n = 5, bins = 20 } = req.body;
       
+      // Convert old filter format to unified filters array
+      const unifiedFilters: Filter[] = [];
+      
+      // Add exact filters
+      for (const [column, value] of Object.entries(filters)) {
+        unifiedFilters.push({
+          type: 'exact',
+          column,
+          value: String(value)
+        });
+      }
+      
+      // Add range filters
+      for (const [column, rangeFilter] of Object.entries(rangeFilters)) {
+        const rf = rangeFilter as { min: number; max: number };
+        unifiedFilters.push({
+          type: 'range',
+          column,
+          min: rf.min,
+          max: rf.max
+        });
+      }
+      
       // Create HistogramQuery object
       const histogramQuery: HistogramQuery = {
         tableName,
+        filters: unifiedFilters,
         columnName,
         columnType: column_type as string,
-        exactFilters: filters,
-        rangeFilters,
         topN: top_n,
         bins
       };

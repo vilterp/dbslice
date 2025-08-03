@@ -25,8 +25,8 @@ export function updateURL(
   // Add current filters
   filters.forEach((filter) => {
     const filterData = filter.type === 'range' ? 
-      `${filter.value}:${filter.type}:${filter.min}:${filter.max}` : 
-      `${filter.value}:${filter.type || 'exact'}`;
+      `:${filter.type}:${filter.min}:${filter.max}` : 
+      `${filter.value}:${filter.type}`;
     url.searchParams.set(`filter_${filter.column}`, filterData);
   });
 

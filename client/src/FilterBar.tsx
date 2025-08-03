@@ -11,7 +11,11 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, removeFilter }) => (
   <div className="filter-bar">
     {filters.map(filter => (
       <div key={filter.column} className="filter-tag">
-        <span>{filter.column}: {filter.value}</span>
+        <span>
+          {filter.column}: {
+            filter.type === 'exact' ? filter.value : `${filter.min} - ${filter.max}`
+          }
+        </span>
         <button onClick={() => removeFilter(filter.column)} className="remove-filter">
           ×
         </button>
