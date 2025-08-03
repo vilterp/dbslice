@@ -5,28 +5,13 @@ import Sidebar from "./Sidebar";
 import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
 import { Column, SortDirection } from "./api";
-import { Filter } from '../../src/common';
-
-interface RangeSelection {
-  start: number;
-  end: number;
-  isSelecting: boolean;
-}
+import { QueryState } from '../../src/common';
 
 type TabState = {
   id: string;
-  table: string;
+  queryState: QueryState;
   columns: Column[];
-  filters: Filter[];
-  tableData: any[];
-  tableTotal: number;
-  tableDataError?: string;
-  tableDataLoading: boolean;
-  loading: boolean;
   collapsedColumns: Set<string>;
-  rangeSelections: { [key: string]: RangeSelection };
-  sortColumn: string;
-  sortDirection: SortDirection;
   headerMenu: { column: string; x: number; y: number } | null;
 };
 
@@ -45,23 +30,29 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
     max?: number
   ) => {
     updateTab(tab.id, (tab) => {
-      const existingFilter = tab.filters.find((f) => f.column === column);
+      const existingFilter = tab.queryState.query.filters.find((f) => f.column === column);
       let newFilters;
       if (existingFilter) {
-        newFilters = tab.filters.map((f) =>
+        newFilters = tab.queryState.query.filters.map((f) =>
           f.column === column ? { column, value, type, min, max } : f
         );
       } else {
-        newFilters = [...tab.filters, { column, value, type, min, max }];
+        newFilters = [...tab.queryState.query.filters, { column, value, type, min, max }];
       }
-      return { ...tab, filters: newFilters };
+      return { ...tab, queryState: { ...tab.queryState, query: { ...tab.queryState.query, filters: newFilters } } };
     });
   };
 
   const removeFilter = (column: string) => {
     updateTab(tab.id, (tab) => ({
       ...tab,
-      filters: tab.filters.filter((f) => f.column !== column),
+      queryState: {
+        ...tab.queryState,
+        query: {
+          ...tab.queryState.query,
+          filters: tab.queryState.query.filters.filter((f) => f.column !== column),
+        },
+      },
     }));
   };
 
@@ -84,12 +75,12 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
 
   return (
     <div className="main-content">
-      <FilterBar filters={tab.filters} removeFilter={removeFilter} />
+      <FilterBar filters={tab.queryState.query.filters} removeFilter={removeFilter} />
       <div className="content-wrapper">
         <Sidebar
           columns={tab.columns}
-          selectedTable={tab.table}
-          filters={tab.filters}
+          selectedTable={tab.queryState.query.tableName}
+          filters={tab.queryState.query.filters}
           collapsedColumns={tab.collapsedColumns}
           toggleColumnCollapse={toggleColumnCollapse}
           isNumericalColumn={isNumericalColumn}
@@ -97,17 +88,17 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
           removeFilter={removeFilter}
         />
         <div className="main-panel">
-          {tab.loading ? (
+          {tab.queryState.loading ? (
             <div className="loading">Loading...</div>
           ) : (
             <div className="data-table">
-              <h3>Data ({tab.tableDataLoading ? 'Loading...' : `${abbreviateNumber(tab.tableTotal)} rows`})</h3>
+              <h3>Data ({tab.queryState.dataLoading ? 'Loading...' : `${abbreviateNumber(tab.queryState.total)} rows`})</h3>
               <DataTable
-                tableData={tab.tableData}
-                sortColumn={tab.sortColumn}
-                sortDirection={tab.sortDirection}
+                tableData={tab.queryState.data}
+                sortColumn={tab.queryState.query.orderBy || ''}
+                sortDirection={tab.queryState.query.orderDir === 'ASC' ? 'asc' : tab.queryState.query.orderDir === 'DESC' ? 'desc' : ''}
                 headerMenu={tab.headerMenu}
-                loading={tab.tableDataLoading}
+                loading={tab.queryState.dataLoading}
                 setHeaderMenu={(menu) =>
                   updateTab(tab.id, (t) => ({
                     ...t,
@@ -117,17 +108,17 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab }) => {
                 setSortColumn={(col) =>
                   updateTab(tab.id, (t) => ({
                     ...t,
-                    sortColumn: col,
+                    queryState: { ...t.queryState, query: { ...t.queryState.query, orderBy: col } },
                   }))
                 }
                 setSortDirection={(dir) =>
                   updateTab(tab.id, (t) => ({
                     ...t,
-                    sortDirection: dir as SortDirection,
+                    queryState: { ...t.queryState, query: { ...t.queryState.query, orderDir: dir === 'asc' ? 'ASC' : dir === 'desc' ? 'DESC' : undefined } },
                   }))
                 }
                 addFilter={addFilter}
-                error={tab.tableDataError}
+                error={tab.queryState.error}
               />
             </div>
           )}

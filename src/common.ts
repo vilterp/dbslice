@@ -35,6 +35,16 @@ export interface Query extends BaseQuery {
   orderDir?: 'ASC' | 'DESC';
   limit?: number;
   offset?: number;
+  filters: Filter[];
+}
+
+export interface QueryState {
+  query: Query;
+  data: any[];
+  total: number;
+  error?: string;
+  loading: boolean;
+  dataLoading: boolean;
 }
 
 export interface HistogramQuery extends BaseQuery {
