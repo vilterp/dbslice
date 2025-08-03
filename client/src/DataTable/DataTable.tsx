@@ -286,6 +286,9 @@ const DataTable: React.FC<DataTableProps> = ({
           <SidePanel
             selectedRow={selectedRow}
             onClose={() => setSelectedRow(null)}
+            columns={columns}
+            onForeignKeyClick={handleForeignKeyClick}
+            onReverseForeignKeyPillClick={handleReverseForeignKeyPillClick}
           />
         </div>
       )}

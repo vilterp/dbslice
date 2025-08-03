@@ -1,14 +1,30 @@
 import React, { useState } from "react";
 import "./SidePanel.css";
+import "./DataTable.css"; // Import for pill styles
 import CopyButton from "./CopyButton";
+import SidePanelCell from "./SidePanelCell";
+import { Column } from "../api";
 
 interface SidePanelProps {
   selectedRow: any | null;
   onClose: () => void;
+  columns: Column[];
+  onForeignKeyClick: (column: string, value: any) => void;
+  onReverseForeignKeyPillClick: (e: React.MouseEvent, column: string, value: any) => void;
 }
 
-const SidePanel: React.FC<SidePanelProps> = ({ selectedRow, onClose }) => {
+const SidePanel: React.FC<SidePanelProps> = ({ 
+  selectedRow, 
+  onClose, 
+  columns, 
+  onForeignKeyClick, 
+  onReverseForeignKeyPillClick 
+}) => {
   const [isClosing, setIsClosing] = useState(false);
+
+  // Create a map of column names to column info for quick lookup
+  const columnMap = new Map<string, Column>();
+  columns.forEach(col => columnMap.set(col.column_name, col));
 
   const handleClose = () => {
     setIsClosing(true);
@@ -16,6 +32,22 @@ const SidePanel: React.FC<SidePanelProps> = ({ selectedRow, onClose }) => {
       onClose();
       setIsClosing(false);
     }, 150);
+  };
+
+  // Handler for foreign key clicks - close panel and navigate
+  const handleForeignKeyClick = (column: string, value: any) => {
+    handleClose();
+    onForeignKeyClick(column, value);
+  };
+
+  // Handler for reverse foreign key pill clicks - show menu first, then close panel
+  const handleReverseForeignKeyPillClick = (e: React.MouseEvent, column: string, value: any) => {
+    // Show the menu first
+    onReverseForeignKeyPillClick(e, column, value);
+    // Close the panel after a short delay to allow the menu to be positioned
+    setTimeout(() => {
+      handleClose();
+    }, 50);
   };
 
   if (!selectedRow) return null;
@@ -34,7 +66,15 @@ const SidePanel: React.FC<SidePanelProps> = ({ selectedRow, onClose }) => {
                 {key}
                 <CopyButton value={String(value)} />
               </div>
-              <div className="detail-value">{String(value)}</div>
+              <div className="detail-value">
+                <SidePanelCell
+                  value={value}
+                  column={key}
+                  columnInfo={columnMap.get(key)}
+                  onForeignKeyClick={handleForeignKeyClick}
+                  onReverseForeignKeyPillClick={handleReverseForeignKeyPillClick}
+                />
+              </div>
             </div>
           ))}
         </div>

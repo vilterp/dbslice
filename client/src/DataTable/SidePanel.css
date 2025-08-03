@@ -115,6 +115,13 @@
   border: 1px solid #e0e0e0;
 }
 
+/* Ensure foreign key pills work well in the side panel */
+.detail-value .foreign-key-pill,
+.detail-value .reverse-foreign-key-pill {
+  display: inline-block;
+  font-family: inherit;
+}
+
 .copy-button {
   background: none;
   border: none;
