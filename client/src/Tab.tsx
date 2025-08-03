@@ -23,6 +23,17 @@ interface TabProps {
 }
 
 const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
+  // Helper function to update query state
+  const updateQuery = (updater: (query: typeof tab.queryState.query) => typeof tab.queryState.query) => {
+    updateTab(tab.id, (tab) => ({
+      ...tab,
+      queryState: {
+        ...tab.queryState,
+        query: updater(tab.queryState.query),
+      },
+    }));
+  };
+
   // Add filter for this tab
   const addFilter = (
     column: string,
@@ -31,8 +42,8 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
     min?: number,
     max?: number
   ) => {
-    updateTab(tab.id, (tab) => {
-      const existingFilterIndex = tab.queryState.query.filters.findIndex((f) => f.column === column);
+    updateQuery((query) => {
+      const existingFilterIndex = query.filters.findIndex((f) => f.column === column);
       let newFilters;
       
       const newFilter = type === "exact" 
@@ -40,26 +51,20 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
         : { type: "range" as const, column, min: min!, max: max! };
       
       if (existingFilterIndex >= 0) {
-        newFilters = [...tab.queryState.query.filters];
+        newFilters = [...query.filters];
         newFilters[existingFilterIndex] = newFilter;
       } else {
-        newFilters = [...tab.queryState.query.filters, newFilter];
+        newFilters = [...query.filters, newFilter];
       }
       
-      return { ...tab, queryState: { ...tab.queryState, query: { ...tab.queryState.query, filters: newFilters } } };
+      return { ...query, filters: newFilters };
     });
   };
 
   const removeFilter = (column: string) => {
-    updateTab(tab.id, (tab) => ({
-      ...tab,
-      queryState: {
-        ...tab.queryState,
-        query: {
-          ...tab.queryState.query,
-          filters: tab.queryState.query.filters.filter((f) => f.column !== column),
-        },
-      },
+    updateQuery((query) => ({
+      ...query,
+      filters: query.filters.filter((f) => f.column !== column),
     }));
   };
 
@@ -83,11 +88,12 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
     updateTab(tab.id, (tab) => ({
       ...tab,
       queryState: {
-        ...tab.queryState,
         query: {
           ...tab.queryState.query,
           tableName,
           filters: [], // Clear filters when changing tables
+          orderBy: "",
+          orderDir: undefined,
         },
         state: { type: "idle" }, // Reset state when changing tables
       },
@@ -147,15 +153,12 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables }) => {
                             }))
                           }
                           setSortColumn={(col) =>
-                            updateTab(tab.id, (t) => ({
-                              ...t,
-                              queryState: { ...t.queryState, query: { ...t.queryState.query, orderBy: col } },
-                            }))
+                            updateQuery((query) => ({ ...query, orderBy: col }))
                           }
                           setSortDirection={(dir) =>
-                            updateTab(tab.id, (t) => ({
-                              ...t,
-                              queryState: { ...t.queryState, query: { ...t.queryState.query, orderDir: dir === 'asc' ? 'ASC' : dir === 'desc' ? 'DESC' : undefined } },
+                            updateQuery((query) => ({ 
+                              ...query, 
+                              orderDir: dir === 'asc' ? 'ASC' : dir === 'desc' ? 'DESC' : undefined 
                             }))
                           }
                           addFilter={addFilter}
