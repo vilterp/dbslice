@@ -1,13 +1,12 @@
 import "./Sidebar.css";
 import React from 'react';
-import { Filter } from '../../src/types';
+import { Filter, Query } from '../../src/types';
 import { Column } from './api';
 import Histogram from './histogram/Histogram';
 
 interface SidebarProps {
   columns: Column[];
-  selectedTable: string;
-  filters: Filter[];
+  query: Query;
   collapsedColumns: Set<string>;
   toggleColumnCollapse: (columnName: string) => void;
   isNumericalColumn: (dataType: string) => boolean;
@@ -17,8 +16,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({
   columns,
-  selectedTable,
-  filters,
+  query,
   collapsedColumns,
   toggleColumnCollapse,
   isNumericalColumn,
@@ -56,11 +54,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <Histogram
                   columnName={column.column_name}
                   column={column}
-                  selectedTable={selectedTable}
+                  query={query}
                   isNumerical={isNumerical}
                   addFilter={addFilter}
                   removeFilter={removeFilter}
-                  filters={filters}
                 />
               )}
             </div>

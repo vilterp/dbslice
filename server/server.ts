@@ -202,35 +202,19 @@ export function createServer(db: duckdb.Database, config: Config) {
   app.post('/api/tables/:tableName/columns/:columnName/histogram', async (req: Request, res: Response) => {
     try {
       const { tableName, columnName } = req.params;
-      const { column_type = 'text', filters = {}, rangeFilters = {}, top_n = 5, bins = 20 } = req.body;
-      
-      // Convert old filter format to unified filters array
-      const unifiedFilters: Filter[] = [];
-      
-      // Add exact filters
-      for (const [column, value] of Object.entries(filters)) {
-        unifiedFilters.push({
-          type: 'exact',
-          column,
-          value: String(value)
-        });
-      }
-      
-      // Add range filters
-      for (const [column, rangeFilter] of Object.entries(rangeFilters)) {
-        const rf = rangeFilter as { min: number; max: number };
-        unifiedFilters.push({
-          type: 'range',
-          column,
-          min: rf.min,
-          max: rf.max
-        });
-      }
+      const { 
+        column_type = 'text', 
+        filters = [], 
+        steps = [], 
+        top_n = 5, 
+        bins = 20
+      } = req.body;
       
       // Create HistogramQuery object
       const histogramQuery: HistogramQuery = {
         tableName,
-        filters: unifiedFilters,
+        filters,
+        steps,
         columnName,
         columnType: column_type as string,
         topN: top_n,

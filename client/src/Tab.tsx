@@ -130,8 +130,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
           <>
             <Sidebar
               columns={tab.columns}
-              selectedTable={tab.queryState.query.tableName}
-              filters={tab.queryState.query.filters}
+              query={tab.queryState.query}
               collapsedColumns={tab.collapsedColumns}
               toggleColumnCollapse={toggleColumnCollapse}
               isNumericalColumn={isNumericalColumn}

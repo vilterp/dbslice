@@ -60,26 +60,11 @@ export async function fetchTableData(query: Query): Promise<TableDataResponse> {
 
 // Individual histogram fetch function for single column - can be used by individual components
 export async function fetchHistogram(
-  selectedTable: string,
-  column: Column,
-  filters: Filter[]
+  query: Query,
+  column: Column
 ): Promise<HistogramResult> {
-  const exactFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'exact') {
-      acc[filter.column] = filter.value;
-    }
-    return acc;
-  }, {} as { [key: string]: string });
-
-  const rangeFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'range') {
-      acc[filter.column] = { min: filter.min, max: filter.max };
-    }
-    return acc;
-  }, {} as { [key: string]: { min: number; max: number } });
-
   try {
-    const response = await fetch(`http://localhost:3001/api/tables/${selectedTable}/columns/${column.column_name}/histogram`, {
+    const response = await fetch(`http://localhost:3001/api/tables/${query.tableName}/columns/${column.column_name}/histogram`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,8 +72,8 @@ export async function fetchHistogram(
       body: JSON.stringify({
         bins: DEFAULT_HISTOGRAM_BINS,
         column_type: column.data_type,
-        filters: exactFilters,
-        rangeFilters: rangeFilters,
+        filters: query.filters,
+        steps: query.steps || [],
         top_n: DEFAULT_TOP_N_CATEGORIES, // Number of top categories to show for discrete histograms
       }),
     });

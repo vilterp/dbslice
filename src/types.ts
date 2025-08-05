@@ -6,7 +6,6 @@ export interface Query extends BaseQuery {
   orderDir?: 'ASC' | 'DESC';
   limit?: number;
   offset?: number;
-  steps?: QueryStep[];
 }
 
 export interface HistogramQuery extends BaseQuery {
@@ -19,6 +18,7 @@ export interface HistogramQuery extends BaseQuery {
 export interface BaseQuery {
   tableName: string;
   filters: Filter[];
+  steps?: QueryStep[];
 }
 
 // Query step type for CTE support

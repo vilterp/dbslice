@@ -1,6 +1,6 @@
 import "./Histogram.css";
 import React, { useState, useEffect } from "react";
-import { Filter } from "../../../src/types";
+import { Filter, Query } from "../../../src/types";
 import { HistogramResult, Column, fetchHistogram } from "../api";
 import NumericHistogram from "./NumericHistogram";
 import DiscreteHistogram from "./DiscreteHistogram";
@@ -12,7 +12,7 @@ const BAR_HEIGHT = 24;
 type HistogramProps = {
   columnName: string;
   column: Column;
-  selectedTable: string;
+  query: Query;
   isNumerical: boolean;
   addFilter: (
     column: string,
@@ -22,7 +22,6 @@ type HistogramProps = {
     max?: number
   ) => void;
   removeFilter: (column: string, value: string) => void;
-  filters?: Filter[];
 };
 
 const Histogram: React.FC<HistogramProps> = (props) => {
@@ -33,11 +32,10 @@ const Histogram: React.FC<HistogramProps> = (props) => {
   const {
     columnName,
     column,
-    selectedTable,
+    query,
     isNumerical,
     addFilter,
     removeFilter,
-    filters = [],
   } = props;
 
   // Calculate proper height for discrete histograms: (DEFAULT_TOP_N_CATEGORIES + 1 for "others") * BAR_HEIGHT
@@ -50,7 +48,7 @@ const Histogram: React.FC<HistogramProps> = (props) => {
     const loadHistogram = async () => {
       setLoading(true);
       try {
-        const result = await fetchHistogram(selectedTable, column, filters);
+        const result = await fetchHistogram(query, column);
         setHistogramResult(result);
       } catch (error) {
         setHistogramResult({
@@ -64,7 +62,7 @@ const Histogram: React.FC<HistogramProps> = (props) => {
     };
 
     loadHistogram();
-  }, [selectedTable, column, filters]);
+  }, [query.tableName, query.filters, query.steps, column]);
 
   if (loading) {
     return (
@@ -103,7 +101,7 @@ const Histogram: React.FC<HistogramProps> = (props) => {
         isEmpty={isEmpty}
         addFilter={addFilter}
         removeFilter={removeFilter}
-        filters={filters}
+        filters={query.filters}
       />
     );
   }
@@ -116,7 +114,7 @@ const Histogram: React.FC<HistogramProps> = (props) => {
       isEmpty={isEmpty}
       addFilter={addFilter}
       removeFilter={removeFilter}
-      filters={filters}
+      filters={query.filters}
     />
   );
 };

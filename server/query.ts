@@ -75,9 +75,13 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
     columnName,
     columnType,
     filters = [],
+    steps = [],
     topN = 5,
     bins = 20
   } = histogramQuery;
+
+  // Build CTE clause if steps exist
+  const cteClause = buildCTEClause(steps);
 
   // Build WHERE clause for histogram using the unified filters
   const { whereClause } = buildHistogramWhereClauseFromFilters(filters, columnName);
@@ -87,7 +91,7 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
   
   if (isNumerical) {
     // For numerical columns, use DuckDB's automatic histogram binning
-    const histogramQuerySQL = buildNumericalHistogramQuery(tableName, columnName, whereClause);
+    const histogramQuerySQL = buildNumericalHistogramQuery(cteClause, tableName, columnName, whereClause);
     const rawHistogram = await queryRunner(histogramQuerySQL);
     const numBins = Math.max(1, Math.min(bins, 100)); // Limit between 1 and 100 bins
     return transformNumericalHistogramResults(rawHistogram, numBins);
@@ -95,9 +99,9 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
     // For categorical columns, use simple GROUP BY COUNT
     // Get top N categories plus calculate "others"
     const topLimit = Math.max(1, Math.min(topN, 20)); // Limit between 1 and 20
-    const histogramQuerySQL = buildCategoricalHistogramQuery(tableName, columnName, whereClause, topLimit + 1);
+    const histogramQuerySQL = buildCategoricalHistogramQuery(cteClause, tableName, columnName, whereClause, topLimit + 1);
     const rawHistogram = await queryRunner(histogramQuerySQL);
-    return await transformCategoricalHistogramResults(rawHistogram, topLimit, columnName, tableName, whereClause, queryRunner);
+    return await transformCategoricalHistogramResults(rawHistogram, topLimit, columnName, tableName, cteClause, whereClause, queryRunner);
   }
 };
 
@@ -258,12 +262,12 @@ const isNumericalColumnType = (columnType: string): boolean => {
 
 
 // Build optimized numerical histogram query using DuckDB's automatic binning
-const buildNumericalHistogramQuery = (tableName: string, columnName: string, whereClause: string): string => {
+const buildNumericalHistogramQuery = (cteClause: string, tableName: string, columnName: string, whereClause: string): string => {
   const sanitizedTableName = sanitizeIdentifier(tableName);
   const sanitizedColumnName = sanitizeIdentifier(columnName);
   
   return `
-    SELECT 
+    ${cteClause}SELECT 
       unnest(map_keys(histogram(${sanitizedColumnName}))) as bin_value,
       unnest(map_values(histogram(${sanitizedColumnName}))) as count
     FROM ${sanitizedTableName}
@@ -273,6 +277,7 @@ const buildNumericalHistogramQuery = (tableName: string, columnName: string, whe
 
 // Build categorical histogram query using simple GROUP BY COUNT
 const buildCategoricalHistogramQuery = (
+  cteClause: string,
   tableName: string, 
   columnName: string, 
   whereClause: string, 
@@ -282,7 +287,7 @@ const buildCategoricalHistogramQuery = (
   const sanitizedColumnName = sanitizeIdentifier(columnName);
   
   return `
-    SELECT 
+    ${cteClause}SELECT 
       ${sanitizedColumnName},
       COUNT(*) as count
     FROM ${sanitizedTableName}
@@ -374,6 +379,7 @@ const transformCategoricalHistogramResults = async (
   topLimit: number, 
   columnName: string,
   tableName: string,
+  cteClause: string,
   whereClause: string,
   queryRunner: QueryRunner
 ): Promise<any[]> => {
@@ -392,7 +398,7 @@ const transformCategoricalHistogramResults = async (
     // Query for total distinct count to get accurate count of "other" values
     const sanitizedTableName = sanitizeIdentifier(tableName);
     const sanitizedColumnName = sanitizeIdentifier(columnName);
-    const distinctCountQuery = `SELECT COUNT(DISTINCT ${sanitizedColumnName}) as total_distinct FROM ${sanitizedTableName}${whereClause}`;
+    const distinctCountQuery = `${cteClause}SELECT COUNT(DISTINCT ${sanitizedColumnName}) as total_distinct FROM ${sanitizedTableName}${whereClause}`;
     const distinctResult = await queryRunner(distinctCountQuery);
     const totalDistinctCount = distinctResult[0]?.total_distinct || 0;
     
@@ -400,7 +406,7 @@ const transformCategoricalHistogramResults = async (
     const otherDistinctCount = Math.max(0, totalDistinctCount - topLimit);
     
     // Get total row count and subtract the top N counts to get accurate "others" row count
-    const totalRowCountQuery = `SELECT COUNT(*) as total_rows FROM ${sanitizedTableName}${whereClause}`;
+    const totalRowCountQuery = `${cteClause}SELECT COUNT(*) as total_rows FROM ${sanitizedTableName}${whereClause}`;
     const totalRowResult = await queryRunner(totalRowCountQuery);
     const totalRowCount = totalRowResult[0]?.total_rows || 0;
     
