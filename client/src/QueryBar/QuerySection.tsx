@@ -6,7 +6,7 @@ interface QuerySectionProps {
   title?: string;
   tableName: string;
   filters: FilterType[];
-  tables?: Array<{ table_name: string }>;
+  tables: Array<{ table_name: string }>;
   onTableSelect?: (tableName: string) => void;
   onRemoveFilter?: (column: string) => void;
 }
@@ -15,7 +15,7 @@ const QuerySection: React.FC<QuerySectionProps> = ({
   title,
   tableName, 
   filters, 
-  tables = [], 
+  tables, 
   onTableSelect, 
   onRemoveFilter
 }) => {

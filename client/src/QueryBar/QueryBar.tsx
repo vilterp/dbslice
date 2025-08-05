@@ -29,6 +29,7 @@ const QueryBar: React.FC<QueryBarProps> = ({
               key={step.name}
               title={step.name}
               tableName={step.tableName}
+              tables={tables}
               filters={step.filters}
             />
           ))}
