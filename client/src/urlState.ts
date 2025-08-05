@@ -58,9 +58,12 @@ export function queryToUrl(baseUrl: string, query: Query): string {
 // Pure function to extract query from URL string
 export function urlToQuery(urlString: string): Partial<Query> {
   const url = new URL(urlString);
-  const query: Partial<Query> = {};
+  const query: Partial<Query> = {
+    // Always provide filters array (required by BaseQuery)
+    filters: []
+  };
 
-  // Extract table
+  // Extract table - only set if present in URL
   const table = url.searchParams.get('table');
   if (table) {
     query.tableName = table;
@@ -87,7 +90,8 @@ export function urlToQuery(urlString: string): Partial<Query> {
           stepName: min,
           stepColumn: max
         });
-      } else {
+      } else if (filterValue && filterValue.trim() !== '') {
+        // Only add exact filters if the value is not empty
         filters.push({
           type: 'exact',
           column,
@@ -96,9 +100,8 @@ export function urlToQuery(urlString: string): Partial<Query> {
       }
     }
   }
-  if (filters.length > 0) {
-    query.filters = filters;
-  }
+  // Always set filters array (even if empty)
+  query.filters = filters;
 
   // Extract steps
   const steps: QueryStep[] = [];
@@ -131,27 +134,4 @@ export function urlToQuery(urlString: string): Partial<Query> {
 export function updateURL(query: Query) {
   const newUrl = queryToUrl(window.location.href, query);
   window.history.replaceState({}, '', newUrl);
-}
-
-export function loadFromURL(
-  tables: { table_name: string }[],
-  setSelectedTable: (t: string) => void,
-  setFilters: (f: Filter[]) => void,
-  setSortColumn: (c: string) => void,
-  setSortDirection: (d: SortDirection) => void
-) {
-  const query = urlToQuery(window.location.href);
-
-  if (query.tableName && tables.some(table => table.table_name === query.tableName)) {
-    setSelectedTable(query.tableName);
-  }
-
-  if (query.filters) {
-    setFilters(query.filters);
-  }
-
-  if (query.orderBy && query.orderDir) {
-    setSortColumn(query.orderBy);
-    setSortDirection(query.orderDir === 'ASC' ? 'asc' : 'desc');
-  }
 }

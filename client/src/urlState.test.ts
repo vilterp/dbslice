@@ -169,6 +169,28 @@ describe('urlState pure functions', () => {
       
       consoleSpy.mockRestore();
     });
+
+    it('should skip filters with empty values', () => {
+      const url = 'http://localhost:3000/?filter_category=electronics%3Aexact&filter_empty=%3Aexact&filter_whitespace=%20%3Aexact';
+      const query = urlToQuery(url);
+      expect(query.filters).toEqual([
+        { type: 'exact', column: 'category', value: 'electronics' }
+      ]);
+    });
+
+    it('should handle the problematic URL case correctly', () => {
+      const url = 'http://localhost:3002/?table=orders&step_0=%257B%2522name%2522%253A%2522customer_filtered%2522%252C%2522tableName%2522%253A%2522customer%2522%252C%2522filters%2522%253A%255B%257B%2522type%2522%253A%2522exact%2522%252C%2522column%2522%253A%2522c_custkey%2522%252C%2522value%2522%253A%25222%2522%257D%255D%257D&filter_o_custkey=%3Aexact';
+      const query = urlToQuery(url);
+      
+      expect(query.tableName).toBe('orders');
+      expect(query.filters).toEqual([]); // Should be empty because the filter value is empty
+      expect(query.steps).toHaveLength(1);
+      expect(query.steps![0].name).toBe('customer_filtered');
+      expect(query.steps![0].tableName).toBe('customer');
+      expect(query.steps![0].filters).toEqual([
+        { type: 'exact', column: 'c_custkey', value: '2' }
+      ]);
+    });
   });
 
   describe('round-trip functionality', () => {
@@ -240,9 +262,9 @@ describe('urlState pure functions', () => {
       const url = queryToUrl(baseUrl, originalQuery);
       const roundTripQuery = urlToQuery(url);
 
-      // Empty values should not be set in the query
+      // Empty tableName should not be set in the query
       expect(roundTripQuery.tableName).toBeUndefined();
-      expect(roundTripQuery.filters).toBeUndefined();
+      expect(roundTripQuery.filters).toEqual([]);
       expect(roundTripQuery.orderBy).toBeUndefined();
       expect(roundTripQuery.orderDir).toBeUndefined();
       expect(roundTripQuery.steps).toBeUndefined();

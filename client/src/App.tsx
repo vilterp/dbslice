@@ -10,7 +10,7 @@ import {
   fetchTableData,
 } from "./api";
 import { Query } from "../../src/types";
-import { updateURL } from "./urlState";
+import { updateURL, urlToQuery } from "./urlState";
 
 // Import the TabState type from Tab component to avoid duplication
 import { TabState } from './Tab';
@@ -44,61 +44,17 @@ function App() {
     fetchTables()
       .then((data) => {
         setTables(data);
-        // Custom URL state loader for tabs
-        const url = new URL(window.location.href);
-        const tableFromURL = url.searchParams.get("table");
-        if (tableFromURL && !tabs.some((t) => t.queryState.query.tableName === tableFromURL)) {
-          // Parse steps
-          const urlSteps = [];
-          for (const [key, value] of url.searchParams.entries()) {
-            if (key.startsWith("step_")) {
-              try {
-                const stepData = JSON.parse(decodeURIComponent(value));
-                urlSteps.push(stepData);
-              } catch (e) {
-                console.warn("Failed to parse step data from URL:", value);
-              }
-            }
-          }
-          
-          // Parse filters
-          const urlFilters = [];
-          for (const [key, value] of url.searchParams.entries()) {
-            if (key.startsWith("filter_")) {
-              const column = key.replace("filter_", "");
-              const [filterValue, type = "exact", min, max, stepColumn] = value.split(":");
-              
-              if (type === "range" && min && max) {
-                urlFilters.push({
-                  type: "range" as const,
-                  column,
-                  min: parseFloat(min),
-                  max: parseFloat(max),
-                });
-              } else if (type === "in" && min && stepColumn) {
-                urlFilters.push({
-                  type: "in" as const,
-                  column,
-                  stepName: min,
-                  stepColumn: stepColumn,
-                });
-              } else {
-                urlFilters.push({
-                  type: "exact" as const,
-                  column,
-                  value: filterValue,
-                });
-              }
-            }
-          }
-          // Parse sort
-          const sortCol = url.searchParams.get("sort") || "";
-          const sortDir = (url.searchParams.get("dir") as SortDirection) || "";
-          const newTab = makeDefaultTab(tableFromURL);
-          newTab.queryState.query.filters = urlFilters;
-          newTab.queryState.query.orderBy = sortCol;
-          newTab.queryState.query.orderDir = sortDir === "asc" ? "ASC" : sortDir === "desc" ? "DESC" : undefined;
-          newTab.queryState.query.steps = urlSteps;
+        // Load query state from URL
+        const queryFromURL = urlToQuery(window.location.href);
+        if (queryFromURL.tableName && !tabs.some((t) => t.queryState.query.tableName === queryFromURL.tableName)) {
+          const newTab = makeDefaultTab(queryFromURL.tableName);
+          newTab.queryState.query = {
+            tableName: queryFromURL.tableName,
+            filters: queryFromURL.filters || [],
+            orderBy: queryFromURL.orderBy || "",
+            orderDir: queryFromURL.orderDir,
+            steps: queryFromURL.steps || []
+          };
           setTabs((tabs) => [...tabs, newTab]);
           setSelectedTabId(newTab.id);
         }
@@ -265,13 +221,7 @@ function App() {
     setSelectedTabId(tabId);
     const tab = tabs.find((t) => t.id === tabId);
     if (tab) {
-      updateURL({
-        tableName: tab.queryState.query.tableName,
-        filters: tab.queryState.query.filters,
-        orderBy: tab.queryState.query.orderBy,
-        orderDir: tab.queryState.query.orderDir,
-        steps: tab.queryState.query.steps
-      });
+      updateURL(tab.queryState.query);
     }
   };
   const handleTabClose = (tabId: string) => {
@@ -313,13 +263,7 @@ function App() {
   useEffect(() => {
     const tab = tabs.find((t) => t.id === selectedTabId);
     if (tab) {
-      updateURL({
-        tableName: tab.queryState.query.tableName,
-        filters: tab.queryState.query.filters,
-        orderBy: tab.queryState.query.orderBy,
-        orderDir: tab.queryState.query.orderDir,
-        steps: tab.queryState.query.steps
-      });
+      updateURL(tab.queryState.query);
     }
     // Only run when selectedTabId or relevant tab state changes
   }, [
