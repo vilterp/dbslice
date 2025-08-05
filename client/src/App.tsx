@@ -215,6 +215,32 @@ function App() {
     setSelectedTabId(newTab.id);
   };
 
+  const handleJoinWithTable = (currentTable: string, currentFilters: any[], joinColumn: string, targetTable: string, targetColumn: string) => {
+    const newTab = makeDefaultTab(targetTable);
+    
+    // Create the CTE step from the current table and filters
+    const stepName = `${currentTable}_filtered`;
+    const cteStep = {
+      name: stepName,
+      tableName: currentTable,
+      filters: currentFilters
+    };
+    
+    // Add the IN filter to join the tables
+    const inFilter = {
+      type: 'in' as const,
+      column: targetColumn,
+      stepName: stepName
+    };
+    
+    // Set up the new query with CTE and IN filter
+    newTab.queryState.query.steps = [cteStep];
+    newTab.queryState.query.filters = [inFilter];
+    
+    setTabs((tabs) => [...tabs, newTab]);
+    setSelectedTabId(newTab.id);
+  };
+
   // Tab bar UI
   // When switching tabs, update the URL to reflect the selected tab's query state
   const handleTabClick = (tabId: string) => {
@@ -304,7 +330,7 @@ function App() {
         onTabRename={handleTabRename}
       />
 
-      {currentTab && <Tab tab={currentTab} updateTab={updateTab} tables={tables} onForeignKeyNavigation={handleForeignKeyNavigation} onReverseForeignKeyNavigation={handleReverseForeignKeyNavigation} />}
+      {currentTab && <Tab tab={currentTab} updateTab={updateTab} tables={tables} onForeignKeyNavigation={handleForeignKeyNavigation} onReverseForeignKeyNavigation={handleReverseForeignKeyNavigation} onJoinWithTable={handleJoinWithTable} />}
     </div>
   );
 }

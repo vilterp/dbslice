@@ -22,9 +22,10 @@ interface TabProps {
   tables: Array<{ table_name: string }>;
   onForeignKeyNavigation?: (targetTable: string, targetColumn: string, value: any) => void;
   onReverseForeignKeyNavigation?: (targetTable: string, targetColumn: string, value: any) => void;
+  onJoinWithTable?: (currentTable: string, currentFilters: any[], joinColumn: string, targetTable: string, targetColumn: string) => void;
 }
 
-const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigation, onReverseForeignKeyNavigation }) => {
+const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigation, onReverseForeignKeyNavigation, onJoinWithTable }) => {
   // Helper function to update query state
   const updateQuery = (updater: (query: typeof tab.queryState.query) => typeof tab.queryState.query) => {
     updateTab(tab.id, (tab) => ({
@@ -103,6 +104,12 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
     }));
   };
 
+  const handleJoinWithTable = (joinColumn: string, targetTable: string, targetColumn: string) => {
+    if (onJoinWithTable) {
+      onJoinWithTable(tab.queryState.query.tableName, tab.queryState.query.filters, joinColumn, targetTable, targetColumn);
+    }
+  };
+
   return (
     <div className="main-content">
       <QueryBar 
@@ -111,6 +118,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
         tables={tables}
         selectedTable={tab.queryState.query.tableName}
         onTableSelect={handleTableSelect}
+        steps={tab.queryState.query.steps}
       />
       <div className="content-wrapper">
         {!tab.queryState.query.tableName ? (
@@ -167,6 +175,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
                           addFilter={addFilter}
                           onNavigateToForeignKey={onForeignKeyNavigation}
                           onNavigateToReferencingTable={onReverseForeignKeyNavigation}
+                          onJoinWithTable={handleJoinWithTable}
                         />
                       </div>
                     );

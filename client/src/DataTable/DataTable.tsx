@@ -19,6 +19,7 @@ interface DataTableProps {
   addFilter: (column: string, value: any) => void;
   onNavigateToForeignKey?: (targetTable: string, targetColumn: string, value: any) => void;
   onNavigateToReferencingTable?: (targetTable: string, targetColumn: string, value: any) => void;
+  onJoinWithTable?: (joinColumn: string, targetTable: string, targetColumn: string) => void;
 }
 
 
@@ -34,6 +35,7 @@ const DataTable: React.FC<DataTableProps> = ({
   addFilter,
   onNavigateToForeignKey,
   onNavigateToReferencingTable,
+  onJoinWithTable,
 }) => {
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
   const [cellMenu, setCellMenu] = useState<{
@@ -45,6 +47,11 @@ const DataTable: React.FC<DataTableProps> = ({
   const [reverseForeignKeyMenu, setReverseForeignKeyMenu] = useState<{
     column: string;
     value: any;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [joinMenu, setJoinMenu] = useState<{
+    column: string;
     x: number;
     y: number;
   } | null>(null);
@@ -127,9 +134,19 @@ const DataTable: React.FC<DataTableProps> = ({
     });
   };
 
+  // Handler for clicking on joinable column header pill - shows join menu
+  const handleJoinableColumnClick = (column: string, event: React.MouseEvent) => {
+    setJoinMenu({
+      column,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  };
+
   // Close cell menu on outside click
   const cellMenuRef = useRef<HTMLDivElement>(null);
   const reverseForeignKeyMenuRef = useRef<HTMLDivElement>(null);
+  const joinMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (cellMenuRef.current && !cellMenuRef.current.contains(e.target as Node)) {
@@ -138,12 +155,15 @@ const DataTable: React.FC<DataTableProps> = ({
       if (reverseForeignKeyMenuRef.current && !reverseForeignKeyMenuRef.current.contains(e.target as Node)) {
         setReverseForeignKeyMenu(null);
       }
+      if (joinMenuRef.current && !joinMenuRef.current.contains(e.target as Node)) {
+        setJoinMenu(null);
+      }
     }
-    if (cellMenu || reverseForeignKeyMenu) {
+    if (cellMenu || reverseForeignKeyMenu || joinMenu) {
       document.addEventListener("mousedown", handleClick);
       return () => document.removeEventListener("mousedown", handleClick);
     }
-  }, [cellMenu, reverseForeignKeyMenu]);
+  }, [cellMenu, reverseForeignKeyMenu, joinMenu]);
 
   return (
     <div className="data-table">
@@ -158,6 +178,8 @@ const DataTable: React.FC<DataTableProps> = ({
                   sortDirection={sortDirection}
                   headerMenu={headerMenu}
                   setHeaderMenu={setHeaderMenu}
+                  columnInfo={columns}
+                  onJoinableColumnClick={handleJoinableColumnClick}
                 />
               </tr>
             </thead>
@@ -283,6 +305,41 @@ const DataTable: React.FC<DataTableProps> = ({
                       }}
                     >
                       Go to {reverseFk.source_table}
+                    </div>
+                  ));
+                })()}
+              </DropdownMenu>
+            </div>
+          )}
+          {/* Join menu for selecting target table */}
+          {joinMenu && (
+            <div
+              ref={joinMenuRef}
+              style={{
+                position: 'fixed',
+                top: joinMenu.y,
+                left: joinMenu.x,
+                right: 'auto',
+                zIndex: 1000,
+              }}
+            >
+              <DropdownMenu align="left">
+                {(() => {
+                  const columnInfo = columnMap.get(joinMenu.column);
+                  if (!columnInfo?.reverse_foreign_keys) return null;
+                  
+                  return columnInfo.reverse_foreign_keys.map((reverseFk, index) => (
+                    <div
+                      key={`join-${index}`}
+                      style={{ padding: '8px 16px', cursor: 'pointer' }}
+                      onClick={() => {
+                        if (onJoinWithTable) {
+                          onJoinWithTable(joinMenu.column, reverseFk.source_table, reverseFk.source_column);
+                        }
+                        setJoinMenu(null);
+                      }}
+                    >
+                      Join with {reverseFk.source_table}
                     </div>
                   ));
                 })()}

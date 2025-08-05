@@ -6,6 +6,7 @@ export interface Query extends BaseQuery {
   orderDir?: 'ASC' | 'DESC';
   limit?: number;
   offset?: number;
+  steps?: QueryStep[];
 }
 
 export interface HistogramQuery extends BaseQuery {
@@ -20,8 +21,15 @@ export interface BaseQuery {
   filters: Filter[];
 }
 
+// Query step type for CTE support
+export interface QueryStep {
+  name: string;
+  tableName: string;
+  filters: Filter[];
+}
+
 // Filter types
-export type Filter = ExactFilter | RangeFilter;
+export type Filter = ExactFilter | RangeFilter | InFilter;
 
 export interface ExactFilter {
   type: 'exact';
@@ -34,6 +42,12 @@ export interface RangeFilter {
   column: string;
   min: number;
   max: number;
+}
+
+export interface InFilter {
+  type: 'in';
+  column: string;
+  stepName: string;
 }
 
 // API data types

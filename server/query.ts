@@ -1,4 +1,4 @@
-import { NUMERICAL_COLUMN_TYPES, Query, Filter, RangeFilter, HistogramQuery } from '../src/types';
+import { NUMERICAL_COLUMN_TYPES, Query, Filter, RangeFilter, InFilter, QueryStep, HistogramQuery } from '../src/types';
 import { sanitizeQueryResult, sanitizeIdentifier } from './sanitize';
 import * as duckdb from 'duckdb';
 import logger from './logger';
@@ -13,10 +13,14 @@ export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<
     orderBy,
     orderDir = 'ASC',
     limit,
-    offset
+    offset,
+    steps = []
   } = query;
 
   const sanitizedTableName = sanitizeIdentifier(tableName);
+  
+  // Build CTE clauses if steps exist
+  const cteClause = buildCTEClause(steps);
   
   // Build WHERE clause
   const whereClause = buildWhereClauseFromFilters(filters);
@@ -34,7 +38,7 @@ export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<
   }
   
   // Construct final SQL query
-  const sql = `SELECT * FROM ${sanitizedTableName}${whereClause}${orderByClause}${limitClause}`;
+  const sql = `${cteClause}SELECT * FROM ${sanitizedTableName}${whereClause}${orderByClause}${limitClause}`;
   
   // Execute query
   return await queryRunner(sql);
@@ -44,16 +48,20 @@ export const runQuery = async (query: Query, queryRunner: QueryRunner): Promise<
 export const runCountQuery = async (query: Query, queryRunner: QueryRunner): Promise<number> => {
   const {
     tableName,
-    filters = []
+    filters = [],
+    steps = []
   } = query;
 
   const sanitizedTableName = sanitizeIdentifier(tableName);
+  
+  // Build CTE clauses if steps exist
+  const cteClause = buildCTEClause(steps);
   
   // Build WHERE clause
   const whereClause = buildWhereClauseFromFilters(filters);
   
   // Construct count SQL query
-  const sql = `SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
+  const sql = `${cteClause}SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
   
   // Execute query
   const result = await queryRunner(sql);
@@ -429,10 +437,29 @@ function buildWhereClauseFromFilters(filters: Filter[]): string {
       case 'range':
         conditions.push(`${sanitizeIdentifier(filter.column)} BETWEEN ${filter.min} AND ${filter.max}`);
         break;
+      case 'in':
+        conditions.push(`${sanitizeIdentifier(filter.column)} IN (SELECT ${sanitizeIdentifier(filter.column)} FROM ${sanitizeIdentifier(filter.stepName)})`);
+        break;
     }
   }
   
   return conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+}
+
+function buildCTEClause(steps: QueryStep[]): string {
+  if (steps.length === 0) return '';
+  
+  const cteStatements: string[] = [];
+  
+  for (const step of steps) {
+    const sanitizedTableName = sanitizeIdentifier(step.tableName);
+    const sanitizedStepName = sanitizeIdentifier(step.name);
+    const whereClause = buildWhereClauseFromFilters(step.filters);
+    
+    cteStatements.push(`${sanitizedStepName} AS (SELECT * FROM ${sanitizedTableName}${whereClause})`);
+  }
+  
+  return `WITH ${cteStatements.join(', ')} `;
 }
 
 function buildHistogramWhereClauseFromFilters(filters: Filter[], excludeColumn: string): { whereClause: string } {

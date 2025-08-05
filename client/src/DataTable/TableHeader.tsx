@@ -1,6 +1,6 @@
 import React from 'react';
 import DropdownMenu from '../components/DropdownMenu';
-import { SortDirection } from '../api';
+import { SortDirection, Column } from '../api';
 
 interface TableHeaderProps {
   columns: string[];
@@ -8,13 +8,21 @@ interface TableHeaderProps {
   sortDirection: SortDirection;
   headerMenu: { column: string; x: number; y: number } | null;
   setHeaderMenu: (menu: { column: string; x: number; y: number } | null) => void;
+  columnInfo?: Column[];
+  onJoinableColumnClick?: (column: string, event: React.MouseEvent) => void;
 }
 
-const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDirection, headerMenu, setHeaderMenu }) => {
+const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDirection, headerMenu, setHeaderMenu, columnInfo = [], onJoinableColumnClick }) => {
+  // Create a map of column names to column info for quick lookup
+  const columnMap = new Map<string, Column>();
+  columnInfo.forEach(col => columnMap.set(col.column_name, col));
   return (
     <>
       {columns.map(column => {
         const isActive = headerMenu?.column === column;
+        const columnData = columnMap.get(column);
+        const hasReverseForeignKeys = columnData?.reverse_foreign_keys && columnData.reverse_foreign_keys.length > 0;
+        
         return (
           <th
             key={column}
@@ -38,7 +46,30 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDire
             }}
             tabIndex={0}
           >
-            <span style={{ verticalAlign: 'middle' }}>{column}
+            <span style={{ verticalAlign: 'middle' }}>
+              {column}
+              {hasReverseForeignKeys && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    padding: '2px 6px',
+                    backgroundColor: '#8b5cf6',
+                    color: 'white',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    display: 'inline-block',
+                  }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (onJoinableColumnClick) {
+                      onJoinableColumnClick(column, e);
+                    }
+                  }}
+                >
+                  Join
+                </span>
+              )}
               {sortColumn === column && sortDirection === 'asc' && <span style={{ marginLeft: 4 }}>▲</span>}
               {sortColumn === column && sortDirection === 'desc' && <span style={{ marginLeft: 4 }}>▼</span>}
             </span>
