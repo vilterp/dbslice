@@ -1,0 +1,49 @@
+import "./QueryBar.css";
+import React from 'react';
+import { Filter, QueryStep } from '../../../src/types';
+import QuerySection from './QuerySection';
+
+interface QueryBarProps {
+  filters: Filter[];
+  removeFilter: (column: string) => void;
+  tables: Array<{ table_name: string }>;
+  selectedTable: string;
+  onTableSelect: (tableName: string) => void;
+  steps?: QueryStep[];
+}
+
+const QueryBar: React.FC<QueryBarProps> = ({ 
+  filters, 
+  removeFilter, 
+  tables, 
+  selectedTable, 
+  onTableSelect, 
+  steps = [] 
+}) => {
+  return (
+    <div className="query-bar">
+      {steps.length > 0 && (
+        <div className="query-steps">
+          {steps.map((step) => (
+            <QuerySection
+              key={step.name}
+              title={step.name}
+              tableName={step.tableName}
+              filters={step.filters}
+            />
+          ))}
+        </div>
+      )}
+      
+      <QuerySection
+        tableName={selectedTable}
+        filters={filters}
+        tables={tables}
+        onTableSelect={onTableSelect}
+        onRemoveFilter={removeFilter}
+      />
+    </div>
+  );
+};
+
+export default QueryBar;

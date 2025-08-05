@@ -13,45 +13,26 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding: 0.5rem;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
+  margin-left: 1rem;
 }
 
-.steps-header {
+.query-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.query-section-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #495057;
-  margin-bottom: 0.25rem;
-}
-
-.query-step {
-  font-size: 0.875rem;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  color: #212529;
-}
-
-.step-name {
-  font-weight: 500;
   color: #6f42c1;
-  margin-bottom: 0.125rem;
+  flex-shrink: 0;
 }
 
-.step-query {
-  margin-left: 1rem;
-  color: #495057;
-}
-
-.step-filters {
-  color: #0066cc;
-}
-
-.main-query {
+.query-content {
   display: flex;
   gap: 1rem;
   align-items: center;
-  min-height: 2.5rem;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;

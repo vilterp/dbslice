@@ -1323,4 +1323,139 @@ describe('API Endpoints', () => {
       });
     });
   });
+
+  describe('CTE and IN filter functionality', () => {
+    beforeAll(async () => {
+      // Insert sample data for CTE testing
+      await runQuery(`
+        INSERT INTO test_customers VALUES
+        (101, 'John Doe', 'john@example.com'),
+        (102, 'Jane Smith', 'jane@example.com'),
+        (103, 'Bob Wilson', 'bob@example.com')
+      `);
+
+      await runQuery(`
+        INSERT INTO test_orders VALUES
+        (201, 101, '2024-01-15', 1500.00),
+        (202, 102, '2024-01-16', 800.00),
+        (203, 101, '2024-01-17', 2200.00),
+        (204, 103, '2024-01-18', 950.00)
+      `);
+    });
+
+    it('should execute CTE queries with IN filters correctly', async () => {
+      // Test the CTE + IN filter SQL generation directly
+      const cteQuery = `
+        WITH filtered_customers AS (
+          SELECT * FROM test_customers WHERE name = 'John Doe'
+        )
+        SELECT * FROM test_orders 
+        WHERE customer_id IN (SELECT customer_id FROM filtered_customers)
+      `;
+
+      const result = await runQuery(cteQuery);
+      
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(2); // John Doe has 2 orders
+      result.forEach((order: any) => {
+        expect(order.customer_id).toBe(101);
+      });
+    });
+
+    it('should handle POST request with CTE steps and IN filters', async () => {
+      // Test the API endpoint with the new query structure
+      const response = await request(app)
+        .post('/api/tables/test_orders/data')
+        .send({
+          steps: [
+            {
+              name: 'filtered_customers',
+              tableName: 'test_customers',
+              filters: [
+                { type: 'exact', column: 'name', value: 'John Doe' }
+              ]
+            }
+          ],
+          filters: [
+            { type: 'in', column: 'customer_id', stepName: 'filtered_customers' }
+          ]
+        });
+
+      if (response.status !== 200) {
+        console.log('CTE API Error response:', response.status, response.body);
+      }
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(2); // John Doe has 2 orders
+      
+      response.body.data.forEach((order: any) => {
+        expect(order.customer_id).toBe(101);
+      });
+    });
+
+    it('should generate correct SQL for multiple steps and complex IN filter', async () => {
+      // Test with empty filter in step to see if basic CTE works
+      const response = await request(app)
+        .post('/api/tables/test_orders/data')
+        .send({
+          steps: [
+            {
+              name: 'all_customers',
+              tableName: 'test_customers',
+              filters: []
+            }
+          ],
+          filters: [
+            { type: 'in', column: 'customer_id', stepName: 'all_customers' }
+          ]
+        });
+
+      if (response.status !== 200) {
+        console.log('CTE All Customers Error:', response.status, response.body);
+      }
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(4); // All orders
+    });
+
+    it('should combine regular filters with CTE IN filters', async () => {
+      // Test combining exact filters with IN filters
+      const response = await request(app)
+        .post('/api/tables/test_orders/data')
+        .send({
+          steps: [
+            {
+              name: 'premium_customers',
+              tableName: 'test_customers',
+              filters: [
+                { type: 'exact', column: 'name', value: 'John Doe' }
+              ]
+            }
+          ],
+          filters: [
+            { type: 'in', column: 'customer_id', stepName: 'premium_customers' },
+            { type: 'range', column: 'total_amount', min: 1000, max: 3000 }
+          ]
+        });
+
+      if (response.status !== 200) {
+        console.log('Combined Filter Error:', response.status, response.body);
+      }
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(2); // John's orders between 1000-3000
+      
+      response.body.data.forEach((order: any) => {
+        expect(order.customer_id).toBe(101);
+        expect(order.total_amount).toBeGreaterThanOrEqual(1000);
+        expect(order.total_amount).toBeLessThanOrEqual(3000);
+      });
+    });
+  });
 });

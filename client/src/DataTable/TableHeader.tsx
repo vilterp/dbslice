@@ -47,11 +47,9 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDire
             tabIndex={0}
           >
             <span style={{ verticalAlign: 'middle' }}>
-              {column}
-              {hasReverseForeignKeys && (
+              {hasReverseForeignKeys ? (
                 <span
                   style={{
-                    marginLeft: 8,
                     padding: '2px 6px',
                     backgroundColor: '#8b5cf6',
                     color: 'white',
@@ -67,8 +65,10 @@ const TableHeader: React.FC<TableHeaderProps> = ({ columns, sortColumn, sortDire
                     }
                   }}
                 >
-                  Join
+                  {column}
                 </span>
+              ) : (
+                column
               )}
               {sortColumn === column && sortDirection === 'asc' && <span style={{ marginLeft: 4 }}>▲</span>}
               {sortColumn === column && sortDirection === 'desc' && <span style={{ marginLeft: 4 }}>▼</span>}
