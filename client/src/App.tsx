@@ -265,13 +265,13 @@ function App() {
     setSelectedTabId(tabId);
     const tab = tabs.find((t) => t.id === tabId);
     if (tab) {
-      updateURL(
-        tab.queryState.query.tableName, 
-        tab.queryState.query.filters, 
-        tab.queryState.query.orderBy || "", 
-        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
-        tab.queryState.query.steps || []
-      );
+      updateURL({
+        table: tab.queryState.query.tableName,
+        filters: tab.queryState.query.filters,
+        sortCol: tab.queryState.query.orderBy || "",
+        sortDir: tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
+        steps: tab.queryState.query.steps || []
+      });
     }
   };
   const handleTabClose = (tabId: string) => {
@@ -313,13 +313,13 @@ function App() {
   useEffect(() => {
     const tab = tabs.find((t) => t.id === selectedTabId);
     if (tab) {
-      updateURL(
-        tab.queryState.query.tableName, 
-        tab.queryState.query.filters, 
-        tab.queryState.query.orderBy || "", 
-        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
-        tab.queryState.query.steps || []
-      );
+      updateURL({
+        table: tab.queryState.query.tableName,
+        filters: tab.queryState.query.filters,
+        sortCol: tab.queryState.query.orderBy || "",
+        sortDir: tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
+        steps: tab.queryState.query.steps || []
+      });
     }
     // Only run when selectedTabId or relevant tab state changes
   }, [
