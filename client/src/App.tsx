@@ -266,11 +266,11 @@ function App() {
     const tab = tabs.find((t) => t.id === tabId);
     if (tab) {
       updateURL({
-        table: tab.queryState.query.tableName,
+        tableName: tab.queryState.query.tableName,
         filters: tab.queryState.query.filters,
-        sortCol: tab.queryState.query.orderBy || "",
-        sortDir: tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
-        steps: tab.queryState.query.steps || []
+        orderBy: tab.queryState.query.orderBy,
+        orderDir: tab.queryState.query.orderDir,
+        steps: tab.queryState.query.steps
       });
     }
   };
@@ -314,11 +314,11 @@ function App() {
     const tab = tabs.find((t) => t.id === selectedTabId);
     if (tab) {
       updateURL({
-        table: tab.queryState.query.tableName,
+        tableName: tab.queryState.query.tableName,
         filters: tab.queryState.query.filters,
-        sortCol: tab.queryState.query.orderBy || "",
-        sortDir: tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
-        steps: tab.queryState.query.steps || []
+        orderBy: tab.queryState.query.orderBy,
+        orderDir: tab.queryState.query.orderDir,
+        steps: tab.queryState.query.steps
       });
     }
     // Only run when selectedTabId or relevant tab state changes

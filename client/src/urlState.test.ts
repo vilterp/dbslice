@@ -1,80 +1,67 @@
-import { queryStateToUrl, urlToQueryState, QueryState } from './urlState';
-import { Filter, QueryStep } from '../../src/types';
+import { queryToUrl, urlToQuery } from './urlState';
+import { Filter, QueryStep, Query } from '../../src/types';
 import { SortDirection } from './api';
 
 describe('urlState pure functions', () => {
   const baseUrl = 'http://localhost:3000/';
 
-  describe('queryStateToUrl', () => {
+  describe('queryToUrl', () => {
     it('should set table parameter in URL', () => {
-      const state: QueryState = {
-        table: 'products',
-        filters: [],
-        sortCol: '',
-        sortDir: '' as SortDirection,
-        steps: []
+      const query: Query = {
+        tableName: 'products',
+        filters: []
       };
 
-      const result = queryStateToUrl(baseUrl, state);
+      const result = queryToUrl(baseUrl, query);
       expect(result).toContain('table=products');
     });
 
     it('should set sort parameters in URL', () => {
-      const state: QueryState = {
-        table: 'products',
+      const query: Query = {
+        tableName: 'products',
         filters: [],
-        sortCol: 'name',
-        sortDir: 'asc',
-        steps: []
+        orderBy: 'name',
+        orderDir: 'ASC'
       };
 
-      const result = queryStateToUrl(baseUrl, state);
+      const result = queryToUrl(baseUrl, query);
       expect(result).toContain('sort=name');
       expect(result).toContain('dir=asc');
     });
 
     it('should encode exact filters correctly', () => {
-      const state: QueryState = {
-        table: 'products',
+      const query: Query = {
+        tableName: 'products',
         filters: [
           { type: 'exact', column: 'category', value: 'electronics' }
-        ],
-        sortCol: '',
-        sortDir: '' as SortDirection,
-        steps: []
+        ]
       };
 
-      const result = queryStateToUrl(baseUrl, state);
+      const result = queryToUrl(baseUrl, query);
       expect(result).toContain('filter_category=electronics%3Aexact');
     });
 
     it('should encode range filters correctly', () => {
-      const state: QueryState = {
-        table: 'products',
+      const query: Query = {
+        tableName: 'products',
         filters: [
           { type: 'range', column: 'price', min: 10, max: 100 }
-        ],
-        sortCol: '',
-        sortDir: '' as SortDirection,
-        steps: []
+        ]
       };
 
-      const result = queryStateToUrl(baseUrl, state);
+      const result = queryToUrl(baseUrl, query);
       expect(result).toContain('filter_price=%3Arange%3A10%3A100');
     });
 
     it('should encode in filters correctly', () => {
-      const state: QueryState = {
-        table: 'products',
+      const query: Query = {
+        tableName: 'products',
         filters: [
           { type: 'in', column: 'category_id', stepName: 'categories', stepColumn: 'id' }
-        ],
-        sortCol: '',
-        sortDir: '' as SortDirection,
-        steps: []
+        ]
       };
 
-      const result = queryStateToUrl(baseUrl, state);
+      const result = queryToUrl(baseUrl, query);
       expect(result).toContain('filter_category_id=%3Ain%3Acategories%3Aid');
     });
 
@@ -87,15 +74,13 @@ describe('urlState pure functions', () => {
         }
       ];
 
-      const state: QueryState = {
-        table: 'orders',
+      const query: Query = {
+        tableName: 'orders',
         filters: [],
-        sortCol: '',
-        sortDir: '' as SortDirection,
         steps
       };
 
-      const result = queryStateToUrl(baseUrl, state);
+      const result = queryToUrl(baseUrl, query);
       expect(result).toContain('step_0=');
       
       // Decode the step to verify it's correct
@@ -110,15 +95,12 @@ describe('urlState pure functions', () => {
 
     it('should clear existing filter and step params', () => {
       const urlWithExistingParams = 'http://localhost:3000/?table=old&filter_old=value&step_0=old';
-      const state: QueryState = {
-        table: 'new_table',
-        filters: [{ type: 'exact', column: 'new_col', value: 'new_value' }],
-        sortCol: '',
-        sortDir: '' as SortDirection,
-        steps: []
+      const query: Query = {
+        tableName: 'new_table',
+        filters: [{ type: 'exact', column: 'new_col', value: 'new_value' }]
       };
 
-      const result = queryStateToUrl(urlWithExistingParams, state);
+      const result = queryToUrl(urlWithExistingParams, query);
       expect(result).not.toContain('filter_old=value');
       expect(result).not.toContain('step_0=old');
       expect(result).toContain('table=new_table');
@@ -126,40 +108,40 @@ describe('urlState pure functions', () => {
     });
   });
 
-  describe('urlToQueryState', () => {
+  describe('urlToQuery', () => {
     it('should extract table from URL', () => {
       const url = 'http://localhost:3000/?table=products';
-      const state = urlToQueryState(url);
-      expect(state.table).toBe('products');
+      const query = urlToQuery(url);
+      expect(query.tableName).toBe('products');
     });
 
     it('should extract sort parameters from URL', () => {
       const url = 'http://localhost:3000/?sort=name&dir=desc';
-      const state = urlToQueryState(url);
-      expect(state.sortCol).toBe('name');
-      expect(state.sortDir).toBe('desc');
+      const query = urlToQuery(url);
+      expect(query.orderBy).toBe('name');
+      expect(query.orderDir).toBe('DESC');
     });
 
     it('should extract exact filters from URL', () => {
       const url = 'http://localhost:3000/?filter_category=electronics%3Aexact';
-      const state = urlToQueryState(url);
-      expect(state.filters).toEqual([
+      const query = urlToQuery(url);
+      expect(query.filters).toEqual([
         { type: 'exact', column: 'category', value: 'electronics' }
       ]);
     });
 
     it('should extract range filters from URL', () => {
       const url = 'http://localhost:3000/?filter_price=%3Arange%3A10%3A100';
-      const state = urlToQueryState(url);
-      expect(state.filters).toEqual([
+      const query = urlToQuery(url);
+      expect(query.filters).toEqual([
         { type: 'range', column: 'price', min: 10, max: 100 }
       ]);
     });
 
     it('should extract in filters from URL', () => {
       const url = 'http://localhost:3000/?filter_category_id=%3Ain%3Acategories%3Aid';
-      const state = urlToQueryState(url);
-      expect(state.filters).toEqual([
+      const query = urlToQuery(url);
+      expect(query.filters).toEqual([
         { type: 'in', column: 'category_id', stepName: 'categories', stepColumn: 'id' }
       ]);
     });
@@ -173,16 +155,16 @@ describe('urlState pure functions', () => {
       const encodedStep = encodeURIComponent(JSON.stringify(stepData));
       const url = `http://localhost:3000/?step_0=${encodedStep}`;
       
-      const state = urlToQueryState(url);
-      expect(state.steps).toEqual([stepData]);
+      const query = urlToQuery(url);
+      expect(query.steps).toEqual([stepData]);
     });
 
     it('should handle malformed step data gracefully', () => {
       const url = 'http://localhost:3000/?step_0=invalid_json';
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
-      const state = urlToQueryState(url);
-      expect(state.steps).toBeUndefined();
+      const query = urlToQuery(url);
+      expect(query.steps).toBeUndefined();
       expect(consoleSpy).toHaveBeenCalledWith('Failed to parse step data:', expect.any(Error));
       
       consoleSpy.mockRestore();
@@ -191,36 +173,35 @@ describe('urlState pure functions', () => {
 
   describe('round-trip functionality', () => {
     it('should round-trip simple state correctly', () => {
-      const originalState: QueryState = {
-        table: 'products',
+      const originalQuery: Query = {
+        tableName: 'products',
         filters: [
           { type: 'exact', column: 'category', value: 'electronics' },
           { type: 'range', column: 'price', min: 10, max: 100 }
         ],
-        sortCol: 'name',
-        sortDir: 'asc',
-        steps: []
+        orderBy: 'name',
+        orderDir: 'ASC'
       };
 
-      const url = queryStateToUrl(baseUrl, originalState);
-      const roundTripState = urlToQueryState(url);
+      const url = queryToUrl(baseUrl, originalQuery);
+      const roundTripQuery = urlToQuery(url);
 
-      expect(roundTripState.table).toBe(originalState.table);
-      expect(roundTripState.filters).toEqual(originalState.filters);
-      expect(roundTripState.sortCol).toBe(originalState.sortCol);
-      expect(roundTripState.sortDir).toBe(originalState.sortDir);
-      // Empty steps array is not returned by urlToQueryState
-      expect(roundTripState.steps).toBeUndefined();
+      expect(roundTripQuery.tableName).toBe(originalQuery.tableName);
+      expect(roundTripQuery.filters).toEqual(originalQuery.filters);
+      expect(roundTripQuery.orderBy).toBe(originalQuery.orderBy);
+      expect(roundTripQuery.orderDir).toBe(originalQuery.orderDir);
+      // Empty steps array is not returned by urlToQuery
+      expect(roundTripQuery.steps).toBeUndefined();
     });
 
     it('should round-trip complex state with steps correctly', () => {
-      const originalState: QueryState = {
-        table: 'orders',
+      const originalQuery: Query = {
+        tableName: 'orders',
         filters: [
           { type: 'in', column: 'product_id', stepName: 'expensive_products', stepColumn: 'id' }
         ],
-        sortCol: 'order_date',
-        sortDir: 'desc',
+        orderBy: 'order_date',
+        orderDir: 'DESC',
         steps: [
           {
             name: 'expensive_products',
@@ -240,47 +221,41 @@ describe('urlState pure functions', () => {
         ]
       };
 
-      const url = queryStateToUrl(baseUrl, originalState);
-      const roundTripState = urlToQueryState(url);
+      const url = queryToUrl(baseUrl, originalQuery);
+      const roundTripQuery = urlToQuery(url);
 
-      expect(roundTripState.table).toBe(originalState.table);
-      expect(roundTripState.filters).toEqual(originalState.filters);
-      expect(roundTripState.sortCol).toBe(originalState.sortCol);
-      expect(roundTripState.sortDir).toBe(originalState.sortDir);
-      expect(roundTripState.steps).toEqual(originalState.steps);
+      expect(roundTripQuery.tableName).toBe(originalQuery.tableName);
+      expect(roundTripQuery.filters).toEqual(originalQuery.filters);
+      expect(roundTripQuery.orderBy).toBe(originalQuery.orderBy);
+      expect(roundTripQuery.orderDir).toBe(originalQuery.orderDir);
+      expect(roundTripQuery.steps).toEqual(originalQuery.steps);
     });
 
     it('should handle empty state correctly', () => {
-      const originalState: QueryState = {
-        table: '',
-        filters: [],
-        sortCol: '',
-        sortDir: '' as SortDirection,
-        steps: []
+      const originalQuery: Query = {
+        tableName: '',
+        filters: []
       };
 
-      const url = queryStateToUrl(baseUrl, originalState);
-      const roundTripState = urlToQueryState(url);
+      const url = queryToUrl(baseUrl, originalQuery);
+      const roundTripQuery = urlToQuery(url);
 
-      // Empty values should not be set in the state
-      expect(roundTripState.table).toBeUndefined();
-      expect(roundTripState.filters).toBeUndefined();
-      expect(roundTripState.sortCol).toBeUndefined();
-      expect(roundTripState.sortDir).toBeUndefined();
-      expect(roundTripState.steps).toBeUndefined();
+      // Empty values should not be set in the query
+      expect(roundTripQuery.tableName).toBeUndefined();
+      expect(roundTripQuery.filters).toBeUndefined();
+      expect(roundTripQuery.orderBy).toBeUndefined();
+      expect(roundTripQuery.orderDir).toBeUndefined();
+      expect(roundTripQuery.steps).toBeUndefined();
     });
 
     it('should preserve URL parameters that are not related to query state', () => {
       const baseUrlWithParams = 'http://localhost:3000/?other_param=value&keep_me=true';
-      const state: QueryState = {
-        table: 'products',
-        filters: [],
-        sortCol: '',
-        sortDir: '' as SortDirection,
-        steps: []
+      const query: Query = {
+        tableName: 'products',
+        filters: []
       };
 
-      const result = queryStateToUrl(baseUrlWithParams, state);
+      const result = queryToUrl(baseUrlWithParams, query);
       expect(result).toContain('other_param=value');
       expect(result).toContain('keep_me=true');
       expect(result).toContain('table=products');

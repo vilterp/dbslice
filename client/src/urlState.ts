@@ -1,19 +1,11 @@
 // urlState.ts
 // Handles reading and writing app state to the URL (table, filters, sorting)
 
-import { Filter, QueryStep } from '../../src/types';
+import { Filter, QueryStep, Query } from '../../src/types';
 import { SortDirection } from './api';
 
-export interface QueryState {
-  table: string;
-  filters: Filter[];
-  sortCol: string;
-  sortDir: SortDirection;
-  steps: QueryStep[];
-}
-
-// Pure function to convert query state to URL string
-export function queryStateToUrl(baseUrl: string, state: QueryState): string {
+// Pure function to convert query to URL string
+export function queryToUrl(baseUrl: string, query: Query): string {
   const url = new URL(baseUrl);
   
   // Clear existing filter and step params
@@ -22,14 +14,14 @@ export function queryStateToUrl(baseUrl: string, state: QueryState): string {
   );
   keysToDelete.forEach(key => url.searchParams.delete(key));
 
-  if (state.table) {
-    url.searchParams.set('table', state.table);
+  if (query.tableName) {
+    url.searchParams.set('table', query.tableName);
   } else {
     url.searchParams.delete('table');
   }
 
   // Add current steps
-  state.steps.forEach((step, index) => {
+  (query.steps || []).forEach((step, index) => {
     const stepData = {
       name: step.name,
       tableName: step.tableName,
@@ -39,7 +31,7 @@ export function queryStateToUrl(baseUrl: string, state: QueryState): string {
   });
 
   // Add current filters
-  state.filters.forEach((filter) => {
+  query.filters.forEach((filter) => {
     let filterData: string;
     if (filter.type === 'range') {
       filterData = `:${filter.type}:${filter.min}:${filter.max}`;
@@ -55,23 +47,23 @@ export function queryStateToUrl(baseUrl: string, state: QueryState): string {
   url.searchParams.delete('sort');
   url.searchParams.delete('dir');
   // Add sort params if set
-  if (state.sortCol && state.sortDir) {
-    url.searchParams.set('sort', state.sortCol);
-    url.searchParams.set('dir', state.sortDir);
+  if (query.orderBy && query.orderDir) {
+    url.searchParams.set('sort', query.orderBy);
+    url.searchParams.set('dir', query.orderDir === 'ASC' ? 'asc' : 'desc');
   }
 
   return url.toString();
 }
 
-// Pure function to extract query state from URL string
-export function urlToQueryState(urlString: string): Partial<QueryState> {
+// Pure function to extract query from URL string
+export function urlToQuery(urlString: string): Partial<Query> {
   const url = new URL(urlString);
-  const state: Partial<QueryState> = {};
+  const query: Partial<Query> = {};
 
   // Extract table
   const table = url.searchParams.get('table');
   if (table) {
-    state.table = table;
+    query.tableName = table;
   }
 
   // Extract filters
@@ -105,7 +97,7 @@ export function urlToQueryState(urlString: string): Partial<QueryState> {
     }
   }
   if (filters.length > 0) {
-    state.filters = filters;
+    query.filters = filters;
   }
 
   // Extract steps
@@ -121,23 +113,23 @@ export function urlToQueryState(urlString: string): Partial<QueryState> {
     }
   }
   if (steps.length > 0) {
-    state.steps = steps;
+    query.steps = steps;
   }
 
   // Extract sort
   const sortCol = url.searchParams.get('sort');
-  const sortDir = url.searchParams.get('dir') as SortDirection;
+  const sortDir = url.searchParams.get('dir');
   if (sortCol && sortDir) {
-    state.sortCol = sortCol;
-    state.sortDir = sortDir;
+    query.orderBy = sortCol;
+    query.orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
   }
 
-  return state;
+  return query;
 }
 
 // Wrapper functions for browser usage
-export function updateURL(state: QueryState) {
-  const newUrl = queryStateToUrl(window.location.href, state);
+export function updateURL(query: Query) {
+  const newUrl = queryToUrl(window.location.href, query);
   window.history.replaceState({}, '', newUrl);
 }
 
@@ -148,18 +140,18 @@ export function loadFromURL(
   setSortColumn: (c: string) => void,
   setSortDirection: (d: SortDirection) => void
 ) {
-  const state = urlToQueryState(window.location.href);
+  const query = urlToQuery(window.location.href);
 
-  if (state.table && tables.some(table => table.table_name === state.table)) {
-    setSelectedTable(state.table);
+  if (query.tableName && tables.some(table => table.table_name === query.tableName)) {
+    setSelectedTable(query.tableName);
   }
 
-  if (state.filters) {
-    setFilters(state.filters);
+  if (query.filters) {
+    setFilters(query.filters);
   }
 
-  if (state.sortCol && state.sortDir) {
-    setSortColumn(state.sortCol);
-    setSortDirection(state.sortDir);
+  if (query.orderBy && query.orderDir) {
+    setSortColumn(query.orderBy);
+    setSortDirection(query.orderDir === 'ASC' ? 'asc' : 'desc');
   }
 }
