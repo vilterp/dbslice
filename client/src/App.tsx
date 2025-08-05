@@ -48,6 +48,19 @@ function App() {
         const url = new URL(window.location.href);
         const tableFromURL = url.searchParams.get("table");
         if (tableFromURL && !tabs.some((t) => t.queryState.query.tableName === tableFromURL)) {
+          // Parse steps
+          const urlSteps = [];
+          for (const [key, value] of url.searchParams.entries()) {
+            if (key.startsWith("step_")) {
+              try {
+                const stepData = JSON.parse(decodeURIComponent(value));
+                urlSteps.push(stepData);
+              } catch (e) {
+                console.warn("Failed to parse step data from URL:", value);
+              }
+            }
+          }
+          
           // Parse filters
           const urlFilters = [];
           for (const [key, value] of url.searchParams.entries()) {
@@ -61,6 +74,12 @@ function App() {
                   column,
                   min: parseFloat(min),
                   max: parseFloat(max),
+                });
+              } else if (type === "in" && min) {
+                urlFilters.push({
+                  type: "in" as const,
+                  column,
+                  stepName: min,
                 });
               } else {
                 urlFilters.push({
@@ -78,6 +97,7 @@ function App() {
           newTab.queryState.query.filters = urlFilters;
           newTab.queryState.query.orderBy = sortCol;
           newTab.queryState.query.orderDir = sortDir === "asc" ? "ASC" : sortDir === "desc" ? "DESC" : undefined;
+          newTab.queryState.query.steps = urlSteps;
           setTabs((tabs) => [...tabs, newTab]);
           setSelectedTabId(newTab.id);
         }
@@ -251,7 +271,8 @@ function App() {
         tab.queryState.query.tableName, 
         tab.queryState.query.filters, 
         tab.queryState.query.orderBy || "", 
-        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
+        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
+        tab.queryState.query.steps || []
       );
     }
   };
@@ -298,7 +319,8 @@ function App() {
         tab.queryState.query.tableName, 
         tab.queryState.query.filters, 
         tab.queryState.query.orderBy || "", 
-        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
+        tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : "",
+        tab.queryState.query.steps || []
       );
     }
     // Only run when selectedTabId or relevant tab state changes

@@ -1,14 +1,15 @@
 // urlState.ts
 // Handles reading and writing app state to the URL (table, filters, sorting)
 
-import { Filter } from '../../src/types';
+import { Filter, QueryStep } from '../../src/types';
 import { SortDirection } from './api';
 
 export function updateURL(
   table: string,
   filters: Filter[],
   sortCol: string,
-  sortDir: SortDirection
+  sortDir: SortDirection,
+  steps: QueryStep[] = []
 ) {
   const url = new URL(window.location.href);
 
@@ -18,15 +19,32 @@ export function updateURL(
     url.searchParams.delete('table');
   }
 
-  // Clear existing filter params
-  const keysToDelete = Array.from(url.searchParams.keys()).filter(key => key.startsWith('filter_'));
+  // Clear existing filter and step params
+  const keysToDelete = Array.from(url.searchParams.keys()).filter(key => 
+    key.startsWith('filter_') || key.startsWith('step_')
+  );
   keysToDelete.forEach(key => url.searchParams.delete(key));
+
+  // Add current steps
+  steps.forEach((step, index) => {
+    const stepData = {
+      name: step.name,
+      tableName: step.tableName,
+      filters: step.filters
+    };
+    url.searchParams.set(`step_${index}`, encodeURIComponent(JSON.stringify(stepData)));
+  });
 
   // Add current filters
   filters.forEach((filter) => {
-    const filterData = filter.type === 'range' ? 
-      `:${filter.type}:${filter.min}:${filter.max}` : 
-      `${filter.value}:${filter.type}`;
+    let filterData: string;
+    if (filter.type === 'range') {
+      filterData = `:${filter.type}:${filter.min}:${filter.max}`;
+    } else if (filter.type === 'in') {
+      filterData = `:${filter.type}:${filter.stepName}`;
+    } else {
+      filterData = `${filter.value}:${filter.type}`;
+    }
     url.searchParams.set(`filter_${filter.column}`, filterData);
   });
 
