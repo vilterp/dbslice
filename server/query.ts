@@ -438,7 +438,7 @@ function buildWhereClauseFromFilters(filters: Filter[]): string {
         conditions.push(`${sanitizeIdentifier(filter.column)} BETWEEN ${filter.min} AND ${filter.max}`);
         break;
       case 'in':
-        conditions.push(`${sanitizeIdentifier(filter.column)} IN (SELECT ${sanitizeIdentifier(filter.column)} FROM ${sanitizeIdentifier(filter.stepName)})`);
+        conditions.push(`${sanitizeIdentifier(filter.column)} IN (SELECT ${sanitizeIdentifier(filter.stepColumn)} FROM ${sanitizeIdentifier(filter.stepName)})`);
         break;
     }
   }
@@ -456,7 +456,8 @@ function buildCTEClause(steps: QueryStep[]): string {
     const sanitizedStepName = sanitizeIdentifier(step.name);
     const whereClause = buildWhereClauseFromFilters(step.filters);
     
-    cteStatements.push(`${sanitizedStepName} AS (SELECT * FROM ${sanitizedTableName}${whereClause})`);
+    const selectClause = step.selectColumn ? sanitizeIdentifier(step.selectColumn) : '*';
+    cteStatements.push(`${sanitizedStepName} AS (SELECT ${selectClause} FROM ${sanitizedTableName}${whereClause})`);
   }
   
   return `WITH ${cteStatements.join(', ')} `;

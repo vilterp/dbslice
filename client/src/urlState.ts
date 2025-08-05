@@ -41,7 +41,7 @@ export function updateURL(
     if (filter.type === 'range') {
       filterData = `:${filter.type}:${filter.min}:${filter.max}`;
     } else if (filter.type === 'in') {
-      filterData = `:${filter.type}:${filter.stepName}`;
+      filterData = `:${filter.type}:${filter.stepName}:${filter.stepColumn}`;
     } else {
       filterData = `${filter.value}:${filter.type}`;
     }

@@ -26,6 +26,7 @@ export interface QueryStep {
   name: string;
   tableName: string;
   filters: Filter[];
+  selectColumn?: string; // Column to select for joining, defaults to * if not specified
 }
 
 // Filter types
@@ -48,6 +49,7 @@ export interface InFilter {
   type: 'in';
   column: string;
   stepName: string;
+  stepColumn: string;
 }
 
 // API data types

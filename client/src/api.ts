@@ -1,5 +1,6 @@
 import { 
   Filter, 
+  Query,
   SortDirection, 
   Table, 
   Column, 
@@ -33,37 +34,18 @@ export async function fetchColumns(selectedTable: string): Promise<Column[]> {
   return response.json();
 }
 
-export async function fetchTableData(
-  selectedTable: string,
-  filters: Filter[],
-  sortColumn: string,
-  sortDirection: SortDirection
-): Promise<TableDataResponse> {
-  const exactFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'exact') {
-      acc[filter.column] = filter.value;
-    }
-    return acc;
-  }, {} as { [key: string]: string });
-
-  const rangeFilters = filters.reduce((acc, filter) => {
-    if (filter.type === 'range') {
-      acc[filter.column] = { min: filter.min, max: filter.max };
-    }
-    return acc;
-  }, {} as { [key: string]: { min: number; max: number } });
-
+export async function fetchTableData(query: Query): Promise<TableDataResponse> {
   const body: any = { 
-    filters: exactFilters, 
-    rangeFilters: rangeFilters,
-    limit: 100 
+    filters: query.filters,
+    steps: query.steps || [],
+    limit: query.limit || 100 
   };
-  if (sortColumn && sortDirection) {
-    body.orderBy = sortColumn;
-    body.orderDir = sortDirection;
+  if (query.orderBy && query.orderDir) {
+    body.orderBy = query.orderBy;
+    body.orderDir = query.orderDir === 'ASC' ? 'asc' : 'desc';
   }
 
-  const response = await fetch(`http://localhost:3001/api/tables/${selectedTable}/data`, {
+  const response = await fetch(`http://localhost:3001/api/tables/${query.tableName}/data`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

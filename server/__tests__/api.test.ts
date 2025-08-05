@@ -1354,11 +1354,12 @@ describe('API Endpoints', () => {
               tableName: 'test_customers',
               filters: [
                 { type: 'exact', column: 'name', value: 'John Doe' }
-              ]
+              ],
+              selectColumn: 'customer_id'
             }
           ],
           filters: [
-            { type: 'in', column: 'customer_id', stepName: 'filtered_customers' }
+            { type: 'in', column: 'customer_id', stepName: 'filtered_customers', stepColumn: 'customer_id' }
           ]
         });
 
@@ -1385,11 +1386,12 @@ describe('API Endpoints', () => {
             {
               name: 'all_customers',
               tableName: 'test_customers',
-              filters: []
+              filters: [],
+              selectColumn: 'customer_id'
             }
           ],
           filters: [
-            { type: 'in', column: 'customer_id', stepName: 'all_customers' }
+            { type: 'in', column: 'customer_id', stepName: 'all_customers', stepColumn: 'customer_id' }
           ]
         });
 
@@ -1414,11 +1416,12 @@ describe('API Endpoints', () => {
               tableName: 'test_customers',
               filters: [
                 { type: 'exact', column: 'name', value: 'John Doe' }
-              ]
+              ],
+              selectColumn: 'customer_id'
             }
           ],
           filters: [
-            { type: 'in', column: 'customer_id', stepName: 'premium_customers' },
+            { type: 'in', column: 'customer_id', stepName: 'premium_customers', stepColumn: 'customer_id' },
             { type: 'range', column: 'total_amount', min: 1000, max: 3000 }
           ]
         });

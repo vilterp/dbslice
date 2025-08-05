@@ -66,7 +66,7 @@ function App() {
           for (const [key, value] of url.searchParams.entries()) {
             if (key.startsWith("filter_")) {
               const column = key.replace("filter_", "");
-              const [filterValue, type = "exact", min, max] = value.split(":");
+              const [filterValue, type = "exact", min, max, stepColumn] = value.split(":");
               
               if (type === "range" && min && max) {
                 urlFilters.push({
@@ -75,11 +75,12 @@ function App() {
                   min: parseFloat(min),
                   max: parseFloat(max),
                 });
-              } else if (type === "in" && min) {
+              } else if (type === "in" && min && stepColumn) {
                 urlFilters.push({
                   type: "in" as const,
                   column,
                   stepName: min,
+                  stepColumn: stepColumn,
                 });
               } else {
                 urlFilters.push({
@@ -157,12 +158,7 @@ function App() {
         );
         
         // Fetch table data
-        fetchTableData(
-          tab.queryState.query.tableName, 
-          tab.queryState.query.filters, 
-          tab.queryState.query.orderBy || "", 
-          tab.queryState.query.orderDir === "ASC" ? "asc" : tab.queryState.query.orderDir === "DESC" ? "desc" : ""
-        )
+        fetchTableData(tab.queryState.query)
           .then((result) => {
             setTabs((prevTabs) =>
               prevTabs.map((t) =>
@@ -243,14 +239,16 @@ function App() {
     const cteStep = {
       name: stepName,
       tableName: currentTable,
-      filters: currentFilters
+      filters: currentFilters,
+      selectColumn: joinColumn
     };
     
     // Add the IN filter to join the tables
     const inFilter = {
       type: 'in' as const,
       column: targetColumn,
-      stepName: stepName
+      stepName: stepName,
+      stepColumn: joinColumn
     };
     
     // Set up the new query with CTE and IN filter
