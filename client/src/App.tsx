@@ -10,7 +10,7 @@ import {
   fetchTableData,
 } from "./api";
 import { Query } from "../../src/types";
-import { updateURL, urlToQuery } from "./urlState";
+import { updateURL, urlToAppState, AppUrlState, TabUrlState } from "./urlState";
 
 // Import the TabState type from Tab component to avoid duplication
 import { TabState } from './Tab';
@@ -44,19 +44,31 @@ function App() {
     fetchTables()
       .then((data) => {
         setTables(data);
-        // Load query state from URL
-        const queryFromURL = urlToQuery(window.location.href);
-        if (queryFromURL.tableName && !tabs.some((t) => t.queryState.query.tableName === queryFromURL.tableName)) {
-          const newTab = makeDefaultTab(queryFromURL.tableName);
-          newTab.queryState.query = {
-            tableName: queryFromURL.tableName,
-            filters: queryFromURL.filters || [],
-            orderBy: queryFromURL.orderBy || "",
-            orderDir: queryFromURL.orderDir,
-            steps: queryFromURL.steps || []
-          };
-          setTabs((tabs) => [...tabs, newTab]);
-          setSelectedTabId(newTab.id);
+        
+        // Load app state from URL
+        const stateFromURL = urlToAppState(window.location.href);
+        
+        if (stateFromURL && stateFromURL.tabs.length > 0) {
+          // Convert URL tab state to full TabState objects
+          const urlTabs = stateFromURL.tabs.map(urlTab => ({
+            id: urlTab.id,
+            name: urlTab.name,
+            queryState: {
+              query: urlTab.query,
+              state: { type: "idle" as const },
+            },
+            columns: [],
+            collapsedColumns: new Set<string>(),
+            headerMenu: null,
+          }));
+          
+          setTabs(urlTabs);
+          setSelectedTabId(stateFromURL.selectedTabId || urlTabs[0].id);
+        } else {
+          // No state in URL - create a default tab
+          const defaultTab = makeDefaultTab();
+          setTabs([defaultTab]);
+          setSelectedTabId(defaultTab.id);
         }
       })
       .catch((e) => console.error("Error fetching tables:", e));
@@ -65,6 +77,18 @@ function App() {
     // We intentionally do not add tabs as a dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Helper function to create app state for URL
+  const getAppState = (): AppUrlState => {
+    return {
+      tabs: tabs.map(tab => ({
+        id: tab.id,
+        name: tab.name,
+        query: tab.queryState.query
+      })),
+      selectedTabId: selectedTabId || undefined
+    };
+  };
 
   // Helper function to create query signature
   const getQuerySignature = (query: Query) => {
@@ -219,10 +243,6 @@ function App() {
   // When switching tabs, update the URL to reflect the selected tab's query state
   const handleTabClick = (tabId: string) => {
     setSelectedTabId(tabId);
-    const tab = tabs.find((t) => t.id === tabId);
-    if (tab) {
-      updateURL(tab.queryState.query);
-    }
   };
   const handleTabClose = (tabId: string) => {
     setTabs((tabs) => {
@@ -259,19 +279,12 @@ function App() {
 
   const currentTab = tabs.find((t) => t.id === selectedTabId);
 
-  // When filters or sort change on the selected tab, update the URL
+  // Update URL whenever tabs or selectedTabId changes
   useEffect(() => {
-    const tab = tabs.find((t) => t.id === selectedTabId);
-    if (tab) {
-      updateURL(tab.queryState.query);
+    if (tabs.length > 0) {
+      updateURL(getAppState());
     }
-    // Only run when selectedTabId or relevant tab state changes
-  }, [
-    selectedTabId,
-    tabs.find((t) => t.id === selectedTabId)?.queryState.query.filters,
-    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderBy,
-    tabs.find((t) => t.id === selectedTabId)?.queryState.query.orderDir,
-  ]);
+  }, [tabs, selectedTabId]);
 
   return (
     <div className="App">

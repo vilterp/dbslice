@@ -1,61 +1,60 @@
 // urlState.ts
-// Handles reading and writing app state to the URL (table, filters, sorting)
+// Handles reading and writing app state to the URL (all tabs and selected tab)
 
-import { Filter, QueryStep, Query } from '../../src/types';
-import { SortDirection } from './api';
+import { Query } from '../../src/types';
 
-// Pure function to convert query to URL string
-export function queryToUrl(baseUrl: string, query: Query): string {
+// Interface for tab state that we store in the URL
+export interface TabUrlState {
+  id: string;
+  name?: string;
+  query: Query;
+}
+
+export interface AppUrlState {
+  tabs: TabUrlState[];
+  selectedTabId?: string;
+}
+
+// Pure function to convert app state to URL string
+export function appStateToUrl(baseUrl: string, state: AppUrlState): string {
   const url = new URL(baseUrl);
   
-  // Clear existing filter and step params
+  if (state.tabs.length > 0) {
+    const stateJson = JSON.stringify(state);
+    url.searchParams.set('state', btoa(stateJson)); // base64 encode to make URL cleaner
+  } else {
+    url.searchParams.delete('state');
+  }
+  
+  // Clean up old query params if they exist
   const keysToDelete = Array.from(url.searchParams.keys()).filter(key => 
-    key.startsWith('filter_') || key.startsWith('step_')
+    key.startsWith('filter_') || key.startsWith('step_') || key === 'table' || key === 'sort' || key === 'dir'
   );
   keysToDelete.forEach(key => url.searchParams.delete(key));
-
-  if (query.tableName) {
-    url.searchParams.set('table', query.tableName);
-  } else {
-    url.searchParams.delete('table');
-  }
-
-  // Add current steps
-  (query.steps || []).forEach((step, index) => {
-    const stepData = {
-      name: step.name,
-      tableName: step.tableName,
-      filters: step.filters
-    };
-    url.searchParams.set(`step_${index}`, encodeURIComponent(JSON.stringify(stepData)));
-  });
-
-  // Add current filters
-  query.filters.forEach((filter) => {
-    let filterData: string;
-    if (filter.type === 'range') {
-      filterData = `:${filter.type}:${filter.min}:${filter.max}`;
-    } else if (filter.type === 'in') {
-      filterData = `:${filter.type}:${filter.stepName}:${filter.stepColumn}`;
-    } else {
-      filterData = `${filter.value}:${filter.type}`;
-    }
-    url.searchParams.set(`filter_${filter.column}`, filterData);
-  });
-
-  // Remove old sort params
-  url.searchParams.delete('sort');
-  url.searchParams.delete('dir');
-  // Add sort params if set
-  if (query.orderBy && query.orderDir) {
-    url.searchParams.set('sort', query.orderBy);
-    url.searchParams.set('dir', query.orderDir === 'ASC' ? 'asc' : 'desc');
-  }
 
   return url.toString();
 }
 
-// Pure function to extract query from URL string
+// Pure function to extract app state from URL string
+export function urlToAppState(urlString: string): AppUrlState | null {
+  const url = new URL(urlString);
+  const stateParam = url.searchParams.get('state');
+  
+  if (!stateParam) {
+    return null;
+  }
+  
+  try {
+    const stateJson = atob(stateParam); // base64 decode
+    const state = JSON.parse(stateJson) as AppUrlState;
+    return state;
+  } catch (error) {
+    console.warn('Failed to parse state from URL:', error);
+    return null;
+  }
+}
+
+// Legacy function to extract single query from URL (for backward compatibility with tests)
 export function urlToQuery(urlString: string): Partial<Query> {
   const url = new URL(urlString);
   const query: Partial<Query> = {
@@ -70,7 +69,7 @@ export function urlToQuery(urlString: string): Partial<Query> {
   }
 
   // Extract filters
-  const filters: Filter[] = [];
+  const filters: any[] = [];
   for (const [key, value] of url.searchParams.entries()) {
     if (key.startsWith('filter_')) {
       const column = key.replace('filter_', '');
@@ -104,7 +103,7 @@ export function urlToQuery(urlString: string): Partial<Query> {
   query.filters = filters;
 
   // Extract steps
-  const steps: QueryStep[] = [];
+  const steps: any[] = [];
   for (const [key, value] of url.searchParams.entries()) {
     if (key.startsWith('step_')) {
       try {
@@ -131,7 +130,7 @@ export function urlToQuery(urlString: string): Partial<Query> {
 }
 
 // Wrapper functions for browser usage
-export function updateURL(query: Query) {
-  const newUrl = queryToUrl(window.location.href, query);
+export function updateURL(state: AppUrlState) {
+  const newUrl = appStateToUrl(window.location.href, state);
   window.history.replaceState({}, '', newUrl);
 }
