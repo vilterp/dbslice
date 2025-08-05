@@ -432,7 +432,7 @@ describe('API Endpoints', () => {
         .post('/api/tables/products/columns/category/histogram')
         .send({
           column_type: 'text',
-          filters: { in_stock: '1' }
+          filters: [{ type: 'exact', column: 'in_stock', value: '1' }]
         })
         .expect(200);
 
@@ -654,7 +654,7 @@ describe('API Endpoints', () => {
         .post('/api/tables/products/columns/category/histogram')
         .send({ 
           column_type: 'text',
-          filters: { in_stock: 'true' }
+          filters: [{ type: 'exact', column: 'in_stock', value: 'true' }]
         })
         .expect(200);
 
@@ -671,7 +671,7 @@ describe('API Endpoints', () => {
         .post('/api/tables/products/columns/category/histogram')
         .send({ 
           column_type: 'text',
-          rangeFilters: { price: { min: 100, max: 300 } }
+          filters: [{ type: 'range', column: 'price', min: 100, max: 300 }]
         })
         .expect(200);
 
@@ -687,7 +687,7 @@ describe('API Endpoints', () => {
         .post('/api/tables/products/columns/price/histogram')
         .send({ 
           column_type: 'decimal',
-          filters: { category: 'Electronics' }
+          filters: [{ type: 'exact', column: 'category', value: 'Electronics' }]
         })
         .expect(200);
 
@@ -704,7 +704,7 @@ describe('API Endpoints', () => {
         .post('/api/tables/customers/columns/age/histogram')
         .send({ 
           column_type: 'integer',
-          rangeFilters: { total_spent: { min: 1000, max: 2000 } }
+          filters: [{ type: 'range', column: 'total_spent', min: 1000, max: 2000 }]
         })
         .expect(200);
 
@@ -721,8 +721,10 @@ describe('API Endpoints', () => {
         .post('/api/tables/products/columns/category/histogram')
         .send({ 
           column_type: 'text',
-          filters: { in_stock: 'true' },
-          rangeFilters: { price: { min: 50, max: 500 } }
+          filters: [
+            { type: 'exact', column: 'in_stock', value: 'true' },
+            { type: 'range', column: 'price', min: 50, max: 500 }
+          ]
         })
         .expect(200);
 
@@ -739,8 +741,10 @@ describe('API Endpoints', () => {
         .post('/api/tables/products/columns/price/histogram')
         .send({ 
           column_type: 'decimal',
-          rangeFilters: { price: { min: 100, max: 200 } }, // This should be ignored
-          filters: { category: 'Electronics' } // This should be applied
+          filters: [
+            { type: 'range', column: 'price', min: 100, max: 200 }, // This should be ignored
+            { type: 'exact', column: 'category', value: 'Electronics' } // This should be applied
+          ]
         })
         .expect(200);
 
@@ -758,8 +762,10 @@ describe('API Endpoints', () => {
         .post('/api/tables/products/columns/category/histogram')
         .send({ 
           column_type: 'text',
-          filters: { in_stock: 'true' },
-          rangeFilters: { price: { min: 50, max: 500 } }
+          filters: [
+            { type: 'exact', column: 'in_stock', value: 'true' },
+            { type: 'range', column: 'price', min: 50, max: 500 }
+          ]
         })
         .expect(200);
 
@@ -871,9 +877,7 @@ describe('API Endpoints', () => {
         .send({
           column_type: 'text',
           top_n: 2,
-          rangeFilters: {
-            value: { min: 200, max: 800 } // This should exclude cat_a (100s) and cat_i/cat_j (900+)
-          }
+          filters: [{ type: 'range', column: 'value', min: 200, max: 800 }] // This should exclude cat_a (100s) and cat_i/cat_j (900+)
         })
         .expect(200);
 
