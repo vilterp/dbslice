@@ -22,7 +22,7 @@ const QuerySection: React.FC<QuerySectionProps> = ({
   return (
     <div className="query-section">
       <div className="query-content">
-        {title && <div className="query-section-title">{title}:</div>}
+        {title && <div className="query-section-title">{title}<span className="colon">:</span></div>}
         
         <div className="table-selector">
           <label htmlFor="table-select">Table:</label>

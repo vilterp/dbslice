@@ -28,6 +28,10 @@
   flex-shrink: 0;
 }
 
+.query-section-title .colon {
+  color: #333;
+}
+
 .query-content {
   display: flex;
   gap: 1rem;
