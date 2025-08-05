@@ -14,7 +14,14 @@ const Filter: React.FC<FilterProps> = ({ filter, onRemove }) => {
       case 'range':
         return `${filter.min} - ${filter.max}`;
       case 'in':
-        return `IN ${filter.stepName}`;
+        return (
+          <>
+            IN{' '}
+            <span style={{ color: '#6f42c1', fontWeight: 600 }}>
+              {filter.stepName}
+            </span>
+          </>
+        );
     }
   };
 
