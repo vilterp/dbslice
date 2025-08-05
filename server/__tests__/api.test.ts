@@ -1343,25 +1343,6 @@ describe('API Endpoints', () => {
       `);
     });
 
-    it('should execute CTE queries with IN filters correctly', async () => {
-      // Test the CTE + IN filter SQL generation directly
-      const cteQuery = `
-        WITH filtered_customers AS (
-          SELECT * FROM test_customers WHERE name = 'John Doe'
-        )
-        SELECT * FROM test_orders 
-        WHERE customer_id IN (SELECT customer_id FROM filtered_customers)
-      `;
-
-      const result = await runQuery(cteQuery);
-      
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBe(2); // John Doe has 2 orders
-      result.forEach((order: any) => {
-        expect(order.customer_id).toBe(101);
-      });
-    });
-
     it('should handle POST request with CTE steps and IN filters', async () => {
       // Test the API endpoint with the new query structure
       const response = await request(app)
