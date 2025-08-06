@@ -76,6 +76,7 @@
 }
 
 .discrete-histogram {
+  display: block;
   /* minHeight is still set inline for dynamic height */
 }
 
@@ -87,9 +88,6 @@
   outline: none;
   width: 100%;
   box-sizing: border-box;
-}
-.histogram-bar.discrete-bar.checked {
-  /* Optionally style checked bars */
 }
 
 .histogram-checkbox {

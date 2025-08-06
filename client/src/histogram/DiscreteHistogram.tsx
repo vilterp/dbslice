@@ -66,7 +66,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
         const isOthers = item.is_others === true;
         const value = String(item[columnName]);
         const checked = filters.some((f: Filter) => 
-          f.column === columnName && f.type === 'exact' && f.value === value
+          f.column === columnName && f.type === 'exact' && String(f.value) === value
         );
         let displayValue;
         if (isOthers) {

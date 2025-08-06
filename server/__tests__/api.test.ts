@@ -1328,6 +1328,97 @@ describe('API Endpoints', () => {
     });
   });
 
+  describe('Filtered discrete histogram behavior', () => {
+    it('should show only the filtered value for discrete histograms when column is filtered', async () => {
+      // When requesting a histogram for a column that has an exact filter,
+      // the histogram should show only that filtered value
+      const response = await request(app)
+        .post('/api/tables/products/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          filters: [
+            { type: 'exact', column: 'category', value: 'Electronics' }, // Filter for Electronics
+            { type: 'exact', column: 'in_stock', value: true } // Other filter should still apply
+          ]
+        });
+
+      if (response.status !== 200) {
+        console.log('Filtered discrete histogram error:', response.status, response.body);
+      }
+      
+      expect(response.status).toBe(200);
+      expect(response.body).toBeInstanceOf(Array);
+      expect(response.body.length).toBe(1); // Should only show the filtered value
+      
+      const histogramItem = response.body[0];
+      expect(histogramItem.category).toBe('Electronics');
+      expect(typeof histogramItem.count).toBe('number'); // Should provide actual count for filtered value
+    });
+
+    it('should show normal histogram when no filter exists for that column', async () => {
+      // Normal behavior - when column is not filtered, show all values
+      const response = await request(app)
+        .post('/api/tables/products/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          filters: [
+            { type: 'exact', column: 'in_stock', value: true } // Filter on different column
+          ]
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      expect(response.body.length).toBeGreaterThan(1); // Should show multiple categories
+      
+      // None should be marked as filtered
+      response.body.forEach((item: any) => {
+        expect(item.is_filtered).toBeUndefined();
+        expect(typeof item.count).toBe('number');
+      });
+    });
+
+    it('should show normal histogram for numerical columns even when filtered', async () => {
+      // Numerical histograms should still show the full distribution even when filtered
+      const response = await request(app)
+        .post('/api/tables/products/columns/price/histogram')
+        .send({
+          column_type: 'decimal',
+          filters: [
+            { type: 'exact', column: 'price', value: 29.99 } // Filter on the price column itself
+          ]
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      // Should still show histogram bins, not just the filtered value
+      response.body.forEach((item: any) => {
+        expect(item).toHaveProperty('bin_start');
+        expect(item).toHaveProperty('bin_end');
+        expect(item).toHaveProperty('count');
+        expect(item.is_filtered).toBeUndefined(); // Numerical histograms don't get special filtered treatment
+      });
+    });
+
+    it('should handle multiple exact filters correctly, only affecting the histogram column', async () => {
+      // Test with multiple filters - only the one for the histogram column should trigger special behavior
+      const response = await request(app)
+        .post('/api/tables/products/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          filters: [
+            { type: 'exact', column: 'category', value: 'Furniture' }, // This should trigger filtered behavior
+            { type: 'exact', column: 'in_stock', value: true },       // This should be ignored for histogram
+            { type: 'range', column: 'price', min: 50, max: 500 }      // This should be ignored for histogram
+          ]
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      expect(response.body.length).toBe(1);
+      expect(response.body[0].category).toBe('Furniture');
+    });
+  });
+
   describe('Numeric filter bug fix', () => {
     it('should handle numeric exact filters in histogram without throwing "replace is not a function" error', async () => {
       // This test reproduces the original bug where numeric filters in histograms caused
@@ -1393,6 +1484,24 @@ describe('API Endpoints', () => {
       response.body.data.forEach((product: any) => {
         expect(product.in_stock).toBe(false);
       });
+    });
+
+    it('should handle numeric filter values in discrete histograms (string vs number comparison)', async () => {
+      // This tests the specific bug where numeric filter values weren't matching string histogram values
+      const response = await request(app)
+        .post('/api/tables/products/columns/id/histogram')
+        .send({
+          column_type: 'integer',
+          filters: [
+            { type: 'exact', column: 'id', value: 1 } // Numeric value that should match
+          ]
+        })
+        .expect(200);
+
+      expect(response.body).toBeInstanceOf(Array);
+      expect(response.body.length).toBe(1); // Should show only the filtered ID
+      expect(response.body[0].id).toBe(1);
+      expect(typeof response.body[0].count).toBe('number');
     });
   });
 

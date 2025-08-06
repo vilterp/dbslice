@@ -86,6 +86,11 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
   // Build WHERE clause for histogram using the unified filters
   const { whereClause } = buildHistogramWhereClauseFromFilters(filters, columnName);
   
+  // Check if there's an exact filter for this column
+  const exactFilterForColumn = filters.find(filter => 
+    filter.type === 'exact' && filter.column === columnName
+  ) as { type: 'exact'; column: string; value: string } | undefined;
+  
   // Check if column is numerical for binning
   const isNumerical = isNumericalColumnType(columnType);
   
@@ -96,12 +101,24 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
     const numBins = Math.max(1, Math.min(bins, 100)); // Limit between 1 and 100 bins
     return transformNumericalHistogramResults(rawHistogram, numBins);
   } else {
-    // For categorical columns, use simple GROUP BY COUNT
-    // Get top N categories plus calculate "others"
-    const topLimit = Math.max(1, Math.min(topN, 20)); // Limit between 1 and 20
-    const histogramQuerySQL = buildCategoricalHistogramQuery(cteClause, tableName, columnName, whereClause, topLimit + 1);
-    const rawHistogram = await queryRunner(histogramQuerySQL);
-    return await transformCategoricalHistogramResults(rawHistogram, topLimit, columnName, tableName, cteClause, whereClause, queryRunner);
+    // For discrete/categorical columns
+    if (exactFilterForColumn) {
+      // If there's an exact filter for this column, get the count for that filtered value
+      const countQuery = `${cteClause}SELECT COUNT(*) as count FROM ${sanitizeIdentifier(tableName)}${whereClause}`;
+      const countResult = await queryRunner(countQuery);
+      const filteredCount = countResult[0]?.count || 0;
+      
+      return [{
+        [columnName]: exactFilterForColumn.value,
+        count: Number(filteredCount)
+      }];
+    } else {
+      // Normal categorical histogram - get top N categories plus calculate "others"
+      const topLimit = Math.max(1, Math.min(topN, 20)); // Limit between 1 and 20
+      const histogramQuerySQL = buildCategoricalHistogramQuery(cteClause, tableName, columnName, whereClause, topLimit + 1);
+      const rawHistogram = await queryRunner(histogramQuerySQL);
+      return await transformCategoricalHistogramResults(rawHistogram, topLimit, columnName, tableName, cteClause, whereClause, queryRunner);
+    }
   }
 };
 
