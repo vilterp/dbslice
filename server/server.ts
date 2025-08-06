@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import * as duckdb from 'duckdb';
 import * as path from 'path';
-import { requestLogger, timeoutMiddleware } from './middleware';
+import { requestLogger, timeoutMiddleware, errorHandler } from './middleware';
 import { Config } from './config';
 import { 
   createQueryRunner,
@@ -12,6 +12,7 @@ import {
 } from './query';
 import { sanitizeIdentifier } from './sanitize';
 import { Query, HistogramQuery, Filter } from '../src/types';
+import logger from './logger';
 
 
 
@@ -226,7 +227,16 @@ export function createServer(db: duckdb.Database, config: Config) {
       
       res.json(histogram);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      logger.error('Histogram query failed', {
+        method: req.method,
+        path: req.path,
+        tableName: req.params.tableName,
+        columnName: req.params.columnName,
+        filters: req.body.filters,
+        error: (error as Error).message,
+        stack: (error as Error).stack
+      });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -263,6 +273,9 @@ export function createServer(db: duckdb.Database, config: Config) {
       res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
     });
   }
+
+  // Add global error handler (must be last)
+  app.use(errorHandler);
 
   // Return app and runQuery for testing
   return { app, runQuery: runSQLQuery };

@@ -43,3 +43,24 @@ export function timeoutMiddleware(req: Request, res: Response, next: Function) {
   
   next();
 }
+
+// Global error handling middleware
+export function errorHandler(error: Error, req: Request, res: Response, next: Function) {
+  logger.error('Unhandled error in request', {
+    method: req.method,
+    path: req.path,
+    query: req.query,
+    body: req.body,
+    error: error.message,
+    stack: error.stack
+  });
+
+  // Don't send error details to client in production
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  
+  if (!res.headersSent) {
+    res.status(500).json({ 
+      error: isDevelopment ? error.message : 'Internal server error'
+    });
+  }
+}
