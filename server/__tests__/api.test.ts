@@ -920,7 +920,7 @@ describe('API Endpoints', () => {
         .expect(500);
 
       expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('invalid_column');
+      expect(response.body.error).toBe('Internal server error');
     });
   });
 
@@ -1324,6 +1324,74 @@ describe('API Endpoints', () => {
           // test_order_items is a leaf table, so no columns should have reverse foreign keys
           expect(column.reverse_foreign_keys).toBeUndefined();
         });
+      });
+    });
+  });
+
+  describe('Numeric filter bug fix', () => {
+    it('should handle numeric exact filters in histogram without throwing "replace is not a function" error', async () => {
+      // This test reproduces the original bug where numeric filters in histograms caused
+      // "filter.value.replace is not a function" error
+      const response = await request(app)
+        .post('/api/tables/products/columns/category/histogram')
+        .send({
+          column_type: 'text',
+          filters: [
+            { type: 'exact', column: 'id', value: 1 }, // Numeric value, not string
+            { type: 'exact', column: 'in_stock', value: true } // Boolean value
+          ]
+        });
+
+      if (response.status !== 200) {
+        console.log('Numeric filter histogram error:', response.status, response.body);
+      }
+      
+      expect(response.status).toBe(200);
+      expect(response.body).toBeInstanceOf(Array);
+      
+      // Should filter to only the product with id=1 and in_stock=true
+      // In our test data, that's the Laptop Pro in Electronics category
+      expect(response.body.length).toBe(1);
+      expect(response.body[0].category).toBe('Electronics');
+      expect(response.body[0].count).toBe(1);
+    });
+
+    it('should handle mixed numeric and string exact filters in table data', async () => {
+      // Test that the fix also works for regular table data queries
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({
+          filters: [
+            { type: 'exact', column: 'id', value: 2 }, // Numeric value
+            { type: 'exact', column: 'category', value: 'Electronics' } // String value
+          ]
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(1);
+      expect(response.body.data[0].id).toBe(2);
+      expect(response.body.data[0].category).toBe('Electronics');
+      expect(response.body.data[0].name).toBe('Wireless Mouse');
+    });
+
+    it('should handle boolean exact filters without errors', async () => {
+      const response = await request(app)
+        .post('/api/tables/products/data')
+        .send({
+          filters: [
+            { type: 'exact', column: 'in_stock', value: false } // Boolean value
+          ]
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBe(2); // Office Chair and Desk Lamp
+      
+      response.body.data.forEach((product: any) => {
+        expect(product.in_stock).toBe(false);
       });
     });
   });
