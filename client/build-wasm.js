@@ -89,6 +89,25 @@ async function build() {
           servedir: outdir,
           port: 3003,
           host: 'localhost',
+          onRequest: (args) => {
+            // Add CORS headers for WASM files
+            if (args.path.endsWith('.wasm')) {
+              return {
+                headers: {
+                  'Cross-Origin-Embedder-Policy': 'require-corp',
+                  'Cross-Origin-Opener-Policy': 'same-origin',
+                  'Content-Type': 'application/wasm',
+                }
+              };
+            }
+            if (args.path.endsWith('.worker.js')) {
+              return {
+                headers: {
+                  'Content-Type': 'application/javascript',
+                }
+              };
+            }
+          }
         });
         
         console.log(`🚀 WASM development server running at http://localhost:${serve.port}`);

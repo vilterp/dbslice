@@ -1,29 +1,46 @@
 import { Database } from './database';
+import { BaseDuckDBDatabase } from './BaseDuckDBDatabase';
 import { 
-  Table, 
   Column, 
   Query, 
   HistogramQuery, 
   TableDataResponse, 
-  HistogramResult,
-  NUMERICAL_COLUMN_TYPES
+  HistogramResult
 } from './types';
 
 import * as duckdb from '@duckdb/duckdb-wasm';
 
-export class WasmDatabase implements Database {
+export class WasmDatabase extends BaseDuckDBDatabase implements Database {
   private db: duckdb.AsyncDuckDB | null = null;
   private conn: duckdb.AsyncDuckDBConnection | null = null;
   private initialized: boolean = false;
 
   constructor() {
-    // Database will be initialized when first method is called
+    super();
+  }
+
+  protected async executeQuery(sql: string): Promise<any[]> {
+    await this.ensureInitialized();
+    const result = await this.conn!.query(sql);
+    
+    const rows: any[] = [];
+    for (let i = 0; i < result.numRows; i++) {
+      rows.push(result.get(i));
+    }
+    return rows;
+  }
+
+  protected shouldSkipHistogram(tableName: string, columnName: string): boolean {
+    // WASM version doesn't have config restrictions, so never skip histograms
+    return false;
   }
 
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) return;
 
     try {
+      console.log('Initializing DuckDB WASM...');
+      
       // Initialize DuckDB WASM
       const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
         mvp: {
@@ -37,147 +54,107 @@ export class WasmDatabase implements Database {
       };
 
       // Select a bundle based on browser capabilities
+      console.log('Selecting DuckDB bundle...');
       const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
+      console.log('Selected bundle:', bundle);
       
       // Instantiate the async version of DuckDB-wasm
+      console.log('Creating worker...');
       const worker = new Worker(bundle.mainWorker!);
-      const logger = new duckdb.ConsoleLogger();
+      
+      // Add error handler for worker
+      worker.onerror = (error) => {
+        console.error('Worker error:', error);
+      };
+      
+      const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
+      console.log('Creating AsyncDuckDB instance...');
       this.db = new duckdb.AsyncDuckDB(logger, worker);
+      
+      console.log('Instantiating DuckDB...');
       await this.db.instantiate(bundle.mainModule);
       
       // Create connection
+      console.log('Creating connection...');
       this.conn = await this.db.connect();
       
+      console.log('DuckDB WASM initialized successfully');
       this.initialized = true;
     } catch (error) {
+      console.error('Failed to initialize DuckDB WASM:', error);
       throw new Error(`Failed to initialize DuckDB WASM: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async loadFile(file: File): Promise<void> {
+    console.log('Loading file:', file.name, 'Size:', file.size);
     await this.ensureInitialized();
-    
-    // Read file as ArrayBuffer
-    const buffer = await file.arrayBuffer();
-    
-    // Register the file with DuckDB WASM
-    await this.db!.registerFileBuffer(file.name, new Uint8Array(buffer));
-    
-    // Attach the database file
-    await this.conn!.query(`ATTACH '${file.name}' AS main`);
-  }
-
-  async getTables(): Promise<Table[]> {
-    await this.ensureInitialized();
-    
-    const result = await this.conn!.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'main'
-    `);
-    
-    const tables: Table[] = [];
-    for (let i = 0; i < result.numRows; i++) {
-      tables.push({ table_name: result.get(i)?.table_name });
-    }
-    return tables;
-  }
-
-  async getColumns(tableName: string): Promise<Column[]> {
-    await this.ensureInitialized();
-    
-    const result = await this.conn!.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = '${this.sanitizeIdentifier(tableName)}'
-    `);
-    
-    // Get foreign key information (if available in WASM version)
-    let foreignKeys: any[] = [];
-    let reverseForeignKeys: any[] = [];
     
     try {
-      const fkResult = await this.conn.query(`
-        SELECT constraint_column_names, referenced_table, referenced_column_names
-        FROM duckdb_constraints 
-        WHERE table_name = '${this.sanitizeIdentifier(tableName)}' 
-        AND constraint_type = 'FOREIGN KEY'
-      `);
-      foreignKeys = fkResult.toArray();
+      // Read file as ArrayBuffer
+      console.log('Reading file as ArrayBuffer...');
+      const buffer = await file.arrayBuffer();
+      console.log('File buffer size:', buffer.byteLength);
       
-      const rfkResult = await this.conn.query(`
-        SELECT constraint_column_names, table_name as source_table, referenced_column_names
-        FROM duckdb_constraints 
-        WHERE referenced_table = '${this.sanitizeIdentifier(tableName)}' 
-        AND constraint_type = 'FOREIGN KEY'
+      // Close the current empty database connection
+      await this.conn!.close();
+      await this.db!.close();
+      
+      // Initialize a new database instance
+      const worker = new Worker('/duckdb-browser-eh.worker.js');
+      worker.onerror = (error) => {
+        console.error('Worker error:', error);
+      };
+      
+      const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
+      this.db = new duckdb.AsyncDuckDB(logger, worker);
+      await this.db.instantiate('/duckdb-eh.wasm');
+      
+      // Register the uploaded file
+      console.log('Registering file with DuckDB...');
+      await this.db.registerFileBuffer(file.name, new Uint8Array(buffer));
+      
+      // Connect and directly open the file as database
+      this.conn = await this.db.connect();
+      console.log('Opening database file...');
+      await this.conn.query(`OPEN '${file.name}'`);
+      
+      // Verify tables are accessible
+      const tables = await this.conn.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'main'
       `);
-      reverseForeignKeys = rfkResult.toArray();
-    } catch {
-      // Foreign key constraints might not be available in all DuckDB WASM versions
+      
+      console.log(`Database loaded successfully - found ${tables.numRows} tables in main schema`);
+      
+    } catch (error) {
+      console.error('Error loading file:', error);
+      throw error;
     }
-    
-    const columns = result.toArray();
-    
-    // Create foreign key mappings
-    const foreignKeyMap = new Map<string, { referenced_table: string; referenced_column: string }>();
-    foreignKeys.forEach((fk: any) => {
-      const columnName = Array.isArray(fk.constraint_column_names) ? fk.constraint_column_names[0] : fk.constraint_column_names;
-      const referencedTable = fk.referenced_table;
-      const referencedColumn = Array.isArray(fk.referenced_column_names) ? fk.referenced_column_names[0] : fk.referenced_column_names;
-      
-      foreignKeyMap.set(columnName, {
-        referenced_table: referencedTable,
-        referenced_column: referencedColumn
-      });
-    });
-
-    const reverseForeignKeyMap = new Map<string, { source_table: string; source_column: string }[]>();
-    reverseForeignKeys.forEach((rfk: any) => {
-      const referencedColumn = Array.isArray(rfk.referenced_column_names) ? rfk.referenced_column_names[0] : rfk.referenced_column_names;
-      const sourceTable = rfk.source_table;
-      const sourceColumn = Array.isArray(rfk.constraint_column_names) ? rfk.constraint_column_names[0] : rfk.constraint_column_names;
-      
-      if (!reverseForeignKeyMap.has(referencedColumn)) {
-        reverseForeignKeyMap.set(referencedColumn, []);
-      }
-      reverseForeignKeyMap.get(referencedColumn)!.push({
-        source_table: sourceTable,
-        source_column: sourceColumn
-      });
-    });
-    
-    return columns.map((column: any) => ({
-      column_name: column.column_name,
-      data_type: column.data_type,
-      no_histogram: false, // WASM version doesn't have config restrictions
-      foreign_key: foreignKeyMap.get(column.column_name),
-      reverse_foreign_keys: reverseForeignKeyMap.get(column.column_name)
-    }));
   }
 
   async getTableData(query: Query): Promise<TableDataResponse> {
-    await this.ensureInitialized();
+    console.log('[WasmDatabase] getTableData called - checking schema name...');
     
     const { sql, countSql } = this.buildQuerySQL(query);
     
+    console.log('[WasmDatabase] About to execute SQL:', sql);
+    
     // Execute data query
-    const result = await this.conn.query(sql);
-    const data = result.toArray();
+    const data = await this.executeQuery(sql);
     
     // Execute count query
-    const countResult = await this.conn.query(countSql);
-    const total = countResult.toArray()[0]?.total || 0;
+    const countResult = await this.executeQuery(countSql);
+    const total = countResult[0]?.total || 0;
     
     return { data, total };
   }
 
   async getHistogram(histogramQuery: HistogramQuery): Promise<HistogramResult> {
-    await this.ensureInitialized();
-    
     try {
       const { sql } = this.buildHistogramSQL(histogramQuery);
-      const result = await this.conn.query(sql);
-      const data = result.toArray();
+      const data = await this.executeQuery(sql);
       
       return {
         data: data,
@@ -218,125 +195,5 @@ export class WasmDatabase implements Database {
     };
   }
 
-  private sanitizeIdentifier(identifier: string): string {
-    // Basic sanitization - in production you'd want more robust sanitization
-    return identifier.replace(/[^a-zA-Z0-9_]/g, '');
-  }
 
-  private buildQuerySQL(query: Query): { sql: string; countSql: string } {
-    const { tableName, filters = [], orderBy, orderDir = 'ASC', limit, offset, steps = [] } = query;
-    
-    const sanitizedTableName = this.sanitizeIdentifier(tableName);
-    
-    // Build CTE clauses if steps exist
-    const cteClause = this.buildCTEClause(steps);
-    
-    // Build WHERE clause
-    const whereClause = this.buildWhereClause(filters);
-    
-    // Build ORDER BY clause
-    let orderByClause = '';
-    if (orderBy) {
-      const sanitizedOrderBy = this.sanitizeIdentifier(orderBy);
-      const dir = orderDir?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
-      orderByClause = ` ORDER BY ${sanitizedOrderBy} ${dir}`;
-    }
-    
-    // Build LIMIT clause
-    let limitClause = '';
-    if (limit !== undefined) {
-      limitClause = ` LIMIT ${limit}`;
-      if (offset !== undefined) {
-        limitClause += ` OFFSET ${offset}`;
-      }
-    }
-    
-    const sql = `${cteClause}SELECT * FROM ${sanitizedTableName}${whereClause}${orderByClause}${limitClause}`;
-    const countSql = `${cteClause}SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
-    
-    return { sql, countSql };
-  }
-
-  private buildHistogramSQL(histogramQuery: HistogramQuery): { sql: string } {
-    const { tableName, columnName, columnType, filters = [], topN = 5, bins = 20 } = histogramQuery;
-    
-    const sanitizedTableName = this.sanitizeIdentifier(tableName);
-    const sanitizedColumnName = this.sanitizeIdentifier(columnName);
-    
-    // Build WHERE clause excluding the histogram column
-    const whereClause = this.buildWhereClause(filters.filter(f => f.column !== columnName));
-    
-    const isNumerical = NUMERICAL_COLUMN_TYPES.some(type => 
-      columnType.toUpperCase().includes(type)
-    );
-    
-    let sql: string;
-    
-    if (isNumerical) {
-      // For numerical columns, use DuckDB's histogram function
-      sql = `
-        SELECT 
-          unnest(map_keys(histogram(${sanitizedColumnName}))) as bin_value,
-          unnest(map_values(histogram(${sanitizedColumnName}))) as count
-        FROM ${sanitizedTableName}
-        ${whereClause}
-      `;
-    } else {
-      // For categorical columns
-      sql = `
-        SELECT 
-          ${sanitizedColumnName},
-          COUNT(*) as count
-        FROM ${sanitizedTableName}
-        ${whereClause}
-        GROUP BY ${sanitizedColumnName}
-        ORDER BY count DESC, ${sanitizedColumnName} ASC
-        LIMIT ${Math.max(1, Math.min(topN + 1, 20))}
-      `;
-    }
-    
-    return { sql };
-  }
-
-  private buildWhereClause(filters: any[]): string {
-    if (filters.length === 0) return '';
-    
-    const conditions: string[] = [];
-    
-    for (const filter of filters) {
-      switch (filter.type) {
-        case 'exact':
-          const sanitizedValue = typeof filter.value === 'string' 
-            ? `'${filter.value.replace(/'/g, "''")}'` 
-            : filter.value;
-          conditions.push(`${this.sanitizeIdentifier(filter.column)} = ${sanitizedValue}`);
-          break;
-        case 'range':
-          conditions.push(`${this.sanitizeIdentifier(filter.column)} BETWEEN ${filter.min} AND ${filter.max}`);
-          break;
-        case 'in':
-          conditions.push(`${this.sanitizeIdentifier(filter.column)} IN (SELECT ${this.sanitizeIdentifier(filter.stepColumn)} FROM ${this.sanitizeIdentifier(filter.stepName)})`);
-          break;
-      }
-    }
-    
-    return conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
-  }
-
-  private buildCTEClause(steps: any[]): string {
-    if (steps.length === 0) return '';
-    
-    const cteStatements: string[] = [];
-    
-    for (const step of steps) {
-      const sanitizedTableName = this.sanitizeIdentifier(step.tableName);
-      const sanitizedStepName = this.sanitizeIdentifier(step.name);
-      const whereClause = this.buildWhereClause(step.filters);
-      
-      const selectClause = step.selectColumn ? this.sanitizeIdentifier(step.selectColumn) : '*';
-      cteStatements.push(`${sanitizedStepName} AS (SELECT ${selectClause} FROM ${sanitizedTableName}${whereClause})`);
-    }
-    
-    return `WITH ${cteStatements.join(', ')} `;
-  }
 }

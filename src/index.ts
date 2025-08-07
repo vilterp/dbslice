@@ -1,5 +1,6 @@
 // Database interface and implementations
 export { Database } from './database';
+export { BaseDuckDBDatabase } from './BaseDuckDBDatabase';
 export { ClientDatabase } from './ClientDatabase';
 export { ServerDatabase } from './ServerDatabase';
 export { WasmDatabase } from './WasmDatabase';
