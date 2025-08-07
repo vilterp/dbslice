@@ -20,8 +20,29 @@ export class WasmDatabase extends BaseDuckDBDatabase implements Database {
 
   protected async executeQuery(sql: string): Promise<any[]> {
     await this.ensureInitialized();
-    const result = await this.conn!.query(sql);
     
+    console.group(`[WasmDatabase] Executing query`);
+    console.log('SQL:', sql);
+    
+    // Time the actual query execution
+    const queryStartTime = performance.now();
+    const result = await this.conn!.query(sql);
+    const queryEndTime = performance.now();
+    console.log(`Query execution time: ${(queryEndTime - queryStartTime).toFixed(2)}ms`);
+    
+    // Time the result conversion
+    const conversionStartTime = performance.now();
+    const rows = this.convertQueryResult(result);
+    const conversionEndTime = performance.now();
+    console.log(`Result conversion time: ${(conversionEndTime - conversionStartTime).toFixed(2)}ms`);
+    console.log(`Total time: ${(conversionEndTime - queryStartTime).toFixed(2)}ms (${result.numRows} rows)`);
+    
+    console.groupEnd();
+    
+    return rows;
+  }
+
+  private convertQueryResult(result: any): any[] {
     const rows: any[] = [];
     for (let i = 0; i < result.numRows; i++) {
       const row = result.get(i);
