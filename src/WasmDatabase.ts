@@ -1,7 +1,6 @@
 import { Database } from './database';
 import { BaseDuckDBDatabase } from './BaseDuckDBDatabase';
 import { 
-  Column, 
   Query, 
   HistogramQuery, 
   TableDataResponse, 
@@ -25,7 +24,18 @@ export class WasmDatabase extends BaseDuckDBDatabase implements Database {
     
     const rows: any[] = [];
     for (let i = 0; i < result.numRows; i++) {
-      rows.push(result.get(i));
+      const row = result.get(i);
+      // Convert BigInt values to regular numbers
+      const convertedRow: any = {};
+      for (const [key, value] of Object.entries(row)) {
+        if (typeof value === 'bigint') {
+          // Convert BigInt to number, but be careful about precision loss
+          convertedRow[key] = Number(value);
+        } else {
+          convertedRow[key] = value;
+        }
+      }
+      rows.push(convertedRow);
     }
     return rows;
   }
@@ -97,8 +107,12 @@ export class WasmDatabase extends BaseDuckDBDatabase implements Database {
       console.log('File buffer size:', buffer.byteLength);
       
       // Close the current empty database connection
-      await this.conn!.close();
-      await this.db!.close();
+      if (this.conn) {
+        await this.conn.close();
+      }
+      if (this.db) {
+        await this.db.terminate();
+      }
       
       // Initialize a new database instance
       const worker = new Worker('/duckdb-browser-eh.worker.js');
@@ -116,8 +130,19 @@ export class WasmDatabase extends BaseDuckDBDatabase implements Database {
       
       // Connect and directly open the file as database
       this.conn = await this.db.connect();
-      console.log('Opening database file...');
-      await this.conn.query(`OPEN '${file.name}'`);
+      console.log('Attaching database file...');
+      
+      // Use ATTACH instead of OPEN for DuckDB files
+      const fileExtension = file.name.toLowerCase().split('.').pop();
+      if (fileExtension === 'db' || fileExtension === 'duckdb') {
+        await this.conn.query(`ATTACH '${file.name}' AS loaded_db`);
+        // Use the attached database as the default
+        await this.conn.query(`USE loaded_db`);
+        this.setSchemaName('main'); // The schema within the attached database
+      } else {
+        // For other file types, the file is already registered and can be queried directly
+        console.log('File registered, no attachment needed for this file type');
+      }
       
       // Verify tables are accessible
       const tables = await this.conn.query(`
