@@ -1,7 +1,8 @@
 import "./Histogram.css";
 import React, { useState, useEffect } from "react";
-import { Filter, Query } from "../../../src/types";
-import { HistogramResult, Column, fetchHistogram } from "../api";
+import { Filter, Query, HistogramResult } from "../../../src/types";
+import { Column } from "../api";
+import { Database } from "../../../src/database";
 import NumericHistogram from "./NumericHistogram";
 import DiscreteHistogram from "./DiscreteHistogram";
 
@@ -14,6 +15,7 @@ type HistogramProps = {
   column: Column;
   query: Query;
   isNumerical: boolean;
+  database: Database;
   addFilter: (
     column: string,
     value: string,
@@ -34,6 +36,7 @@ const Histogram: React.FC<HistogramProps> = (props) => {
     column,
     query,
     isNumerical,
+    database,
     addFilter,
     removeFilter,
   } = props;
@@ -48,7 +51,16 @@ const Histogram: React.FC<HistogramProps> = (props) => {
     const loadHistogram = async () => {
       setLoading(true);
       try {
-        const result = await fetchHistogram(query, column);
+        const histogramQuery = {
+          tableName: query.tableName,
+          columnName: column.column_name,
+          columnType: column.data_type,
+          filters: query.filters,
+          steps: query.steps || [],
+          topN: DEFAULT_TOP_N_CATEGORIES,
+          bins: 20
+        };
+        const result = await database.getHistogram(histogramQuery);
         setHistogramResult(result);
       } catch (error) {
         setHistogramResult({
