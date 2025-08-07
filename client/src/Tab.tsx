@@ -6,6 +6,7 @@ import DataTable from "./DataTable/DataTable";
 import { abbreviateNumber } from "./utils";
 import { Column } from "./api";
 import { QueryState } from './clientTypes';
+import { Database } from '../../src/database';
 
 export type TabState = {
   id: string;
@@ -20,12 +21,13 @@ interface TabProps {
   tab: TabState;
   updateTab: (tabId: string, updater: (tab: TabState) => TabState) => void;
   tables: Array<{ table_name: string }>;
+  database: Database;
   onForeignKeyNavigation?: (targetTable: string, targetColumn: string, value: any) => void;
   onReverseForeignKeyNavigation?: (targetTable: string, targetColumn: string, value: any) => void;
   onJoinWithTable?: (currentTable: string, currentFilters: any[], joinColumn: string, targetTable: string, targetColumn: string) => void;
 }
 
-const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigation, onReverseForeignKeyNavigation, onJoinWithTable }) => {
+const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, database, onForeignKeyNavigation, onReverseForeignKeyNavigation, onJoinWithTable }) => {
   // Helper function to update query state
   const updateQuery = (updater: (query: typeof tab.queryState.query) => typeof tab.queryState.query) => {
     updateTab(tab.id, (tab) => ({
@@ -136,6 +138,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
               isNumericalColumn={isNumericalColumn}
               addFilter={addFilter}
               removeFilter={removeFilter}
+              database={database}
             />
             <div className="main-panel">
               {(() => {

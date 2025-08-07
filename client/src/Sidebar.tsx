@@ -2,6 +2,7 @@ import "./Sidebar.css";
 import React from 'react';
 import { Filter, Query } from '../../src/types';
 import { Column } from './api';
+import { Database } from '../../src/database';
 import Histogram from './histogram/Histogram';
 
 interface SidebarProps {
@@ -12,6 +13,7 @@ interface SidebarProps {
   isNumericalColumn: (dataType: string) => boolean;
   addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
+  database: Database;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -22,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   isNumericalColumn,
   addFilter,
   removeFilter,
+  database,
 }) => (
   <div className="sidebar">
     <h3>Filters</h3>
@@ -58,6 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   isNumerical={isNumerical}
                   addFilter={addFilter}
                   removeFilter={removeFilter}
+                  database={database}
                 />
               )}
             </div>

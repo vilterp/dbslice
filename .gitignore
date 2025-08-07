@@ -4,6 +4,8 @@ node_modules/
 
 # Production build
 client/build/
+client/build-client/
+client/build-wasm/
 dist/
 
 # Environment variables
