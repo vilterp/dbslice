@@ -13,12 +13,29 @@ export class WasmDatabase extends BaseDuckDBDatabase implements Database {
   private db: duckdb.AsyncDuckDB | null = null;
   private conn: duckdb.AsyncDuckDBConnection | null = null;
   private initialized: boolean = false;
+  private queryQueue: Promise<any> = Promise.resolve();
 
   constructor() {
     super();
   }
 
   protected async executeQuery(sql: string): Promise<any[]> {
+    // Serialize queries by chaining them on the queue
+    return new Promise((resolve, reject) => {
+      this.queryQueue = this.queryQueue.then(async () => {
+        try {
+          const result = await this.executeQueryInternal(sql);
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      }).catch((error) => {
+        reject(error);
+      });
+    });
+  }
+
+  private async executeQueryInternal(sql: string): Promise<any[]> {
     await this.ensureInitialized();
     
     console.group(`[WasmDatabase] Executing query`);
