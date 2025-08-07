@@ -1,4 +1,4 @@
-import { Database } from './database';
+import { Database, DatabaseInfo } from './database';
 import { BaseDuckDBDatabase } from './BaseDuckDBDatabase';
 import { 
   Query, 
@@ -193,17 +193,7 @@ export class WasmDatabase extends BaseDuckDBDatabase implements Database {
     }
   }
 
-  async getInfo(): Promise<{
-    database: {
-      path?: string;
-      type?: string;
-      tables: number;
-    };
-    config: {
-      maxRows: number;
-      maxHistogramBins?: number;
-    };
-  }> {
+  async getInfo(): Promise<DatabaseInfo> {
     await this.ensureInitialized();
     
     const tables = await this.getTables();

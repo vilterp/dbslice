@@ -1,4 +1,4 @@
-import { Database } from './database';
+import { Database, DatabaseInfo } from './database';
 import { 
   Table, 
   Column, 
@@ -99,17 +99,7 @@ export class ClientDatabase implements Database {
     }
   }
 
-  async getInfo(): Promise<{
-    database: {
-      path?: string;
-      type?: string;
-      tables: number;
-    };
-    config: {
-      maxRows: number;
-      maxHistogramBins?: number;
-    };
-  }> {
+  async getInfo(): Promise<DatabaseInfo> {
     const response = await fetch(`${this.baseUrl}/api/info`);
     if (!response.ok) {
       throw new Error(`Failed to fetch info: ${response.status} ${response.statusText}`);

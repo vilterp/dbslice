@@ -1,8 +1,7 @@
 import * as duckdb from 'duckdb';
-import { Database } from './database';
+import { Database, DatabaseInfo } from './database';
 import { BaseDuckDBDatabase } from './BaseDuckDBDatabase';
 import { 
-  Column, 
   Query, 
   HistogramQuery, 
   TableDataResponse, 
@@ -11,7 +10,6 @@ import {
 import { 
   createQueryRunner
 } from '../server/query';
-import { sanitizeIdentifier } from '../server/sanitize';
 import { Config } from '../server/config';
 
 export class ServerDatabase extends BaseDuckDBDatabase implements Database {
@@ -75,17 +73,7 @@ export class ServerDatabase extends BaseDuckDBDatabase implements Database {
     }
   }
 
-  async getInfo(): Promise<{
-    database: {
-      path?: string;
-      type?: string;
-      tables: number;
-    };
-    config: {
-      maxRows: number;
-      maxHistogramBins?: number;
-    };
-  }> {
+  async getInfo(): Promise<DatabaseInfo> {
     const tables = await this.runSQLQuery(`
       SELECT table_name 
       FROM information_schema.tables 
