@@ -72,33 +72,53 @@ export function createServer(db: duckdb.Database, config: Config) {
       `);
       
       // Create foreign key mapping
-      const foreignKeyMap = new Map<string, { referenced_table: string; referenced_column: string }>();
+      const foreignKeyMap = new Map<string, {
+        referenced_table: string;
+        referenced_column: string;
+        all_columns?: string[];
+        all_referenced_columns?: string[];
+      }>();
       foreignKeys.forEach((fk: any) => {
         // DuckDB returns arrays for these fields
-        const columnName = fk.constraint_column_names[0];
+        const allColumns = fk.constraint_column_names;
         const referencedTable = fk.referenced_table;
-        const referencedColumn = fk.referenced_column_names[0];
-        
-        foreignKeyMap.set(columnName, {
-          referenced_table: referencedTable,
-          referenced_column: referencedColumn
+        const allReferencedColumns = fk.referenced_column_names;
+
+        // For each column in the composite FK, add an entry
+        allColumns.forEach((columnName: string, index: number) => {
+          foreignKeyMap.set(columnName, {
+            referenced_table: referencedTable,
+            referenced_column: allReferencedColumns[index],
+            all_columns: allColumns.length > 1 ? allColumns : undefined,
+            all_referenced_columns: allColumns.length > 1 ? allReferencedColumns : undefined
+          });
         });
       });
 
       // Create reverse foreign key mapping
-      const reverseForeignKeyMap = new Map<string, { source_table: string; source_column: string }[]>();
+      const reverseForeignKeyMap = new Map<string, {
+        source_table: string;
+        source_column: string;
+        all_source_columns?: string[];
+        all_referenced_columns?: string[];
+      }[]>();
       reverseForeignKeys.forEach((rfk: any) => {
-        // Column that is being referenced in this table
-        const referencedColumn = rfk.referenced_column_names[0];
+        // Columns that are being referenced in this table
+        const allReferencedColumns = rfk.referenced_column_names;
         const sourceTable = rfk.source_table;
-        const sourceColumn = rfk.constraint_column_names[0];
-        
-        if (!reverseForeignKeyMap.has(referencedColumn)) {
-          reverseForeignKeyMap.set(referencedColumn, []);
-        }
-        reverseForeignKeyMap.get(referencedColumn)!.push({
-          source_table: sourceTable,
-          source_column: sourceColumn
+        const allSourceColumns = rfk.constraint_column_names;
+
+        // For each column in the composite FK, add an entry
+        allReferencedColumns.forEach((referencedColumn: string, index: number) => {
+          if (!reverseForeignKeyMap.has(referencedColumn)) {
+            reverseForeignKeyMap.set(referencedColumn, []);
+          }
+          reverseForeignKeyMap.get(referencedColumn)!.push({
+            source_table: sourceTable,
+            source_column: allSourceColumns[index],
+            all_source_columns: allSourceColumns.length > 1 ? allSourceColumns : undefined,
+            all_referenced_columns: allReferencedColumns.length > 1 ? allReferencedColumns : undefined
+          });
         });
       });
       

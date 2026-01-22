@@ -88,11 +88,17 @@ export interface Column {
 export interface ForeignKeyInfo {
   referenced_table: string;
   referenced_column: string;
+  // For composite foreign keys
+  all_columns?: string[];  // All columns in this table that are part of the FK
+  all_referenced_columns?: string[];  // All columns in referenced table
 }
 
 export interface ReverseForeignKeyInfo {
   source_table: string;
   source_column: string;
+  // For composite foreign keys
+  all_source_columns?: string[];  // All columns in source table
+  all_referenced_columns?: string[];  // All columns in this table
 }
 
 // Basic types

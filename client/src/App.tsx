@@ -219,26 +219,62 @@ function App() {
     setTabs((tabs) => tabs.map((t) => (t.id === tabId ? updater(t) : t)));
   };
 
-  const handleForeignKeyNavigation = (targetTable: string, targetColumn: string, value: any) => {
+  const handleForeignKeyNavigation = (
+    targetTable: string,
+    targetColumn: string,
+    value: any,
+    allColumns?: string[],
+    allReferencedColumns?: string[],
+    rowData?: any
+  ) => {
     const newTab = makeDefaultTab(targetTable);
-    // Add filter for the foreign key value
-    newTab.queryState.query.filters = [{
-      type: 'exact',
-      column: targetColumn,
-      value: String(value)
-    }];
+
+    // If this is a composite foreign key, add filters for all columns
+    if (allColumns && allReferencedColumns && rowData) {
+      newTab.queryState.query.filters = allReferencedColumns.map((refCol, index) => ({
+        type: 'exact' as const,
+        column: refCol,
+        value: String(rowData[allColumns[index]])
+      }));
+    } else {
+      // Single column foreign key
+      newTab.queryState.query.filters = [{
+        type: 'exact',
+        column: targetColumn,
+        value: String(value)
+      }];
+    }
+
     setTabs((tabs) => [...tabs, newTab]);
     setSelectedTabId(newTab.id);
   };
 
-  const handleReverseForeignKeyNavigation = (targetTable: string, targetColumn: string, value: any) => {
+  const handleReverseForeignKeyNavigation = (
+    targetTable: string,
+    targetColumn: string,
+    value: any,
+    allSourceColumns?: string[],
+    allReferencedColumns?: string[],
+    rowData?: any
+  ) => {
     const newTab = makeDefaultTab(targetTable);
-    // Add filter for the reverse foreign key value
-    newTab.queryState.query.filters = [{
-      type: 'exact',
-      column: targetColumn,
-      value: String(value)
-    }];
+
+    // If this is a composite foreign key, add filters for all columns
+    if (allSourceColumns && allReferencedColumns && rowData) {
+      newTab.queryState.query.filters = allSourceColumns.map((srcCol, index) => ({
+        type: 'exact' as const,
+        column: srcCol,
+        value: String(rowData[allReferencedColumns[index]])
+      }));
+    } else {
+      // Single column foreign key
+      newTab.queryState.query.filters = [{
+        type: 'exact',
+        column: targetColumn,
+        value: String(value)
+      }];
+    }
+
     setTabs((tabs) => [...tabs, newTab]);
     setSelectedTabId(newTab.id);
   };
