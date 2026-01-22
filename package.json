@@ -13,6 +13,7 @@
     "client:dev": "cd client && yarn dev",
     "build": "yarn server:build && cd client && yarn build",
     "start": "node server/dist/cli.js",
+    "prepublishOnly": "yarn build",
     "create-test-db": "duckdb test_foreign_keys.db < create_test_db.sql",
     "create-tpch-with-fks": "duckdb tpch_with_fks.db < create_tpch_with_fks.sql && duckdb tpch_with_fks.db < migrate_tpch_data.sql",
     "test": "jest",
@@ -44,8 +45,19 @@
   "keywords": [
     "duckdb",
     "data-exploration",
-    "react"
+    "react",
+    "cli",
+    "database",
+    "visualization"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "files": [
+    "server/dist",
+    "client/build",
+    "config.yaml"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
