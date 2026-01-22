@@ -125,7 +125,8 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
 // Create a query runner with shared connection and queuing
 export function createQueryRunner(db: duckdb.Database): QueryRunner {
   // Create a shared connection for better caching and performance
-  const sharedConnection = new duckdb.Connection(db);
+  // Use db.connect() instead of new Connection(db) for proper initialization
+  const sharedConnection = db.connect();
   
   // Query queue to serialize queries on the shared connection
   const queryQueue: Array<() => void> = [];
