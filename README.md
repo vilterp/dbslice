@@ -33,10 +33,26 @@ A modern web-based data exploration UI for DuckDB with Datadog-style faceted sea
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 18+
 - Yarn package manager
 
-### Installation
+### CLI Usage (Recommended)
+
+The easiest way to explore a DuckDB database is using the CLI:
+
+1. **Install globally:**
+   ```bash
+   npm install -g duckdb-explore
+   ```
+
+2. **Open any DuckDB file:**
+   ```bash
+   duckexplore path/to/your/database.db
+   ```
+
+   This will start the server at http://localhost:3001 and open your database for exploration.
+
+### Local Development Setup
 
 1. **Clone and install dependencies:**
    ```bash
@@ -118,6 +134,7 @@ duckdb-explore/
 | `yarn test` | Run all tests |
 | `yarn test:watch` | Run tests in watch mode |
 | `yarn test:coverage` | Generate test coverage report |
+| `yarn link` | Link package locally for testing CLI |
 
 ### API Endpoints
 
@@ -200,6 +217,31 @@ api:
 |----------|---------|-------------|
 | `PORT` | `3001` | Server port (overrides config) |
 | `NODE_ENV` | `development` | Environment mode |
+
+## Publishing to NPM
+
+To publish this package to npm:
+
+1. **Build the project:**
+   ```bash
+   yarn build
+   ```
+
+2. **Update version in package.json:**
+   ```bash
+   npm version patch  # or minor, major
+   ```
+
+3. **Publish to npm:**
+   ```bash
+   npm publish
+   ```
+
+4. **Test the published package:**
+   ```bash
+   npm install -g duckdb-explore
+   duckexplore your-database.db
+   ```
 
 ## Contributing
 
