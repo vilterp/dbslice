@@ -21,5 +21,5 @@ const { app } = createServer(db, config);
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : config.server.port;
 
 app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+  logger.info(`Server running on http://localhost:${PORT}`);
 });
