@@ -87,22 +87,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
     return NUMERICAL_COLUMN_TYPES.some((type) => dataType.toUpperCase().includes(type));
   };
 
-  const handleTableSelect = (tableName: string) => {
-    updateTab(tab.id, (tab) => ({
-      ...tab,
-      queryState: {
-        query: {
-          ...tab.queryState.query,
-          tableName,
-          filters: [], // Clear filters when changing tables
-          orderBy: "",
-          orderDir: undefined,
-        },
-        state: { type: "idle" }, // Reset state when changing tables
-      },
-      columns: [], // Clear columns when changing tables
-    }));
-  };
+  // Table is now fixed per tab - no table selection handler needed
 
   const handleJoinWithTable = (joinColumn: string, targetTable: string, targetColumn: string) => {
     if (onJoinWithTable) {
@@ -112,12 +97,11 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
 
   return (
     <div className="main-content">
-      <QueryBar 
-        filters={tab.queryState.query.filters} 
+      <QueryBar
+        filters={tab.queryState.query.filters}
         removeFilter={removeFilter}
         tables={tables}
         selectedTable={tab.queryState.query.tableName}
-        onTableSelect={handleTableSelect}
         steps={tab.queryState.query.steps}
       />
       <div className="content-wrapper">

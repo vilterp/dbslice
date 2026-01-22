@@ -371,10 +371,11 @@ function App() {
       <TabBar
         tabs={tabs}
         selectedTabId={selectedTabId}
+        tables={tables}
         onTabClick={handleTabClick}
         onTabClose={handleTabClose}
-        onAddTab={() => {
-          const newTab = makeDefaultTab();
+        onAddTab={(tableName: string) => {
+          const newTab = makeDefaultTab(tableName);
           setTabs((tabs) => [...tabs, newTab]);
           setSelectedTabId(newTab.id);
         }}
