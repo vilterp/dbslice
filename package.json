@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "DuckDB data exploration UI",
   "main": "server/cli.ts",
+  "bin": {
+    "duckexplore": "server/dist/server/bin.js"
+  },
   "scripts": {
     "dev": "concurrently \"yarn server:dev\" \"yarn client:dev\"",
     "server:dev": "nodemon --ignore client/build --exec ts-node server/cli.ts",
