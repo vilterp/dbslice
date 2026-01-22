@@ -287,10 +287,12 @@ export function createServer(db: duckdb.Database, config: Config) {
 
   // Serve static files in production
   if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../client/build')));
-    
+    // When compiled, __dirname is server/dist/server, so we need ../../../client/build
+    const clientBuildPath = path.join(__dirname, '../../../client/build');
+    app.use(express.static(clientBuildPath));
+
     app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+      res.sendFile(path.join(clientBuildPath, 'index.html'));
     });
   }
 

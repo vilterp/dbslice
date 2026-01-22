@@ -6,6 +6,11 @@ import logger from './logger';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// Set NODE_ENV to production when running via CLI
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'production';
+}
+
 // Parse command line arguments
 const args = process.argv.slice(2);
 
