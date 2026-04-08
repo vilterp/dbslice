@@ -9,7 +9,7 @@ import {
   fetchColumns,
   fetchTableData,
 } from "./api";
-import { Query } from "../../src/types";
+import { Query, FKNavSpec } from "../../src/types";
 import { updateURL, urlToAppState, AppUrlState, TabUrlState } from "./urlState";
 
 // Import the TabState type from Tab component to avoid duplication
@@ -210,59 +210,20 @@ function App() {
     setTabs((tabs) => tabs.map((t) => (t.id === tabId ? updater(t) : t)));
   };
 
-  const handleForeignKeyNavigation = (
-    targetTable: string,
-    targetColumn: string,
-    value: any,
-    allColumns?: string[],
-    allReferencedColumns?: string[],
-    rowData?: any
-  ) => {
-    const newTab = makeDefaultTab(targetTable);
+  const handleFKNavigation = (spec: FKNavSpec) => {
+    const newTab = makeDefaultTab(spec.table);
 
-    // If this is a composite foreign key, add filters for all columns
-    if (allColumns && allReferencedColumns && rowData) {
-      newTab.queryState.query.filters = allReferencedColumns.map((refCol, index) => ({
+    if (spec.allColumns && spec.allReferencedColumns && spec.rowData) {
+      newTab.queryState.query.filters = spec.allReferencedColumns.map((col, i) => ({
         type: 'exact' as const,
-        column: refCol,
-        value: String(rowData[allColumns[index]])
+        column: col,
+        value: String(spec.rowData![spec.allColumns![i]])
       }));
     } else {
-      // Single column foreign key
       newTab.queryState.query.filters = [{
-        type: 'exact',
-        column: targetColumn,
-        value: String(value)
-      }];
-    }
-
-    setTabs((tabs) => [...tabs, newTab]);
-    setSelectedTabId(newTab.id);
-  };
-
-  const handleReverseForeignKeyNavigation = (
-    targetTable: string,
-    targetColumn: string,
-    value: any,
-    allSourceColumns?: string[],
-    allReferencedColumns?: string[],
-    rowData?: any
-  ) => {
-    const newTab = makeDefaultTab(targetTable);
-
-    // If this is a composite foreign key, add filters for all columns
-    if (allSourceColumns && allReferencedColumns && rowData) {
-      newTab.queryState.query.filters = allSourceColumns.map((srcCol, index) => ({
         type: 'exact' as const,
-        column: srcCol,
-        value: String(rowData[allReferencedColumns[index]])
-      }));
-    } else {
-      // Single column foreign key
-      newTab.queryState.query.filters = [{
-        type: 'exact',
-        column: targetColumn,
-        value: String(value)
+        column: spec.column,
+        value: String(spec.value)
       }];
     }
 
@@ -374,7 +335,7 @@ function App() {
       />
 
       {currentTab
-        ? <Tab tab={currentTab} updateTab={updateTab} tables={tables} onForeignKeyNavigation={handleForeignKeyNavigation} onReverseForeignKeyNavigation={handleReverseForeignKeyNavigation} onJoinWithTable={handleJoinWithTable} />
+        ? <Tab tab={currentTab} updateTab={updateTab} tables={tables} onForeignKeyNavigation={handleFKNavigation} onReverseForeignKeyNavigation={handleFKNavigation} onJoinWithTable={handleJoinWithTable} />
         : <div className="no-table-selected"><h3>No table selected</h3><p>Please select a table from the dropdown above to begin exploring your data.</p></div>
       }
     </div>

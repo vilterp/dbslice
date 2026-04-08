@@ -6,7 +6,7 @@ import SidePanel from "./SidePanel";
 import TableCell from "./TableCell";
 import DropdownMenu from "../components/DropdownMenu";
 import { SortDirection, Column } from "../api";
-import { Filter } from "../../../src/types";
+import { Filter, FKNavSpec } from "../../../src/types";
 
 interface DataTableProps {
   tableData: any[];
@@ -18,22 +18,8 @@ interface DataTableProps {
   setSortColumn: (col: string) => void;
   setSortDirection: (dir: SortDirection) => void;
   addFilter: (filter: Filter) => void;
-  onNavigateToForeignKey?: (
-    targetTable: string,
-    targetColumn: string,
-    value: any,
-    allColumns?: string[],
-    allReferencedColumns?: string[],
-    rowData?: any
-  ) => void;
-  onNavigateToReferencingTable?: (
-    targetTable: string,
-    targetColumn: string,
-    value: any,
-    allSourceColumns?: string[],
-    allReferencedColumns?: string[],
-    rowData?: any
-  ) => void;
+  onNavigateToForeignKey?: (nav: FKNavSpec) => void;
+  onNavigateToReferencingTable?: (nav: FKNavSpec) => void;
   onJoinWithTable?: (joinColumn: string, targetTable: string, targetColumn: string) => void;
 }
 
@@ -110,17 +96,16 @@ const DataTable: React.FC<DataTableProps> = ({
     if (cellMenu && onNavigateToForeignKey) {
       const columnInfo = columnMap.get(cellMenu.column);
       if (columnInfo?.foreign_key) {
-        onNavigateToForeignKey(
-          columnInfo.foreign_key.referenced_table,
-          columnInfo.foreign_key.referenced_column,
-          cellMenu.value,
-          columnInfo.foreign_key.all_columns,
-          columnInfo.foreign_key.all_referenced_columns,
-          cellMenu.rowData
-        );
+        onNavigateToForeignKey({
+          table: columnInfo.foreign_key.referenced_table,
+          column: columnInfo.foreign_key.referenced_column,
+          value: cellMenu.value,
+          allColumns: columnInfo.foreign_key.all_columns,
+          allReferencedColumns: columnInfo.foreign_key.all_referenced_columns,
+          rowData: cellMenu.rowData,
+        });
       }
       setCellMenu(null);
-      // Close the side panel when navigation occurs
       setSelectedRow(null);
     }
   };
@@ -130,22 +115,15 @@ const DataTable: React.FC<DataTableProps> = ({
     if (onNavigateToForeignKey) {
       const columnInfo = columnMap.get(column);
       if (columnInfo?.foreign_key) {
-        onNavigateToForeignKey(
-          columnInfo.foreign_key.referenced_table,
-          columnInfo.foreign_key.referenced_column,
+        onNavigateToForeignKey({
+          table: columnInfo.foreign_key.referenced_table,
+          column: columnInfo.foreign_key.referenced_column,
           value,
-          columnInfo.foreign_key.all_columns,
-          columnInfo.foreign_key.all_referenced_columns,
-          rowData
-        );
+          allColumns: columnInfo.foreign_key.all_columns,
+          allReferencedColumns: columnInfo.foreign_key.all_referenced_columns,
+          rowData,
+        });
       }
-    }
-  };
-
-  // Handler for clicking on reverse foreign key cell
-  const handleReverseForeignKeyClick = (column: string, value: any, targetTable: string, targetColumn: string) => {
-    if (onNavigateToReferencingTable) {
-      onNavigateToReferencingTable(targetTable, targetColumn, value);
     }
   };
 
@@ -289,17 +267,16 @@ const DataTable: React.FC<DataTableProps> = ({
                           style={{ padding: '8px 16px', cursor: 'pointer', borderTop: '1px solid #eee' }}
                           onClick={() => {
                             if (onNavigateToReferencingTable) {
-                              onNavigateToReferencingTable(
-                                reverseFk.source_table,
-                                reverseFk.source_column,
-                                cellMenu.value,
-                                reverseFk.all_source_columns,
-                                reverseFk.all_referenced_columns,
-                                cellMenu.rowData
-                              );
+                              onNavigateToReferencingTable({
+                                table: reverseFk.source_table,
+                                column: reverseFk.source_column,
+                                value: cellMenu.value,
+                                allColumns: reverseFk.all_source_columns,
+                                allReferencedColumns: reverseFk.all_referenced_columns,
+                                rowData: cellMenu.rowData,
+                              });
                             }
                             setCellMenu(null);
-                            // Close the side panel when navigation occurs
                             setSelectedRow(null);
                           }}
                         >
@@ -337,17 +314,16 @@ const DataTable: React.FC<DataTableProps> = ({
                       style={{ padding: '8px 16px', cursor: 'pointer' }}
                       onClick={() => {
                         if (onNavigateToReferencingTable) {
-                          onNavigateToReferencingTable(
-                            reverseFk.source_table,
-                            reverseFk.source_column,
-                            reverseForeignKeyMenu.value,
-                            reverseFk.all_source_columns,
-                            reverseFk.all_referenced_columns,
-                            reverseForeignKeyMenu.rowData
-                          );
+                          onNavigateToReferencingTable({
+                            table: reverseFk.source_table,
+                            column: reverseFk.source_column,
+                            value: reverseForeignKeyMenu.value,
+                            allColumns: reverseFk.all_source_columns,
+                            allReferencedColumns: reverseFk.all_referenced_columns,
+                            rowData: reverseForeignKeyMenu.rowData,
+                          });
                         }
                         setReverseForeignKeyMenu(null);
-                        // Close the side panel when navigation occurs
                         setSelectedRow(null);
                       }}
                     >
