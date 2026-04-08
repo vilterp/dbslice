@@ -71,13 +71,7 @@ function App() {
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       setIsUpdatingFromUrl(true);
-      const loaded = loadStateFromUrl();
-      if (!loaded) {
-        // If no state in URL, create a default tab
-        const defaultTab = makeDefaultTab();
-        setTabs([defaultTab]);
-        setSelectedTabId(defaultTab.id);
-      }
+      loadStateFromUrl();
       setIsUpdatingFromUrl(false);
     };
 
@@ -96,10 +90,7 @@ function App() {
         const loaded = loadStateFromUrl();
         
         if (!loaded) {
-          // No state in URL - create a default tab
-          const defaultTab = makeDefaultTab();
-          setTabs([defaultTab]);
-          setSelectedTabId(defaultTab.id);
+          // No state in URL - start with no tabs
         }
         setIsUpdatingFromUrl(false);
       })
@@ -382,7 +373,10 @@ function App() {
         onTabRename={handleTabRename}
       />
 
-      {currentTab && <Tab tab={currentTab} updateTab={updateTab} tables={tables} onForeignKeyNavigation={handleForeignKeyNavigation} onReverseForeignKeyNavigation={handleReverseForeignKeyNavigation} onJoinWithTable={handleJoinWithTable} />}
+      {currentTab
+        ? <Tab tab={currentTab} updateTab={updateTab} tables={tables} onForeignKeyNavigation={handleForeignKeyNavigation} onReverseForeignKeyNavigation={handleReverseForeignKeyNavigation} onJoinWithTable={handleJoinWithTable} />
+        : <div className="no-table-selected"><h3>No table selected</h3><p>Please select a table from the dropdown above to begin exploring your data.</p></div>
+      }
     </div>
   );
 }
