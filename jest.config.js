@@ -15,6 +15,11 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
+  // Jest 28 cannot resolve the `node:` prefix for experimental builtins like
+  // node:sqlite. Map it to a shim that uses eval to bypass the module resolver.
+  moduleNameMapper: {
+    '^node:sqlite$': '<rootDir>/__mocks__/node_sqlite.js',
+  },
   extensionsToTreatAsEsm: [],
   globals: {
     'ts-jest': {

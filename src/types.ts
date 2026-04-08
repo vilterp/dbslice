@@ -111,6 +111,26 @@ export interface ReverseForeignKeyInfo {
   all_referenced_columns?: string[];  // All columns in this table
 }
 
+/**
+ * Specification passed to FK navigation callbacks.
+ *
+ * Works for both forward FK (clicking a FK cell → referenced table) and
+ * reverse FK (clicking a PK/referenced cell → referencing table):
+ *   - `table` / `column` identify the destination table and its primary column.
+ *   - For compound FKs, `allColumns` holds all source-side FK columns and
+ *     `allReferencedColumns` holds all destination-side FK columns; `rowData`
+ *     is the full source row so values can be read as `rowData[allColumns[i]]`.
+ *   - For single-column FKs, only `table`, `column`, and `value` are set.
+ */
+export interface FKNavSpec {
+  table: string;
+  column: string;
+  value: any;
+  allColumns?: string[];            // All source-side columns in compound FK group
+  allReferencedColumns?: string[];  // All destination-side columns in compound FK group
+  rowData?: any;
+}
+
 // Basic types
 export type SortDirection = 'asc' | 'desc' | '';
 

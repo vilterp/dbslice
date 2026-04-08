@@ -5,20 +5,14 @@ import CopyButton from "./CopyButton";
 import SidePanelCell from "./SidePanelCell";
 import DropdownMenu from "../components/DropdownMenu";
 import { Column } from "../api";
+import { FKNavSpec } from "../../../src/types";
 
 interface SidePanelProps {
   selectedRow: any | null;
   onClose: () => void;
   columns: Column[];
   onForeignKeyClick: (column: string, value: any, rowData: any) => void;
-  onNavigateToReferencingTable?: (
-    targetTable: string,
-    targetColumn: string,
-    value: any,
-    allSourceColumns?: string[],
-    allReferencedColumns?: string[],
-    rowData?: any
-  ) => void;
+  onNavigateToReferencingTable?: (nav: FKNavSpec) => void;
 }
 
 const SidePanel: React.FC<SidePanelProps> = ({ 
@@ -130,17 +124,17 @@ const SidePanel: React.FC<SidePanelProps> = ({
                     style={{ padding: '8px 16px', cursor: 'pointer' }}
                     onClick={() => {
                       if (onNavigateToReferencingTable) {
-                        onNavigateToReferencingTable(
-                          reverseFk.source_table,
-                          reverseFk.source_column,
-                          reverseForeignKeyMenu.value,
-                          reverseFk.all_source_columns,
-                          reverseFk.all_referenced_columns,
-                          selectedRow
-                        );
+                        onNavigateToReferencingTable({
+                          table: reverseFk.source_table,
+                          column: reverseFk.source_column,
+                          value: reverseForeignKeyMenu.value,
+                          allColumns: reverseFk.all_source_columns,
+                          allReferencedColumns: reverseFk.all_referenced_columns,
+                          rowData: selectedRow,
+                        });
                       }
                       setReverseForeignKeyMenu(null);
-                      handleClose(); // Close the panel after navigation
+                      handleClose();
                     }}
                   >
                     Go to {reverseFk.source_table}

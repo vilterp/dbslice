@@ -1,0 +1,75 @@
+2026-04-08T12:08:08.830-04:00 [INFO] Config path: --file
+2026-04-08T12:08:08.832-04:00 [ERROR] Error loading config file:
+2026-04-08T12:08:08.833-04:00 [INFO] Using default in-memory database
+2026-04-08T12:08:08.837-04:00 [INFO] Using in-memory database
+2026-04-08T12:08:08.840-04:00 [INFO] Server running on http://localhost:3001
+2026-04-08T12:08:09.399-04:00 [INFO] GET /api/tables/gen_assignments/columns - Request started
+2026-04-08T12:08:09.400-04:00 [INFO] SQL query started {"queryId":"442uv2","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'gen_assignments'\n        AND table_catalog = current_catalog()"}
+2026-04-08T12:08:09.409-04:00 [INFO] SQL query finished {"queryId":"442uv2","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'gen_assignments'\n        AND table_catalog = current_catalog()","rowCount":0,"duration":"9ms"}
+2026-04-08T12:08:09.410-04:00 [INFO] SQL query started {"queryId":"unzf1j","query":"SELECT constraint_column_names, referenced_table, referenced_column_names\n          FROM duckdb_constraints\n          WHERE table_name = 'gen_assignments'\n          AND constraint_type = 'FOREIGN KEY'"}
+2026-04-08T12:08:09.410-04:00 [INFO] SQL query finished {"queryId":"unzf1j","query":"SELECT constraint_column_names, referenced_table, referenced_column_names\n          FROM duckdb_constraints\n          WHERE table_name = 'gen_assignments'\n          AND constraint_type = 'FOREIGN KEY'","rowCount":0,"duration":"0ms"}
+2026-04-08T12:08:09.410-04:00 [INFO] SQL query started {"queryId":"zv19sb","query":"SELECT constraint_column_names, table_name as source_table, referenced_column_names\n          FROM duckdb_constraints\n          WHERE referenced_table = 'gen_assignments'\n          AND constraint_type = 'FOREIGN KEY'"}
+2026-04-08T12:08:09.411-04:00 [INFO] SQL query finished {"queryId":"zv19sb","query":"SELECT constraint_column_names, table_name as source_table, referenced_column_names\n          FROM duckdb_constraints\n          WHERE referenced_table = 'gen_assignments'\n          AND constraint_type = 'FOREIGN KEY'","rowCount":0,"duration":"1ms"}
+2026-04-08T12:08:09.412-04:00 [INFO] GET /api/tables/gen_assignments/columns - 200 (13ms)
+2026-04-08T12:08:56.143-04:00 [INFO] Config path: /tmp/test_config.yaml
+2026-04-08T12:08:56.147-04:00 [INFO] Using config file: test_config.yaml
+2026-04-08T12:08:56.152-04:00 [INFO] Connecting to SQLite file via DuckDB: /tmp/reporting_test.db
+2026-04-08T12:08:56.155-04:00 [INFO] Server running on http://localhost:3001
+2026-04-08T12:08:56.293-04:00 [INFO] Found 5 table(s) in SQLite database
+2026-04-08T12:08:56.294-04:00 [INFO] Created view for SQLite table: network_upgrades
+2026-04-08T12:08:56.295-04:00 [INFO] Created view for SQLite table: project_allocations
+2026-04-08T12:08:56.295-04:00 [INFO] Created view for SQLite table: constraints
+2026-04-08T12:08:56.296-04:00 [INFO] Created view for SQLite table: gen_assignments
+2026-04-08T12:08:56.297-04:00 [INFO] Created view for SQLite table: upgrade_constraints
+2026-04-08T12:08:57.919-04:00 [INFO] GET /api/tables - Request started
+2026-04-08T12:08:57.920-04:00 [INFO] SQL query started {"queryId":"htrf32","query":"SELECT table_name\n        FROM information_schema.tables\n        WHERE table_schema = 'main'\n        AND table_catalog = current_catalog()"}
+2026-04-08T12:08:57.924-04:00 [INFO] SQL query finished {"queryId":"htrf32","query":"SELECT table_name\n        FROM information_schema.tables\n        WHERE table_schema = 'main'\n        AND table_catalog = current_catalog()","rowCount":5,"duration":"4ms"}
+2026-04-08T12:08:57.925-04:00 [INFO] GET /api/tables - 200 (6ms)
+2026-04-08T12:09:02.425-04:00 [INFO] GET /api/tables/gen_assignments/columns - Request started
+2026-04-08T12:09:02.425-04:00 [INFO] SQL query started {"queryId":"l79v4l","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'gen_assignments'\n        AND table_catalog = current_catalog()"}
+2026-04-08T12:09:02.427-04:00 [INFO] SQL query finished {"queryId":"l79v4l","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'gen_assignments'\n        AND table_catalog = current_catalog()","rowCount":21,"duration":"2ms"}
+2026-04-08T12:09:02.428-04:00 [INFO] GET /api/tables/gen_assignments/columns - 200 (3ms)
+2026-04-08T12:09:07.103-04:00 [INFO] GET /api/tables/constraints/columns - Request started
+2026-04-08T12:09:07.104-04:00 [INFO] SQL query started {"queryId":"ejt0dg","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'constraints'\n        AND table_catalog = current_catalog()"}
+2026-04-08T12:09:07.106-04:00 [INFO] SQL query finished {"queryId":"ejt0dg","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'constraints'\n        AND table_catalog = current_catalog()","rowCount":15,"duration":"2ms"}
+2026-04-08T12:09:07.106-04:00 [INFO] GET /api/tables/constraints/columns - 200 (3ms)
+2026-04-08T12:10:33.319-04:00 [INFO] Config path: /tmp/test_config.yaml
+2026-04-08T12:10:33.323-04:00 [INFO] Using config file: test_config.yaml
+2026-04-08T12:10:33.329-04:00 [INFO] Connecting to SQLite file via DuckDB: /tmp/reporting_test.db
+2026-04-08T12:10:33.331-04:00 [INFO] Server running on http://localhost:3001
+2026-04-08T12:10:33.432-04:00 [INFO] Found 5 table(s) in SQLite database
+2026-04-08T12:10:33.432-04:00 [INFO] Created view for SQLite table: network_upgrades
+2026-04-08T12:10:33.433-04:00 [INFO] Created view for SQLite table: project_allocations
+2026-04-08T12:10:33.433-04:00 [INFO] Created view for SQLite table: constraints
+2026-04-08T12:10:33.434-04:00 [INFO] Created view for SQLite table: gen_assignments
+2026-04-08T12:10:33.434-04:00 [INFO] Created view for SQLite table: upgrade_constraints
+2026-04-08T12:10:35.146-04:00 [INFO] GET /api/tables/upgrade_constraints/columns - Request started
+2026-04-08T12:10:35.147-04:00 [INFO] SQL query started {"queryId":"x6bkx3","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'upgrade_constraints'\n        AND table_catalog = current_catalog()"}
+2026-04-08T12:10:35.149-04:00 [INFO] SQL query finished {"queryId":"x6bkx3","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'upgrade_constraints'\n        AND table_catalog = current_catalog()","rowCount":5,"duration":"2ms"}
+2026-04-08T12:10:35.151-04:00 [INFO] GET /api/tables/upgrade_constraints/columns - 200 (5ms)
+2026-04-08T12:13:27.898-04:00 [INFO] Config path: /tmp/test_config.yaml
+2026-04-08T12:13:27.902-04:00 [INFO] Using config file: test_config.yaml
+2026-04-08T12:13:27.902-04:00 [INFO] Connecting to SQLite file via DuckDB: /tmp/reporting_test.db
+2026-04-08T12:13:27.905-04:00 [INFO] Server running on http://localhost:3001
+2026-04-08T12:13:27.969-04:00 [INFO] Found 5 table(s) in SQLite database
+2026-04-08T12:13:27.970-04:00 [INFO] Created view for SQLite table: network_upgrades
+2026-04-08T12:13:27.970-04:00 [INFO] Created view for SQLite table: project_allocations
+2026-04-08T12:13:27.971-04:00 [INFO] Created view for SQLite table: constraints
+2026-04-08T12:13:27.972-04:00 [INFO] Created view for SQLite table: gen_assignments
+2026-04-08T12:13:27.972-04:00 [INFO] Created view for SQLite table: upgrade_constraints
+2026-04-08T12:13:29.650-04:00 [INFO] POST /api/tables/gen_assignments/data - Request started
+2026-04-08T12:13:29.658-04:00 [INFO] SQL query started {"queryId":"caihrx","query":"SELECT * FROM gen_assignments LIMIT 1 OFFSET 0"}
+2026-04-08T12:13:29.665-04:00 [INFO] SQL query finished {"queryId":"caihrx","query":"SELECT * FROM gen_assignments LIMIT 1 OFFSET 0","rowCount":1,"duration":"7ms"}
+2026-04-08T12:13:29.665-04:00 [INFO] SQL query started {"queryId":"wq8g7h","query":"SELECT COUNT(*) as total FROM gen_assignments"}
+2026-04-08T12:13:29.671-04:00 [INFO] SQL query finished {"queryId":"wq8g7h","query":"SELECT COUNT(*) as total FROM gen_assignments","rowCount":1,"duration":"6ms"}
+2026-04-08T12:13:29.672-04:00 [INFO] POST /api/tables/gen_assignments/data - 200 (22ms)
+2026-04-08T12:13:42.705-04:00 [INFO] POST /api/tables/constraints/data - Request started
+2026-04-08T12:13:42.706-04:00 [INFO] SQL query started {"queryId":"n2jjne","query":"SELECT * FROM constraints WHERE constraint_type = 'voltage' AND model_name = 'DIS231TC02ALL-24SP' AND monitored_facility = '524299 SPNSPUR_COL7  345 ' AND contingency_label = 'Single 523961  POTTER_CO7  345  523959  POTTER_CO6  230  523957  ''POTTER_TR  1''  13  1' LIMIT 5 OFFSET 0"}
+2026-04-08T12:13:42.713-04:00 [INFO] SQL query finished {"queryId":"n2jjne","query":"SELECT * FROM constraints WHERE constraint_type = 'voltage' AND model_name = 'DIS231TC02ALL-24SP' AND monitored_facility = '524299 SPNSPUR_COL7  345 ' AND contingency_label = 'Single 523961  POTTER_CO7  345  523959  POTTER_CO6  230  523957  ''POTTER_TR  1''  13  1' LIMIT 5 OFFSET 0","rowCount":1,"duration":"7ms"}
+2026-04-08T12:13:42.713-04:00 [INFO] SQL query started {"queryId":"xxxg9z","query":"SELECT COUNT(*) as total FROM constraints WHERE constraint_type = 'voltage' AND model_name = 'DIS231TC02ALL-24SP' AND monitored_facility = '524299 SPNSPUR_COL7  345 ' AND contingency_label = 'Single 523961  POTTER_CO7  345  523959  POTTER_CO6  230  523957  ''POTTER_TR  1''  13  1'"}
+2026-04-08T12:13:42.717-04:00 [INFO] SQL query finished {"queryId":"xxxg9z","query":"SELECT COUNT(*) as total FROM constraints WHERE constraint_type = 'voltage' AND model_name = 'DIS231TC02ALL-24SP' AND monitored_facility = '524299 SPNSPUR_COL7  345 ' AND contingency_label = 'Single 523961  POTTER_CO7  345  523959  POTTER_CO6  230  523957  ''POTTER_TR  1''  13  1'","rowCount":1,"duration":"4ms"}
+2026-04-08T12:13:42.717-04:00 [INFO] POST /api/tables/constraints/data - 200 (12ms)
+2026-04-08T12:14:40.452-04:00 [INFO] GET /api/tables/gen_assignments/columns - Request started
+2026-04-08T12:14:40.454-04:00 [INFO] SQL query started {"queryId":"80o6fz","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'gen_assignments'\n        AND table_catalog = current_catalog()"}
+2026-04-08T12:14:40.456-04:00 [INFO] SQL query finished {"queryId":"80o6fz","query":"SELECT column_name, data_type\n        FROM information_schema.columns\n        WHERE table_name = 'gen_assignments'\n        AND table_catalog = current_catalog()","rowCount":21,"duration":"3ms"}
+2026-04-08T12:14:40.458-04:00 [INFO] GET /api/tables/gen_assignments/columns - 200 (6ms)

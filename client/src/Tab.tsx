@@ -1,4 +1,4 @@
-import { NUMERICAL_COLUMN_TYPES, Filter } from '../../src/types';
+import { NUMERICAL_COLUMN_TYPES, Filter, FKNavSpec } from '../../src/types';
 import React from "react";
 import QueryBar from "./QueryBar/QueryBar";
 import Sidebar from "./Sidebar";
@@ -20,8 +20,8 @@ interface TabProps {
   tab: TabState;
   updateTab: (tabId: string, updater: (tab: TabState) => TabState) => void;
   tables: Array<{ table_name: string }>;
-  onForeignKeyNavigation?: (targetTable: string, targetColumn: string, value: any) => void;
-  onReverseForeignKeyNavigation?: (targetTable: string, targetColumn: string, value: any) => void;
+  onForeignKeyNavigation?: (nav: FKNavSpec) => void;
+  onReverseForeignKeyNavigation?: (nav: FKNavSpec) => void;
   onJoinWithTable?: (currentTable: string, currentFilters: any[], joinColumn: string, targetTable: string, targetColumn: string) => void;
 }
 

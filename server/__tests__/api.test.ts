@@ -115,6 +115,26 @@ beforeAll(async () => {
     )
   `);
 
+  // Create tables for compound foreign key testing
+  await runQuery(`
+    CREATE TABLE test_compound_pk (
+      type_col VARCHAR,
+      id_col INTEGER,
+      extra_data VARCHAR,
+      PRIMARY KEY (type_col, id_col)
+    )
+  `);
+
+  await runQuery(`
+    CREATE TABLE test_compound_fk (
+      src_id INTEGER PRIMARY KEY,
+      ref_type VARCHAR,
+      ref_id INTEGER,
+      data VARCHAR,
+      FOREIGN KEY (ref_type, ref_id) REFERENCES test_compound_pk(type_col, id_col)
+    )
+  `);
+
   // Insert sample data
   await runQuery(`
     INSERT INTO products VALUES
@@ -174,7 +194,7 @@ describe('API Endpoints', () => {
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
-      expect(response.body.length).toBe(9);
+      expect(response.body.length).toBe(11);
       
       const tableNames = response.body.map((table: any) => table.table_name);
       expect(tableNames).toContain('products');
@@ -454,7 +474,7 @@ describe('API Endpoints', () => {
       
       expect(response.body.database.path).toBe(':memory:');
       expect(response.body.database.type).toBe('memory');
-      expect(response.body.database.tables).toBe(9);
+      expect(response.body.database.tables).toBe(11);
       
       expect(response.body.config.maxRows).toBe(1000);
       expect(response.body.config.maxHistogramBins).toBe(50);
@@ -1620,6 +1640,97 @@ describe('API Endpoints', () => {
         expect(order.customer_id).toBe(101);
         expect(order.total_amount).toBeGreaterThanOrEqual(1000);
         expect(order.total_amount).toBeLessThanOrEqual(3000);
+      });
+    });
+  });
+
+  describe('Compound Foreign Key Detection', () => {
+    describe('Forward compound FK (all_columns / all_referenced_columns)', () => {
+      it('should set all_columns and all_referenced_columns on each column in a compound FK', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_compound_fk/columns')
+          .expect(200);
+
+        const refTypeCol = response.body.find((c: any) => c.column_name === 'ref_type');
+        const refIdCol = response.body.find((c: any) => c.column_name === 'ref_id');
+
+        // Both FK columns should have foreign_key info
+        expect(refTypeCol).toHaveProperty('foreign_key');
+        expect(refIdCol).toHaveProperty('foreign_key');
+
+        // Each should point to the correct referenced table/column
+        expect(refTypeCol.foreign_key.referenced_table).toBe('test_compound_pk');
+        expect(refTypeCol.foreign_key.referenced_column).toBe('type_col');
+        expect(refIdCol.foreign_key.referenced_table).toBe('test_compound_pk');
+        expect(refIdCol.foreign_key.referenced_column).toBe('id_col');
+
+        // Both should expose the full compound FK group
+        expect(refTypeCol.foreign_key.all_columns).toEqual(['ref_type', 'ref_id']);
+        expect(refTypeCol.foreign_key.all_referenced_columns).toEqual(['type_col', 'id_col']);
+        expect(refIdCol.foreign_key.all_columns).toEqual(['ref_type', 'ref_id']);
+        expect(refIdCol.foreign_key.all_referenced_columns).toEqual(['type_col', 'id_col']);
+      });
+
+      it('should not set all_columns on non-FK columns', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_compound_fk/columns')
+          .expect(200);
+
+        const srcIdCol = response.body.find((c: any) => c.column_name === 'src_id');
+        expect(srcIdCol.foreign_key).toBeUndefined();
+      });
+
+      it('should not set all_columns on single-column FKs', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_orders/columns')
+          .expect(200);
+
+        const customerIdCol = response.body.find((c: any) => c.column_name === 'customer_id');
+        expect(customerIdCol.foreign_key).toBeDefined();
+        expect(customerIdCol.foreign_key.all_columns).toBeUndefined();
+        expect(customerIdCol.foreign_key.all_referenced_columns).toBeUndefined();
+      });
+    });
+
+    describe('Reverse compound FK (all_source_columns / all_referenced_columns)', () => {
+      it('should set all_source_columns and all_referenced_columns on each PK column with reverse FK', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_compound_pk/columns')
+          .expect(200);
+
+        const typeCol = response.body.find((c: any) => c.column_name === 'type_col');
+        const idCol = response.body.find((c: any) => c.column_name === 'id_col');
+
+        // Both PK columns should have reverse FK info
+        expect(typeCol).toHaveProperty('reverse_foreign_keys');
+        expect(idCol).toHaveProperty('reverse_foreign_keys');
+        expect(typeCol.reverse_foreign_keys.length).toBe(1);
+        expect(idCol.reverse_foreign_keys.length).toBe(1);
+
+        // Check type_col reverse FK
+        const typeRfk = typeCol.reverse_foreign_keys[0];
+        expect(typeRfk.source_table).toBe('test_compound_fk');
+        expect(typeRfk.source_column).toBe('ref_type');
+        expect(typeRfk.all_source_columns).toEqual(['ref_type', 'ref_id']);
+        expect(typeRfk.all_referenced_columns).toEqual(['type_col', 'id_col']);
+
+        // Check id_col reverse FK
+        const idRfk = idCol.reverse_foreign_keys[0];
+        expect(idRfk.source_table).toBe('test_compound_fk');
+        expect(idRfk.source_column).toBe('ref_id');
+        expect(idRfk.all_source_columns).toEqual(['ref_type', 'ref_id']);
+        expect(idRfk.all_referenced_columns).toEqual(['type_col', 'id_col']);
+      });
+
+      it('should not set all_source_columns on reverse single-column FKs', async () => {
+        const response = await request(app)
+          .get('/api/tables/test_customers/columns')
+          .expect(200);
+
+        const customerIdCol = response.body.find((c: any) => c.column_name === 'customer_id');
+        expect(customerIdCol.reverse_foreign_keys).toBeDefined();
+        expect(customerIdCol.reverse_foreign_keys[0].all_source_columns).toBeUndefined();
+        expect(customerIdCol.reverse_foreign_keys[0].all_referenced_columns).toBeUndefined();
       });
     });
   });
