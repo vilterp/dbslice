@@ -38,6 +38,52 @@ function App() {
   
   // Track query signatures to avoid unnecessary reloads
   const [querySignatures, setQuerySignatures] = useState<Map<string, string>>(new Map());
+  
+  // Track whether we're currently updating from URL (to avoid infinite loops)
+  const [isUpdatingFromUrl, setIsUpdatingFromUrl] = useState(false);
+
+  // Helper function to load state from URL
+  const loadStateFromUrl = (urlString: string = window.location.href) => {
+    const stateFromURL = urlToAppState(urlString);
+    
+    if (stateFromURL && stateFromURL.tabs.length > 0) {
+      // Convert URL tab state to full TabState objects
+      const urlTabs = stateFromURL.tabs.map(urlTab => ({
+        id: urlTab.id,
+        name: urlTab.name,
+        queryState: {
+          query: urlTab.query,
+          state: { type: "idle" as const },
+        },
+        columns: [],
+        collapsedColumns: new Set<string>(),
+        headerMenu: null,
+      }));
+      
+      setTabs(urlTabs);
+      setSelectedTabId(stateFromURL.selectedTabId || urlTabs[0].id);
+      return true;
+    }
+    return false;
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      setIsUpdatingFromUrl(true);
+      const loaded = loadStateFromUrl();
+      if (!loaded) {
+        // If no state in URL, create a default tab
+        const defaultTab = makeDefaultTab();
+        setTabs([defaultTab]);
+        setSelectedTabId(defaultTab.id);
+      }
+      setIsUpdatingFromUrl(false);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // On mount, fetch tables and check for URL state
   useEffect(() => {
@@ -45,31 +91,17 @@ function App() {
       .then((data) => {
         setTables(data);
         
+        setIsUpdatingFromUrl(true);
         // Load app state from URL
-        const stateFromURL = urlToAppState(window.location.href);
+        const loaded = loadStateFromUrl();
         
-        if (stateFromURL && stateFromURL.tabs.length > 0) {
-          // Convert URL tab state to full TabState objects
-          const urlTabs = stateFromURL.tabs.map(urlTab => ({
-            id: urlTab.id,
-            name: urlTab.name,
-            queryState: {
-              query: urlTab.query,
-              state: { type: "idle" as const },
-            },
-            columns: [],
-            collapsedColumns: new Set<string>(),
-            headerMenu: null,
-          }));
-          
-          setTabs(urlTabs);
-          setSelectedTabId(stateFromURL.selectedTabId || urlTabs[0].id);
-        } else {
+        if (!loaded) {
           // No state in URL - create a default tab
           const defaultTab = makeDefaultTab();
           setTabs([defaultTab]);
           setSelectedTabId(defaultTab.id);
         }
+        setIsUpdatingFromUrl(false);
       })
       .catch((e) => console.error("Error fetching tables:", e));
     // eslint-disable-next-line
@@ -187,26 +219,62 @@ function App() {
     setTabs((tabs) => tabs.map((t) => (t.id === tabId ? updater(t) : t)));
   };
 
-  const handleForeignKeyNavigation = (targetTable: string, targetColumn: string, value: any) => {
+  const handleForeignKeyNavigation = (
+    targetTable: string,
+    targetColumn: string,
+    value: any,
+    allColumns?: string[],
+    allReferencedColumns?: string[],
+    rowData?: any
+  ) => {
     const newTab = makeDefaultTab(targetTable);
-    // Add filter for the foreign key value
-    newTab.queryState.query.filters = [{
-      type: 'exact',
-      column: targetColumn,
-      value: String(value)
-    }];
+
+    // If this is a composite foreign key, add filters for all columns
+    if (allColumns && allReferencedColumns && rowData) {
+      newTab.queryState.query.filters = allReferencedColumns.map((refCol, index) => ({
+        type: 'exact' as const,
+        column: refCol,
+        value: String(rowData[allColumns[index]])
+      }));
+    } else {
+      // Single column foreign key
+      newTab.queryState.query.filters = [{
+        type: 'exact',
+        column: targetColumn,
+        value: String(value)
+      }];
+    }
+
     setTabs((tabs) => [...tabs, newTab]);
     setSelectedTabId(newTab.id);
   };
 
-  const handleReverseForeignKeyNavigation = (targetTable: string, targetColumn: string, value: any) => {
+  const handleReverseForeignKeyNavigation = (
+    targetTable: string,
+    targetColumn: string,
+    value: any,
+    allSourceColumns?: string[],
+    allReferencedColumns?: string[],
+    rowData?: any
+  ) => {
     const newTab = makeDefaultTab(targetTable);
-    // Add filter for the reverse foreign key value
-    newTab.queryState.query.filters = [{
-      type: 'exact',
-      column: targetColumn,
-      value: String(value)
-    }];
+
+    // If this is a composite foreign key, add filters for all columns
+    if (allSourceColumns && allReferencedColumns && rowData) {
+      newTab.queryState.query.filters = allSourceColumns.map((srcCol, index) => ({
+        type: 'exact' as const,
+        column: srcCol,
+        value: String(rowData[allReferencedColumns[index]])
+      }));
+    } else {
+      // Single column foreign key
+      newTab.queryState.query.filters = [{
+        type: 'exact',
+        column: targetColumn,
+        value: String(value)
+      }];
+    }
+
     setTabs((tabs) => [...tabs, newTab]);
     setSelectedTabId(newTab.id);
   };
@@ -279,12 +347,18 @@ function App() {
 
   const currentTab = tabs.find((t) => t.id === selectedTabId);
 
+  // Track if this is the initial load
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   // Update URL whenever tabs or selectedTabId changes
   useEffect(() => {
-    if (tabs.length > 0) {
-      updateURL(getAppState());
+    if (tabs.length > 0 && !isUpdatingFromUrl) {
+      updateURL(getAppState(), isInitialLoad);
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
     }
-  }, [tabs, selectedTabId]);
+  }, [tabs, selectedTabId, isUpdatingFromUrl, isInitialLoad]);
 
   return (
     <div className="App">
@@ -297,10 +371,11 @@ function App() {
       <TabBar
         tabs={tabs}
         selectedTabId={selectedTabId}
+        tables={tables}
         onTabClick={handleTabClick}
         onTabClose={handleTabClose}
-        onAddTab={() => {
-          const newTab = makeDefaultTab();
+        onAddTab={(tableName: string) => {
+          const newTab = makeDefaultTab(tableName);
           setTabs((tabs) => [...tabs, newTab]);
           setSelectedTabId(newTab.id);
         }}

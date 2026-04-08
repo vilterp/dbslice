@@ -17,8 +17,22 @@ interface DataTableProps {
   setSortColumn: (col: string) => void;
   setSortDirection: (dir: SortDirection) => void;
   addFilter: (column: string, value: any) => void;
-  onNavigateToForeignKey?: (targetTable: string, targetColumn: string, value: any) => void;
-  onNavigateToReferencingTable?: (targetTable: string, targetColumn: string, value: any) => void;
+  onNavigateToForeignKey?: (
+    targetTable: string,
+    targetColumn: string,
+    value: any,
+    allColumns?: string[],
+    allReferencedColumns?: string[],
+    rowData?: any
+  ) => void;
+  onNavigateToReferencingTable?: (
+    targetTable: string,
+    targetColumn: string,
+    value: any,
+    allSourceColumns?: string[],
+    allReferencedColumns?: string[],
+    rowData?: any
+  ) => void;
   onJoinWithTable?: (joinColumn: string, targetTable: string, targetColumn: string) => void;
 }
 
@@ -43,12 +57,14 @@ const DataTable: React.FC<DataTableProps> = ({
     value: any;
     x: number;
     y: number;
+    rowData?: any;
   } | null>(null);
   const [reverseForeignKeyMenu, setReverseForeignKeyMenu] = useState<{
     column: string;
     value: any;
     x: number;
     y: number;
+    rowData?: any;
   } | null>(null);
   const [joinMenu, setJoinMenu] = useState<{
     column: string;
@@ -67,7 +83,8 @@ const DataTable: React.FC<DataTableProps> = ({
   const handleCellContextMenu = (
     e: React.MouseEvent,
     column: string,
-    value: any
+    value: any,
+    rowData: any
   ) => {
     e.preventDefault();
     setCellMenu({
@@ -75,6 +92,7 @@ const DataTable: React.FC<DataTableProps> = ({
       value,
       x: e.clientX,
       y: e.clientY,
+      rowData,
     });
   };
 
@@ -94,7 +112,10 @@ const DataTable: React.FC<DataTableProps> = ({
         onNavigateToForeignKey(
           columnInfo.foreign_key.referenced_table,
           columnInfo.foreign_key.referenced_column,
-          cellMenu.value
+          cellMenu.value,
+          columnInfo.foreign_key.all_columns,
+          columnInfo.foreign_key.all_referenced_columns,
+          cellMenu.rowData
         );
       }
       setCellMenu(null);
@@ -104,14 +125,17 @@ const DataTable: React.FC<DataTableProps> = ({
   };
 
   // Handler for clicking on foreign key cell
-  const handleForeignKeyClick = (column: string, value: any) => {
+  const handleForeignKeyClick = (column: string, value: any, rowData: any) => {
     if (onNavigateToForeignKey) {
       const columnInfo = columnMap.get(column);
       if (columnInfo?.foreign_key) {
         onNavigateToForeignKey(
           columnInfo.foreign_key.referenced_table,
           columnInfo.foreign_key.referenced_column,
-          value
+          value,
+          columnInfo.foreign_key.all_columns,
+          columnInfo.foreign_key.all_referenced_columns,
+          rowData
         );
       }
     }
@@ -125,12 +149,13 @@ const DataTable: React.FC<DataTableProps> = ({
   };
 
   // Handler for clicking on reverse foreign key pill - shows menu
-  const handleReverseForeignKeyPillClick = (e: React.MouseEvent, column: string, value: any) => {
+  const handleReverseForeignKeyPillClick = (e: React.MouseEvent, column: string, value: any, rowData: any) => {
     setReverseForeignKeyMenu({
       column,
       value,
       x: e.clientX,
       y: e.clientY,
+      rowData,
     });
   };
 
@@ -193,6 +218,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       column={col}
                       columnInfo={columnMap.get(col)}
                       cellIndex={cellIndex}
+                      rowData={row}
                       onContextMenu={handleCellContextMenu}
                       onForeignKeyClick={handleForeignKeyClick}
                       onReverseForeignKeyPillClick={handleReverseForeignKeyPillClick}
@@ -256,7 +282,14 @@ const DataTable: React.FC<DataTableProps> = ({
                           style={{ padding: '8px 16px', cursor: 'pointer', borderTop: '1px solid #eee' }}
                           onClick={() => {
                             if (onNavigateToReferencingTable) {
-                              onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, cellMenu.value);
+                              onNavigateToReferencingTable(
+                                reverseFk.source_table,
+                                reverseFk.source_column,
+                                cellMenu.value,
+                                reverseFk.all_source_columns,
+                                reverseFk.all_referenced_columns,
+                                cellMenu.rowData
+                              );
                             }
                             setCellMenu(null);
                             // Close the side panel when navigation occurs
@@ -297,7 +330,14 @@ const DataTable: React.FC<DataTableProps> = ({
                       style={{ padding: '8px 16px', cursor: 'pointer' }}
                       onClick={() => {
                         if (onNavigateToReferencingTable) {
-                          onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, reverseForeignKeyMenu.value);
+                          onNavigateToReferencingTable(
+                            reverseFk.source_table,
+                            reverseFk.source_column,
+                            reverseForeignKeyMenu.value,
+                            reverseFk.all_source_columns,
+                            reverseFk.all_referenced_columns,
+                            reverseForeignKeyMenu.rowData
+                          );
                         }
                         setReverseForeignKeyMenu(null);
                         // Close the side panel when navigation occurs

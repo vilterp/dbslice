@@ -10,8 +10,15 @@ interface SidePanelProps {
   selectedRow: any | null;
   onClose: () => void;
   columns: Column[];
-  onForeignKeyClick: (column: string, value: any) => void;
-  onNavigateToReferencingTable?: (targetTable: string, targetColumn: string, value: any) => void;
+  onForeignKeyClick: (column: string, value: any, rowData: any) => void;
+  onNavigateToReferencingTable?: (
+    targetTable: string,
+    targetColumn: string,
+    value: any,
+    allSourceColumns?: string[],
+    allReferencedColumns?: string[],
+    rowData?: any
+  ) => void;
 }
 
 const SidePanel: React.FC<SidePanelProps> = ({ 
@@ -42,9 +49,9 @@ const SidePanel: React.FC<SidePanelProps> = ({
   };
 
   // Handler for foreign key clicks - close panel and navigate
-  const handleForeignKeyClick = (column: string, value: any) => {
+  const handleForeignKeyClick = (column: string, value: any, rowData: any) => {
     handleClose();
-    onForeignKeyClick(column, value);
+    onForeignKeyClick(column, value, rowData);
   };
 
   // Handler for reverse foreign key pill clicks - show local dropdown
@@ -92,6 +99,7 @@ const SidePanel: React.FC<SidePanelProps> = ({
                   value={value}
                   column={key}
                   columnInfo={columnMap.get(key)}
+                  rowData={selectedRow}
                   onForeignKeyClick={handleForeignKeyClick}
                   onReverseForeignKeyPillClick={handleReverseForeignKeyPillClick}
                 />
@@ -122,7 +130,14 @@ const SidePanel: React.FC<SidePanelProps> = ({
                     style={{ padding: '8px 16px', cursor: 'pointer' }}
                     onClick={() => {
                       if (onNavigateToReferencingTable) {
-                        onNavigateToReferencingTable(reverseFk.source_table, reverseFk.source_column, reverseForeignKeyMenu.value);
+                        onNavigateToReferencingTable(
+                          reverseFk.source_table,
+                          reverseFk.source_column,
+                          reverseForeignKeyMenu.value,
+                          reverseFk.all_source_columns,
+                          reverseFk.all_referenced_columns,
+                          selectedRow
+                        );
                       }
                       setReverseForeignKeyMenu(null);
                       handleClose(); // Close the panel after navigation

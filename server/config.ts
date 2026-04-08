@@ -7,7 +7,7 @@ import logger from './logger';
 export interface Config {
   database: {
     path?: string;
-    type: 'file' | 'memory' | 's3';
+    type: 'file' | 'memory' | 's3' | 'sqlite';
     tables?: { [key: string]: string | { url: string; no_histogram?: string[] } };
   };
   server: {
@@ -48,9 +48,9 @@ export function loadConfig(configPath?: string): Config {
     logger.info(`Using config file: ${path.basename(resolvedConfigPath)}`);
     if (config.database.type === 's3') {
       logger.info(`Using S3 database with ${Object.keys(config.database.tables || {}).length} table(s)`);
-    } else if (config.database.path) {
-      logger.info(`Loading DuckDB from: ${config.database.path}`);
     }
+    // Note: Don't log database path here - it may be overridden by CLI args
+    // The actual database path will be logged by initializeDatabase()
     
     return config;
   } catch (error) {

@@ -8,18 +8,18 @@ interface QueryBarProps {
   removeFilter: (column: string) => void;
   tables: Array<{ table_name: string }>;
   selectedTable: string;
-  onTableSelect: (tableName: string) => void;
   steps?: QueryStep[];
 }
 
-const QueryBar: React.FC<QueryBarProps> = ({ 
-  filters, 
-  removeFilter, 
-  tables, 
-  selectedTable, 
-  onTableSelect, 
-  steps = [] 
+const QueryBar: React.FC<QueryBarProps> = ({
+  filters,
+  removeFilter,
+  tables,
+  selectedTable,
+  steps = []
 }) => {
+  if (filters.length === 0 && steps.length === 0) return null;
+
   return (
     <div className="query-bar">
       {steps.length > 0 && (
@@ -40,7 +40,6 @@ const QueryBar: React.FC<QueryBarProps> = ({
         tableName={selectedTable}
         filters={filters}
         tables={tables}
-        onTableSelect={onTableSelect}
         onRemoveFilter={removeFilter}
       />
     </div>

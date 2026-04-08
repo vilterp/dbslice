@@ -130,7 +130,11 @@ export function urlToQuery(urlString: string): Partial<Query> {
 }
 
 // Wrapper functions for browser usage
-export function updateURL(state: AppUrlState) {
+export function updateURL(state: AppUrlState, replace: boolean = false) {
   const newUrl = appStateToUrl(window.location.href, state);
-  window.history.replaceState({}, '', newUrl);
+  if (replace) {
+    window.history.replaceState(state, '', newUrl);
+  } else {
+    window.history.pushState(state, '', newUrl);
+  }
 }

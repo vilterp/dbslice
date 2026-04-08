@@ -4,16 +4,42 @@ import { TabState } from './Tab';
 interface TabBarProps {
   tabs: TabState[];
   selectedTabId: string | null;
+  tables: Array<{ table_name: string }>;
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
-  onAddTab: () => void;
+  onAddTab: (tableName: string) => void;
   onTabRename: (tabId: string, newName: string) => void;
 }
 
 
-const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabClose, onAddTab, onTabRename }) => {
+const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, tables, onTabClick, onTabClose, onAddTab, onTabRename }) => {
   const [editingTabId, setEditingTabId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState<string>("");
+  const [showTableSelector, setShowTableSelector] = React.useState(false);
+  const tableSelectorRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tableSelectorRef.current && !tableSelectorRef.current.contains(event.target as Node)) {
+        setShowTableSelector(false);
+      }
+    };
+
+    if (showTableSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTableSelector]);
+
+  const handleAddTabClick = () => {
+    setShowTableSelector(!showTableSelector);
+  };
+
+  const handleTableSelect = (tableName: string) => {
+    onAddTab(tableName);
+    setShowTableSelector(false);
+  };
 
   const handleTabNameClick = (tab: TabState, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -109,21 +135,72 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, onTabClick, onTabC
           </button>
         </div>
       ))}
-      <button
-        style={{
-          marginLeft: 8,
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: "#333",
-          fontSize: 22,
-          padding: "0 0.5rem",
-        }}
-        aria-label="Add new tab"
-        onClick={onAddTab}
-      >
-        +
-      </button>
+      <div style={{ position: "relative" }} ref={tableSelectorRef}>
+        <button
+          style={{
+            marginLeft: 8,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#333",
+            fontSize: 22,
+            padding: "0 0.5rem",
+          }}
+          aria-label="Add new tab"
+          onClick={handleAddTabClick}
+        >
+          +
+        </button>
+
+        {showTableSelector && (
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              background: "white",
+              border: "1px solid #e0e0e0",
+              borderRadius: "4px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              zIndex: 1000,
+              minWidth: "200px",
+              maxHeight: "300px",
+              overflowY: "auto",
+              marginTop: "4px",
+            }}
+          >
+            <div
+              style={{
+                padding: "8px 12px",
+                fontWeight: "bold",
+                borderBottom: "1px solid #e0e0e0",
+                background: "#f8f9fa",
+              }}
+            >
+              Select a table
+            </div>
+            {tables.map((table) => (
+              <div
+                key={table.table_name}
+                style={{
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  borderBottom: "1px solid #f0f0f0",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#f0f0f0";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "white";
+                }}
+                onClick={() => handleTableSelect(table.table_name)}
+              >
+                {table.table_name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -6,31 +6,33 @@ interface SidePanelCellProps {
   value: any;
   column: string;
   columnInfo: Column | undefined;
-  onForeignKeyClick: (column: string, value: any) => void;
-  onReverseForeignKeyPillClick: (e: React.MouseEvent, column: string, value: any) => void;
+  rowData: any;
+  onForeignKeyClick: (column: string, value: any, rowData: any) => void;
+  onReverseForeignKeyPillClick: (e: React.MouseEvent, column: string, value: any, rowData: any) => void;
 }
 
 const SidePanelCell: React.FC<SidePanelCellProps> = ({
   value,
   column,
   columnInfo,
+  rowData,
   onForeignKeyClick,
   onReverseForeignKeyPillClick,
 }) => {
   const isForeignKey = columnInfo?.foreign_key !== undefined;
   const hasReverseForeignKeys = columnInfo?.reverse_foreign_keys && columnInfo.reverse_foreign_keys.length > 0;
-  
+
   // For multiline content, we want to preserve formatting
   const displayValue = value === null || value === undefined ? 'NULL' : String(value);
-  
+
   if (isForeignKey) {
     return (
-      <span 
-        className="foreign-key-pill" 
+      <span
+        className="foreign-key-pill"
         style={{ cursor: 'pointer' }}
         onClick={(e) => {
           e.stopPropagation();
-          onForeignKeyClick(column, value);
+          onForeignKeyClick(column, value, rowData);
         }}
       >
         {displayValue}
@@ -38,12 +40,12 @@ const SidePanelCell: React.FC<SidePanelCellProps> = ({
     );
   } else if (hasReverseForeignKeys) {
     return (
-      <span 
-        className="reverse-foreign-key-pill" 
+      <span
+        className="reverse-foreign-key-pill"
         style={{ cursor: 'pointer' }}
         onClick={(e) => {
           e.stopPropagation();
-          onReverseForeignKeyPillClick(e, column, value);
+          onReverseForeignKeyPillClick(e, column, value, rowData);
         }}
       >
         {displayValue}
