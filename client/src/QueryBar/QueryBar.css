@@ -73,32 +73,74 @@
   background-color: #e8f4fd;
   border: 1px solid #a3d2f0;
   border-radius: 16px;
-  padding: 0.25rem 0.75rem;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: stretch;
   font-size: 0.875rem;
   color: #0066cc;
   flex-shrink: 0;
   white-space: nowrap;
+  overflow: hidden;
+}
+
+.filter-tag-negated {
+  background-color: #fde8e8;
+  border-color: #f0a3a3;
+  color: #cc0000;
+}
+
+.filter-lhs {
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+}
+
+.filter-operator {
+  background: none;
+  border: none;
+  border-left: 1px solid #a3d2f0;
+  border-right: 1px solid #a3d2f0;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.4rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.filter-tag-negated .filter-operator {
+  border-color: #f0a3a3;
+}
+
+.filter-operator:hover {
+  background-color: rgba(0, 102, 204, 0.12);
+}
+
+.filter-tag-negated .filter-operator:hover {
+  background-color: rgba(204, 0, 0, 0.12);
+}
+
+.filter-rhs {
+  padding: 0.25rem 0.5rem;
 }
 
 .remove-filter {
   background: none;
   border: none;
-  color: #0066cc;
+  border-left: 1px solid #a3d2f0;
+  color: inherit;
   cursor: pointer;
   font-size: 1.2rem;
   line-height: 1;
-  padding: 0;
-  width: 16px;
-  height: 16px;
+  padding: 0 0.4rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+}
+
+.filter-tag-negated .remove-filter {
+  border-color: #f0a3a3;
 }
 
 .remove-filter:hover {
-  background-color: rgba(0, 102, 204, 0.1);
+  background-color: rgba(0, 0, 0, 0.1);
 }

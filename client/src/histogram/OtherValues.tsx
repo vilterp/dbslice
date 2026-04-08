@@ -7,7 +7,7 @@ import { formatValue } from "../utils/formatValue";
 type OtherValuesProps = {
   distinctCount: number;
   count: number;
-  addFilter: (column: string, value: string) => void;
+  addFilter: (column: string, value: string, type?: 'exact' | 'range' | 'contains') => void;
   columnName: string;
 };
 
@@ -68,7 +68,7 @@ const OtherValues: React.FC<OtherValuesProps> = ({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === "Enter" && otherInputValue.trim()) {
-              addFilter(columnName, otherInputValue.trim());
+              addFilter(columnName, otherInputValue.trim(), 'contains');
               setOtherInputValue("");
               setTimeout(() => setShowOtherInput(false), 0);
             } else if (e.key === "Escape") {
@@ -77,7 +77,7 @@ const OtherValues: React.FC<OtherValuesProps> = ({
             }
           }}
           className="others-input"
-          placeholder="Type value..."
+          placeholder="Search values..."
         />
       )}
       <Tooltip

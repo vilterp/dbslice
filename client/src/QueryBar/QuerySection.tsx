@@ -9,6 +9,7 @@ interface QuerySectionProps {
   tables: Array<{ table_name: string }>;
   onTableSelect?: (tableName: string) => void;
   onRemoveFilter?: (column: string) => void;
+  onToggleNegation?: (column: string) => void;
 }
 
 const QuerySection: React.FC<QuerySectionProps> = ({
@@ -17,7 +18,8 @@ const QuerySection: React.FC<QuerySectionProps> = ({
   filters,
   tables,
   onTableSelect,
-  onRemoveFilter
+  onRemoveFilter,
+  onToggleNegation,
 }) => {
   return (
     <div className="query-section">
@@ -42,6 +44,7 @@ const QuerySection: React.FC<QuerySectionProps> = ({
                 key={filter.column}
                 filter={filter}
                 onRemove={onRemoveFilter || (() => {})}
+                onToggleNegation={onToggleNegation}
               />
             ))}
           </div>

@@ -434,16 +434,24 @@ function buildWhereClauseFromFilters(filters: Filter[]): string {
   for (const filter of filters) {
     switch (filter.type) {
       case 'exact':
-        const sanitizedValue = typeof filter.value === 'string' 
-          ? `'${filter.value.replace(/'/g, "''")}'` 
+        const sanitizedValue = typeof filter.value === 'string'
+          ? `'${filter.value.replace(/'/g, "''")}'`
           : filter.value;
-        conditions.push(`${sanitizeIdentifier(filter.column)} = ${sanitizedValue}`);
+        const eqOp = filter.negated ? '!=' : '=';
+        conditions.push(`${sanitizeIdentifier(filter.column)} ${eqOp} ${sanitizedValue}`);
+        break;
+      case 'contains':
+        const containsValue = `'%${filter.value.replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_')}%'`;
+        const likeOp = filter.negated ? 'NOT ILIKE' : 'ILIKE';
+        conditions.push(`${sanitizeIdentifier(filter.column)} ${likeOp} ${containsValue} ESCAPE '\\'`);
         break;
       case 'range':
-        conditions.push(`${sanitizeIdentifier(filter.column)} BETWEEN ${filter.min} AND ${filter.max}`);
+        const rangeNot = filter.negated ? 'NOT ' : '';
+        conditions.push(`${sanitizeIdentifier(filter.column)} ${rangeNot}BETWEEN ${filter.min} AND ${filter.max}`);
         break;
       case 'in':
-        conditions.push(`${sanitizeIdentifier(filter.column)} IN (SELECT ${sanitizeIdentifier(filter.stepColumn)} FROM ${sanitizeIdentifier(filter.stepName)})`);
+        const inNot = filter.negated ? 'NOT ' : '';
+        conditions.push(`${sanitizeIdentifier(filter.column)} ${inNot}IN (SELECT ${sanitizeIdentifier(filter.stepColumn)} FROM ${sanitizeIdentifier(filter.stepName)})`);
         break;
     }
   }
