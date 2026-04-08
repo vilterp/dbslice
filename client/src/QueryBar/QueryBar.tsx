@@ -18,6 +18,8 @@ const QueryBar: React.FC<QueryBarProps> = ({
   selectedTable,
   steps = []
 }) => {
+  if (filters.length === 0 && steps.length === 0) return null;
+
   return (
     <div className="query-bar">
       {steps.length > 0 && (
