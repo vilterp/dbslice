@@ -1,10 +1,10 @@
 {
-  "name": "duckdb-explore",
+  "name": "dbslice",
   "version": "1.0.0",
-  "description": "DuckDB data exploration UI",
+  "description": "Instant data explorer for DuckDB and SQLite files",
   "main": "server/cli.ts",
   "bin": {
-    "duckexplore": "server/dist/server/bin.js"
+    "dbslice": "server/dist/server/bin.js"
   },
   "scripts": {
     "dev": "concurrently \"yarn server:dev\" \"yarn client:dev\"",
@@ -21,12 +21,10 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
-    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "duckdb": "^1.0.0",
     "express": "^4.18.2",
     "js-yaml": "^4.1.0",
-    "nodemon": "^3.0.1",
     "winston": "^3.17.0"
   },
   "devDependencies": {
@@ -36,7 +34,9 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.0.0",
     "@types/supertest": "^2.0.12",
+    "concurrently": "^8.2.2",
     "jest": "^28.0.0",
+    "nodemon": "^3.0.1",
     "supertest": "^6.3.0",
     "ts-jest": "^28.0.0",
     "ts-node": "^10.9.0",
