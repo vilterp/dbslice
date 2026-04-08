@@ -95,10 +95,9 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
   const isNumerical = isNumericalColumnType(columnType);
   
   if (isNumerical) {
-    // For numerical columns, use DuckDB's automatic histogram binning
-    const histogramQuerySQL = buildNumericalHistogramQuery(cteClause, tableName, columnName, whereClause);
-    const rawHistogram = await queryRunner(histogramQuerySQL);
     const numBins = Math.max(1, Math.min(bins, 100)); // Limit between 1 and 100 bins
+    const histogramQuerySQL = buildNumericalHistogramQuery(cteClause, tableName, columnName, whereClause, numBins);
+    const rawHistogram = await queryRunner(histogramQuerySQL);
     return transformNumericalHistogramResults(rawHistogram, numBins);
   } else {
     // For discrete/categorical columns
@@ -279,17 +278,44 @@ const isNumericalColumnType = (columnType: string): boolean => {
 };
 
 
-// Build optimized numerical histogram query using DuckDB's automatic binning
-const buildNumericalHistogramQuery = (cteClause: string, tableName: string, columnName: string, whereClause: string): string => {
+// Build equal-width numerical histogram query
+const buildNumericalHistogramQuery = (cteClause: string, tableName: string, columnName: string, whereClause: string, numBins: number): string => {
   const sanitizedTableName = sanitizeIdentifier(tableName);
   const sanitizedColumnName = sanitizeIdentifier(columnName);
-  
-  return `
-    ${cteClause}SELECT 
-      unnest(map_keys(histogram(${sanitizedColumnName}))) as bin_value,
-      unnest(map_values(histogram(${sanitizedColumnName}))) as count
+
+  const statsCTE = `col_stats AS (
+    SELECT MIN(${sanitizedColumnName}) as min_val, MAX(${sanitizedColumnName}) as max_val
     FROM ${sanitizedTableName}
     ${whereClause}
+  )`;
+
+  const ctePart = cteClause.trim()
+    ? cteClause.trimEnd() + `,\n  ${statsCTE}`
+    : `WITH ${statsCTE}`;
+
+  const nullCheck = `${sanitizedColumnName} IS NOT NULL`;
+  const combinedWhere = whereClause
+    ? `${whereClause} AND ${nullCheck}`
+    : ` WHERE ${nullCheck}`;
+
+  return `
+    ${ctePart}
+    SELECT
+      CASE
+        WHEN col_stats.max_val = col_stats.min_val THEN 0
+        ELSE LEAST(
+          CAST(FLOOR((${sanitizedColumnName} - col_stats.min_val) / (col_stats.max_val - col_stats.min_val) * ${numBins}) AS INTEGER),
+          ${numBins} - 1
+        )
+      END as bin_idx,
+      col_stats.min_val,
+      col_stats.max_val,
+      COUNT(*) as count
+    FROM ${sanitizedTableName}
+    CROSS JOIN col_stats
+    ${combinedWhere}
+    GROUP BY bin_idx, col_stats.min_val, col_stats.max_val
+    ORDER BY bin_idx
   `;
 };
 
@@ -316,79 +342,31 @@ const buildCategoricalHistogramQuery = (
   `;
 };
 
-// Transform numerical histogram results to expected format (for both regular and BigInt)
-const transformNumericalHistogramResults = (rawHistogram: any[], maxBins?: number): any[] => {
-  let validBins = rawHistogram.map(row => ({
-    bin_value: Number(row.bin_value),
-    count: Number(row.count)
-  })).filter(bin => bin.count > 0);
-  
-  if (validBins.length === 0) return [];
-  
-  // Limit the number of bins if specified by merging adjacent bins
-  if (maxBins && validBins.length > maxBins) {
-    validBins.sort((a, b) => a.bin_value - b.bin_value);
-    
-    // Merge bins to reduce to maxBins
-    const mergedBins = [];
-    const binsPerGroup = Math.ceil(validBins.length / maxBins);
-    
-    for (let i = 0; i < validBins.length; i += binsPerGroup) {
-      const group = validBins.slice(i, i + binsPerGroup);
-      const totalCount = group.reduce((sum, bin) => sum + bin.count, 0);
-      const minValue = Math.min(...group.map(bin => bin.bin_value));
-      const maxValue = Math.max(...group.map(bin => bin.bin_value));
-      
-      mergedBins.push({
-        bin_value: (minValue + maxValue) / 2, // Use center as representative value
-        count: totalCount
-      });
-    }
-    
-    validBins = mergedBins;
+// Transform equal-width numerical histogram results to expected format
+const transformNumericalHistogramResults = (rawHistogram: any[], numBins: number): any[] => {
+  if (rawHistogram.length === 0) return [];
+
+  const minVal = Number(rawHistogram[0].min_val);
+  const maxVal = Number(rawHistogram[0].max_val);
+  const binWidth = minVal === maxVal ? 1 : (maxVal - minVal) / numBins;
+
+  const binMap = new Map<number, number>();
+  for (const row of rawHistogram) {
+    binMap.set(Number(row.bin_idx), Number(row.count));
   }
-  
-  // Sort by bin_value to ensure proper ordering
-  validBins.sort((a, b) => a.bin_value - b.bin_value);
-  
-  // Calculate bin ranges
-  return validBins.map((bin, index) => {
-    let bin_start: number;
-    let bin_end: number;
-    
-    if (validBins.length === 1) {
-      // Single bin case - create a small range around the value
-      const value = bin.bin_value;
-      const range = Math.abs(value) * 0.1 || 1; // 10% of value or 1 if value is 0
-      bin_start = value - range / 2;
-      bin_end = value + range / 2;
-    } else if (index === 0) {
-      // First bin
-      const nextValue = validBins[1].bin_value;
-      const midpoint = (bin.bin_value + nextValue) / 2;
-      bin_start = bin.bin_value - (midpoint - bin.bin_value);
-      bin_end = midpoint;
-    } else if (index === validBins.length - 1) {
-      // Last bin
-      const prevValue = validBins[index - 1].bin_value;
-      const midpoint = (prevValue + bin.bin_value) / 2;
-      bin_start = midpoint;
-      bin_end = bin.bin_value + (bin.bin_value - midpoint);
-    } else {
-      // Middle bins
-      const prevValue = validBins[index - 1].bin_value;
-      const nextValue = validBins[index + 1].bin_value;
-      bin_start = (prevValue + bin.bin_value) / 2;
-      bin_end = (bin.bin_value + nextValue) / 2;
-    }
-    
-    return {
-      bin_start,
-      bin_end,
-      count: bin.count,
-      bin_value: bin.bin_value
-    };
-  });
+
+  const result = [];
+  for (let i = 0; i < numBins; i++) {
+    const count = binMap.get(i) ?? 0;
+    if (count === 0) continue;
+
+    const bin_start = minVal === maxVal ? minVal - binWidth / 2 : minVal + i * binWidth;
+    const bin_end = minVal === maxVal ? minVal + binWidth / 2 : minVal + (i + 1) * binWidth;
+
+    result.push({ bin_start, bin_end, count, bin_value: (bin_start + bin_end) / 2 });
+  }
+
+  return result;
 };
 
 // Transform categorical histogram results to expected format with top N + others
