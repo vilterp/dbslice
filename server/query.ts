@@ -53,19 +53,14 @@ export const runCountQuery = async (query: Query, queryRunner: QueryRunner): Pro
   } = query;
 
   const sanitizedTableName = sanitizeIdentifier(tableName);
-  
+
   // Build CTE clauses if steps exist
   const cteClause = buildCTEClause(steps);
-  
+
   // Build WHERE clause
   const whereClause = buildWhereClauseFromFilters(filters);
-  
-  // Construct count SQL query
-  const sql = `${cteClause}SELECT COUNT(*) as total FROM ${sanitizedTableName}${whereClause}`;
-  
-  // Execute query
-  const result = await queryRunner(sql);
-  return result[0]?.total ?? 0;
+
+  return await countRows(cteClause, sanitizedTableName, whereClause, queryRunner, 'total');
 };
 
 // Histogram query function that takes a HistogramQuery object and returns histogram data
@@ -103,9 +98,7 @@ export const runHistogramQuery = async (histogramQuery: HistogramQuery, queryRun
     // For discrete/categorical columns
     if (exactFilterForColumn) {
       // If there's an exact filter for this column, get the count for that filtered value
-      const countQuery = `${cteClause}SELECT COUNT(*) as count FROM ${sanitizeIdentifier(tableName)}${whereClause}`;
-      const countResult = await queryRunner(countQuery);
-      const filteredCount = countResult[0]?.count || 0;
+      const filteredCount = await countRows(cteClause, sanitizeIdentifier(tableName), whereClause, queryRunner, 'count');
       
       return [{
         [columnName]: exactFilterForColumn.value,
@@ -402,9 +395,7 @@ const transformCategoricalHistogramResults = async (
     const otherDistinctCount = Math.max(0, totalDistinctCount - topLimit);
     
     // Get total row count and subtract the top N counts to get accurate "others" row count
-    const totalRowCountQuery = `${cteClause}SELECT COUNT(*) as total_rows FROM ${sanitizedTableName}${whereClause}`;
-    const totalRowResult = await queryRunner(totalRowCountQuery);
-    const totalRowCount = totalRowResult[0]?.total_rows || 0;
+    const totalRowCount = await countRows(cteClause, sanitizedTableName, whereClause, queryRunner, 'total_rows');
     
     // Sum the row counts for the top N categories
     const topNRowCount = topResults.reduce((sum, item) => sum + item.count, 0);
@@ -480,4 +471,30 @@ function buildHistogramWhereClauseFromFilters(filters: Filter[], excludeColumn: 
   const filteredConditions = filters.filter(filter => filter.column !== excludeColumn);
   const whereClause = buildWhereClauseFromFilters(filteredConditions);
   return { whereClause };
+}
+
+// COUNT(*) without GROUP BY fails for SQLite WITHOUT ROWID tables because DuckDB
+// uses a ROWID-based scan optimization. When that error occurs, fall back to a
+// MATERIALIZED CTE that forces a full table scan before counting.
+async function countRows(
+  cteClause: string,
+  sanitizedTableName: string,
+  whereClause: string,
+  queryRunner: QueryRunner,
+  alias: string
+): Promise<number> {
+  const fastSql = `${cteClause}SELECT COUNT(*) as ${alias} FROM ${sanitizedTableName}${whereClause}`;
+  let result: any[];
+  try {
+    result = await queryRunner(fastSql);
+  } catch (e) {
+    if (!(e as Error).message?.includes('no such column: ROWID')) throw e;
+    // Build materialized fallback, preserving any pre-existing CTEs
+    const innerSql = `SELECT * FROM ${sanitizedTableName}${whereClause}`;
+    const ctePart = cteClause.trim()
+      ? `${cteClause.trimEnd()}, _rowid_scan AS MATERIALIZED (${innerSql})`
+      : `WITH _rowid_scan AS MATERIALIZED (${innerSql})`;
+    result = await queryRunner(`${ctePart} SELECT COUNT(*) as ${alias} FROM _rowid_scan`);
+  }
+  return Number(result[0]?.[alias] ?? 0);
 }
