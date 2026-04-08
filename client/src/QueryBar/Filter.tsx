@@ -38,17 +38,15 @@ const Filter: React.FC<FilterProps> = ({ filter, onRemove, onToggleNegation }) =
 
   return (
     <div className={`filter-tag${negated ? ' filter-tag-negated' : ''}`}>
-      <span>
-        {filter.column}{' '}
-        <button
-          className="filter-operator"
-          onClick={() => onToggleNegation?.(filter.column)}
-          title="Toggle include/exclude"
-        >
-          {operator}
-        </button>
-        {' '}{renderValue(filter)}
-      </span>
+      <span className="filter-lhs">{filter.column}</span>
+      <button
+        className="filter-operator"
+        onClick={() => onToggleNegation?.(filter.column)}
+        title="Toggle include/exclude"
+      >
+        {operator}
+      </button>
+      <span className="filter-rhs">{renderValue(filter)}</span>
       <button onClick={() => onRemove(filter.column)} className="remove-filter">
         ×
       </button>
