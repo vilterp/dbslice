@@ -30,7 +30,7 @@ export interface QueryStep {
 }
 
 // Filter types
-export type Filter = ExactFilter | RangeFilter | InFilter;
+export type Filter = ExactFilter | RangeFilter | InFilter | ContainsFilter;
 
 export interface ExactFilter {
   type: 'exact';
@@ -50,6 +50,12 @@ export interface InFilter {
   column: string;
   stepName: string;
   stepColumn: string;
+}
+
+export interface ContainsFilter {
+  type: 'contains';
+  column: string;
+  value: string;
 }
 
 // API data types

@@ -41,17 +41,19 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
   const addFilter = (
     column: string,
     value: string,
-    type: "exact" | "range" = "exact",
+    type: "exact" | "range" | "contains" = "exact",
     min?: number,
     max?: number
   ) => {
     updateQuery((query) => {
       const existingFilterIndex = query.filters.findIndex((f) => f.column === column);
       let newFilters;
-      
-      const newFilter = type === "exact" 
-        ? { type: "exact" as const, column, value }
-        : { type: "range" as const, column, min: min!, max: max! };
+
+      const newFilter = type === "range"
+        ? { type: "range" as const, column, min: min!, max: max! }
+        : type === "contains"
+        ? { type: "contains" as const, column, value }
+        : { type: "exact" as const, column, value };
       
       if (existingFilterIndex >= 0) {
         newFilters = [...query.filters];

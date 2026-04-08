@@ -10,7 +10,7 @@ interface SidebarProps {
   collapsedColumns: Set<string>;
   toggleColumnCollapse: (columnName: string) => void;
   isNumericalColumn: (dataType: string) => boolean;
-  addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
+  addFilter: (column: string, value: string, type?: 'exact' | 'range' | 'contains', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
 }
 

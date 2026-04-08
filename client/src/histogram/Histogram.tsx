@@ -17,7 +17,7 @@ type HistogramProps = {
   addFilter: (
     column: string,
     value: string,
-    type?: "exact" | "range",
+    type?: "exact" | "range" | "contains",
     min?: number,
     max?: number
   ) => void;

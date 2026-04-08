@@ -16,7 +16,7 @@ type DiscreteHistogramProps = {
   data: HistogramData[];
   error?: string;
   isEmpty?: boolean;
-  addFilter: (column: string, value: string, type?: 'exact' | 'range', min?: number, max?: number) => void;
+  addFilter: (column: string, value: string, type?: 'exact' | 'range' | 'contains', min?: number, max?: number) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
 };

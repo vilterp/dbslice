@@ -11,6 +11,8 @@ const Filter: React.FC<FilterProps> = ({ filter, onRemove }) => {
     switch (filter.type) {
       case 'exact':
         return filter.value;
+      case 'contains':
+        return `~"${filter.value}"`;
       case 'range':
         return `${filter.min} - ${filter.max}`;
       case 'in':

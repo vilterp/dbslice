@@ -434,10 +434,14 @@ function buildWhereClauseFromFilters(filters: Filter[]): string {
   for (const filter of filters) {
     switch (filter.type) {
       case 'exact':
-        const sanitizedValue = typeof filter.value === 'string' 
-          ? `'${filter.value.replace(/'/g, "''")}'` 
+        const sanitizedValue = typeof filter.value === 'string'
+          ? `'${filter.value.replace(/'/g, "''")}'`
           : filter.value;
         conditions.push(`${sanitizeIdentifier(filter.column)} = ${sanitizedValue}`);
+        break;
+      case 'contains':
+        const containsValue = `'%${filter.value.replace(/'/g, "''").replace(/%/g, '\\%').replace(/_/g, '\\_')}%'`;
+        conditions.push(`${sanitizeIdentifier(filter.column)} ILIKE ${containsValue} ESCAPE '\\'`);
         break;
       case 'range':
         conditions.push(`${sanitizeIdentifier(filter.column)} BETWEEN ${filter.min} AND ${filter.max}`);
