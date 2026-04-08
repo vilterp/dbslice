@@ -73,6 +73,15 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
     }));
   };
 
+  const toggleFilterNegation = (column: string) => {
+    updateQuery((query) => ({
+      ...query,
+      filters: query.filters.map((f) =>
+        f.column === column ? { ...f, negated: !f.negated } : f
+      ),
+    }));
+  };
+
   const toggleColumnCollapse = (columnName: string) => {
     updateTab(tab.id, (tab) => {
       const newCollapsed = new Set(tab.collapsedColumns);
@@ -102,6 +111,7 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
       <QueryBar
         filters={tab.queryState.query.filters}
         removeFilter={removeFilter}
+        toggleFilterNegation={toggleFilterNegation}
         tables={tables}
         selectedTable={tab.queryState.query.tableName}
         steps={tab.queryState.query.steps}

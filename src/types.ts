@@ -36,6 +36,7 @@ export interface ExactFilter {
   type: 'exact';
   column: string;
   value: string;
+  negated?: boolean;
 }
 
 export interface RangeFilter {
@@ -43,6 +44,7 @@ export interface RangeFilter {
   column: string;
   min: number;
   max: number;
+  negated?: boolean;
 }
 
 export interface InFilter {
@@ -50,12 +52,14 @@ export interface InFilter {
   column: string;
   stepName: string;
   stepColumn: string;
+  negated?: boolean;
 }
 
 export interface ContainsFilter {
   type: 'contains';
   column: string;
   value: string;
+  negated?: boolean;
 }
 
 // API data types

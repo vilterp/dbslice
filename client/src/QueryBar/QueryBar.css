@@ -83,10 +83,32 @@
   white-space: nowrap;
 }
 
+.filter-tag-negated {
+  background-color: #fde8e8;
+  border-color: #f0a3a3;
+  color: #cc0000;
+}
+
+.filter-operator {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0 1px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.filter-operator:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
 .remove-filter {
   background: none;
   border: none;
-  color: #0066cc;
+  color: inherit;
   cursor: pointer;
   font-size: 1.2rem;
   line-height: 1;
@@ -100,5 +122,5 @@
 }
 
 .remove-filter:hover {
-  background-color: rgba(0, 102, 204, 0.1);
+  background-color: rgba(0, 0, 0, 0.1);
 }

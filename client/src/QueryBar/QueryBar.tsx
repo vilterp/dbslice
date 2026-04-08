@@ -6,6 +6,7 @@ import QuerySection from './QuerySection';
 interface QueryBarProps {
   filters: Filter[];
   removeFilter: (column: string) => void;
+  toggleFilterNegation: (column: string) => void;
   tables: Array<{ table_name: string }>;
   selectedTable: string;
   steps?: QueryStep[];
@@ -14,6 +15,7 @@ interface QueryBarProps {
 const QueryBar: React.FC<QueryBarProps> = ({
   filters,
   removeFilter,
+  toggleFilterNegation,
   tables,
   selectedTable,
   steps = []
@@ -41,6 +43,7 @@ const QueryBar: React.FC<QueryBarProps> = ({
         filters={filters}
         tables={tables}
         onRemoveFilter={removeFilter}
+        onToggleNegation={toggleFilterNegation}
       />
     </div>
   );
