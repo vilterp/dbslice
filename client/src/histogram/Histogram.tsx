@@ -14,13 +14,7 @@ type HistogramProps = {
   column: Column;
   query: Query;
   isNumerical: boolean;
-  addFilter: (
-    column: string,
-    value: string,
-    type?: "exact" | "range" | "contains",
-    min?: number,
-    max?: number
-  ) => void;
+  addFilter: (filter: Filter) => void;
   removeFilter: (column: string, value: string) => void;
 };
 

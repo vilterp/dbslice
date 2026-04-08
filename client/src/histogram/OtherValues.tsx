@@ -3,11 +3,12 @@ import Tooltip from "../components/Tooltip";
 import { useTooltip } from "../components/Tooltip";
 import { abbreviateNumber } from "../utils";
 import { formatValue } from "../utils/formatValue";
+import { Filter } from "../../../src/types";
 
 type OtherValuesProps = {
   distinctCount: number;
   count: number;
-  addFilter: (column: string, value: string, type?: 'exact' | 'range' | 'contains') => void;
+  addFilter: (filter: Filter) => void;
   columnName: string;
 };
 
@@ -68,7 +69,7 @@ const OtherValues: React.FC<OtherValuesProps> = ({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === "Enter" && otherInputValue.trim()) {
-              addFilter(columnName, otherInputValue.trim(), 'contains');
+              addFilter({ type: 'contains', column: columnName, value: otherInputValue.trim() });
               setOtherInputValue("");
               setTimeout(() => setShowOtherInput(false), 0);
             } else if (e.key === "Escape") {
