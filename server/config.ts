@@ -7,7 +7,7 @@ import logger from './logger';
 export interface Config {
   database: {
     path?: string;
-    type: 'file' | 'memory' | 's3';
+    type: 'file' | 'memory' | 's3' | 'sqlite';
     tables?: { [key: string]: string | { url: string; no_histogram?: string[] } };
   };
   server: {

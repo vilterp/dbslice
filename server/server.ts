@@ -4,6 +4,9 @@ import * as duckdb from 'duckdb';
 import * as path from 'path';
 import { requestLogger, timeoutMiddleware, errorHandler } from './middleware';
 import { Config } from './config';
+// node:sqlite is available in Node.js >= 22.5.0
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const nodeSqlite = (() => { try { return require('node:sqlite'); } catch { return null; } })();
 import { 
   createQueryRunner,
   runQuery,
@@ -15,6 +18,56 @@ import { Query, HistogramQuery, Filter } from '../src/types';
 import logger from './logger';
 
 
+
+// Read FK info from a SQLite file using node:sqlite (available in Node >= 22.5.0)
+function getSQLiteForeignKeys(dbPath: string, tableName: string): {
+  foreignKeys: Array<{ constraint_column_names: string[]; referenced_table: string; referenced_column_names: string[] }>;
+  reverseForeignKeys: Array<{ constraint_column_names: string[]; source_table: string; referenced_column_names: string[] }>;
+} {
+  if (!nodeSqlite) return { foreignKeys: [], reverseForeignKeys: [] };
+  const { DatabaseSync } = nodeSqlite;
+  const sqliteDb = new DatabaseSync(dbPath, { readOnly: true });
+  try {
+    // Forward FKs for this table
+    const rawFks: any[] = sqliteDb.prepare(`PRAGMA foreign_key_list(${tableName})`).all();
+    // Group by FK id to handle composite FKs (multiple rows with same id, sorted by seq)
+    const fkGroups = new Map<number, any[]>();
+    for (const fk of rawFks) {
+      if (!fkGroups.has(fk.id)) fkGroups.set(fk.id, []);
+      fkGroups.get(fk.id)!.push(fk);
+    }
+    const foreignKeys = Array.from(fkGroups.values()).map(rows => ({
+      constraint_column_names: rows.map(r => r.from),
+      referenced_table: rows[0].table,
+      referenced_column_names: rows.map(r => r.to),
+    }));
+
+    // Reverse FKs: scan all tables for FKs pointing at tableName
+    const allTables: any[] = sqliteDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+    const reverseForeignKeys: Array<{ constraint_column_names: string[]; source_table: string; referenced_column_names: string[] }> = [];
+    for (const { name } of allTables) {
+      if (name === tableName) continue;
+      const rfks: any[] = sqliteDb.prepare(`PRAGMA foreign_key_list(${name})`).all();
+      const rfkGroups = new Map<number, any[]>();
+      for (const rfk of rfks) {
+        if (rfk.table !== tableName) continue;
+        if (!rfkGroups.has(rfk.id)) rfkGroups.set(rfk.id, []);
+        rfkGroups.get(rfk.id)!.push(rfk);
+      }
+      for (const rows of rfkGroups.values()) {
+        reverseForeignKeys.push({
+          constraint_column_names: rows.map(r => r.from),
+          source_table: name,
+          referenced_column_names: rows.map(r => r.to),
+        });
+      }
+    }
+
+    return { foreignKeys, reverseForeignKeys };
+  } finally {
+    sqliteDb.close();
+  }
+}
 
 // Create server function that accepts a database connection and config
 export function createServer(db: duckdb.Database, config: Config) {
@@ -33,9 +86,10 @@ export function createServer(db: duckdb.Database, config: Config) {
   app.get('/api/tables', async (_req: Request, res: Response) => {
     try {
       const tables = await runSQLQuery(`
-        SELECT table_name 
-        FROM information_schema.tables 
+        SELECT table_name
+        FROM information_schema.tables
         WHERE table_schema = 'main'
+        AND table_catalog = current_catalog()
       `);
       res.json(tables);
     } catch (error) {
@@ -50,26 +104,31 @@ export function createServer(db: duckdb.Database, config: Config) {
       // Sanitize table name to prevent SQL injection
       const sanitizedTableName = sanitizeIdentifier(tableName);
       const columns = await runSQLQuery(`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
+        SELECT column_name, data_type
+        FROM information_schema.columns
         WHERE table_name = '${sanitizedTableName}'
+        AND table_catalog = current_catalog()
       `);
       
       // Get foreign key information for this table (outward references)
-      const foreignKeys = await runSQLQuery(`
-        SELECT constraint_column_names, referenced_table, referenced_column_names
-        FROM duckdb_constraints 
-        WHERE table_name = '${sanitizedTableName}' 
-        AND constraint_type = 'FOREIGN KEY'
-      `);
-      
-      // Get reverse foreign key information (inward references)
-      const reverseForeignKeys = await runSQLQuery(`
-        SELECT constraint_column_names, table_name as source_table, referenced_column_names
-        FROM duckdb_constraints 
-        WHERE referenced_table = '${sanitizedTableName}' 
-        AND constraint_type = 'FOREIGN KEY'
-      `);
+      let foreignKeys: any[];
+      let reverseForeignKeys: any[];
+      if (config.database.type === 'sqlite' && config.database.path) {
+        ({ foreignKeys, reverseForeignKeys } = getSQLiteForeignKeys(config.database.path, sanitizedTableName));
+      } else {
+        foreignKeys = await runSQLQuery(`
+          SELECT constraint_column_names, referenced_table, referenced_column_names
+          FROM duckdb_constraints
+          WHERE table_name = '${sanitizedTableName}'
+          AND constraint_type = 'FOREIGN KEY'
+        `);
+        reverseForeignKeys = await runSQLQuery(`
+          SELECT constraint_column_names, table_name as source_table, referenced_column_names
+          FROM duckdb_constraints
+          WHERE referenced_table = '${sanitizedTableName}'
+          AND constraint_type = 'FOREIGN KEY'
+        `);
+      }
       
       // Create foreign key mapping
       const foreignKeyMap = new Map<string, {
@@ -264,9 +323,10 @@ export function createServer(db: duckdb.Database, config: Config) {
   app.get('/api/info', async (_req: Request, res: Response) => {
     try {
       const tables = await runSQLQuery(`
-        SELECT table_name 
-        FROM information_schema.tables 
+        SELECT table_name
+        FROM information_schema.tables
         WHERE table_schema = 'main'
+        AND table_catalog = current_catalog()
       `);
       
       res.json({

@@ -52,6 +52,51 @@ export function initializeDatabase(config: Config): duckdb.Database {
       }
     }
     return db;
+  } else if (config.database.type === 'sqlite' && config.database.path) {
+    const sqlitePath = config.database.path;
+    if (!fs.existsSync(sqlitePath)) {
+      logger.error(`SQLite file not found: ${sqlitePath}`);
+      logger.info('Falling back to in-memory database');
+      return new duckdb.Database(':memory:');
+    }
+    const db = new duckdb.Database(':memory:');
+    logger.info(`Connecting to SQLite file via DuckDB: ${sqlitePath}`);
+
+    const escapedPath = sqlitePath.replace(/'/g, "''");
+    db.exec(`INSTALL sqlite; LOAD sqlite; ATTACH '${escapedPath}' AS sqlite_db (TYPE SQLITE, READ_ONLY)`, (err) => {
+      if (err) {
+        logger.error('Error setting up SQLite connection:', err.message);
+        return;
+      }
+
+      const conn = db.connect();
+      conn.all(
+        "SELECT table_name FROM information_schema.tables WHERE table_catalog = 'sqlite_db' AND table_schema = 'main'",
+        (tablesErr, rows) => {
+          if (tablesErr) {
+            logger.error('Error listing SQLite tables:', tablesErr.message);
+            return;
+          }
+          logger.info(`Found ${(rows || []).length} table(s) in SQLite database`);
+          for (const row of rows || []) {
+            const tableName = row.table_name as string;
+            const escaped = tableName.replace(/"/g, '""');
+            db.exec(
+              `CREATE VIEW "${escaped}" AS SELECT * FROM sqlite_db.main."${escaped}"`,
+              (viewErr) => {
+                if (viewErr) {
+                  logger.error(`Error creating view for table ${tableName}:`, viewErr.message);
+                } else {
+                  logger.info(`Created view for SQLite table: ${tableName}`);
+                }
+              }
+            );
+          }
+        }
+      );
+    });
+
+    return db;
   } else {
     const db = new duckdb.Database(':memory:');
     logger.info('Using in-memory database');
