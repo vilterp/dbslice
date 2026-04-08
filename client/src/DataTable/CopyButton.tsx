@@ -26,7 +26,7 @@ const CopyButton: React.FC<CopyButtonProps> = ({ value, title = "Copy value" }) 
       aria-label={title}
       style={{ minWidth: 24 }}
     >
-      {copied ? '✔️' : '📋'}
+      {copied ? '✔️' : '⧉'}
     </button>
   );
 };
