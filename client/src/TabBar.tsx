@@ -80,7 +80,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, tables, onTabClick
           key={tab.id}
           className={tab.id === selectedTabId ? "tab active" : "tab"}
           style={{
-            padding: "0.5rem 1rem",
+            padding: "0.5rem 0.5rem 0.5rem 1rem",
             borderRight: "1px solid #e0e0e0",
             background: tab.id === selectedTabId ? "white" : "inherit",
             cursor: "pointer",
@@ -124,7 +124,17 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, tables, onTabClick
               cursor: "pointer",
               color: "#888",
               fontSize: 16,
+              borderRadius: "50%",
+              width: 20,
+              height: 20,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              transition: "background 0.15s",
             }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(0,0,0,0.15)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none")}
             onClick={(e) => {
               e.stopPropagation();
               onTabClose(tab.id);
