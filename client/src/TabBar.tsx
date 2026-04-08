@@ -112,7 +112,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, tables, onTabClick
           ) : (
             <span 
               onDoubleClick={(e) => handleTabNameClick(tab, e)}
-              style={{ cursor: "text" }}
+              style={{ cursor: "default" }}
             >
               {tab.name || tab.queryState.query.tableName || "Untitled"}
             </span>
