@@ -73,6 +73,7 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, selectedTabId, tables, onTabClick
         borderBottom: "1px solid #e0e0e0",
         alignItems: "center",
         cursor: "pointer",
+        minHeight: "2.25rem",
       }}
     >
       {tabs.map((tab) => (
