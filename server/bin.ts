@@ -1,53 +1,58 @@
 #!/usr/bin/env node
 import { createServer } from './server';
-import { loadConfig } from './config';
 import { initializeDatabase } from './initDB';
+import { Config } from './config';
 import logger from './logger';
 import * as path from 'path';
 import * as fs from 'fs';
+import { exec } from 'child_process';
 
-// Set NODE_ENV to production when running via CLI
-if (!process.env.NODE_ENV) {
-  process.env.NODE_ENV = 'production';
+process.env.NODE_ENV = 'production';
+
+function openBrowser(url: string): void {
+  const platform = process.platform;
+  if (platform === 'darwin') exec(`open "${url}"`);
+  else if (platform === 'win32') exec(`start "" "${url}"`);
+  else exec(`xdg-open "${url}"`);
 }
 
-// Parse command line arguments
+function detectDbType(filePath: string): Config['database']['type'] {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.sqlite' || ext === '.db') return 'sqlite';
+  return 'file';
+}
+
 const args = process.argv.slice(2);
 
-// If a database path is provided as argument, use it
-let dbPath: string | undefined;
-let configPath = 'config.yaml';
-
-if (args.length > 0) {
-  // First argument is the database path
-  dbPath = path.resolve(args[0]);
-
-  // Check if the file exists
-  if (!fs.existsSync(dbPath)) {
-    logger.error(`Database file not found: ${dbPath}`);
-    process.exit(1);
-  }
-
-  logger.info(`Using database: ${dbPath}`);
+if (args.length === 0) {
+  console.error('Usage: dbslice <file.duckdb|file.sqlite>');
+  process.exit(1);
 }
 
-// Load configuration
-const config = loadConfig(configPath);
+const dbPath = path.resolve(args[0]);
 
-// Override config with CLI argument if provided
-if (dbPath) {
-  config.database.path = dbPath;
-  config.database.type = 'file';
+if (!fs.existsSync(dbPath)) {
+  console.error(`File not found: ${dbPath}`);
+  process.exit(1);
 }
 
-// Initialize database connection
+const dbType = detectDbType(dbPath);
+
+const config: Config = {
+  database: { path: dbPath, type: dbType },
+  server: { port: 3001, host: 'localhost' },
+  api: { maxRows: 1000, maxHistogramBins: 50 },
+};
+
+logger.info(`Opening ${dbType === 'sqlite' ? 'SQLite' : 'DuckDB'} file: ${dbPath}`);
+
 const db = initializeDatabase(config);
-
-// Create server with database connection and config
 const { app } = createServer(db, config);
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : config.server.port;
+const url = `http://localhost:${PORT}`;
 
 app.listen(PORT, () => {
-  logger.info(`Server running on http://localhost:${PORT}`);
+  logger.info(`dbslice running at ${url}`);
+  openBrowser(url);
 });

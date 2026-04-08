@@ -354,7 +354,7 @@ function App() {
   return (
     <div className="App">
       <header className="header">
-        <h1>DuckDB Explorer</h1>
+        <h1>DBSlice</h1>
       </header>
 
       {/* Tab bar */}
