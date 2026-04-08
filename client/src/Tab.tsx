@@ -1,4 +1,4 @@
-import { NUMERICAL_COLUMN_TYPES } from '../../src/types';
+import { NUMERICAL_COLUMN_TYPES, Filter } from '../../src/types';
 import React from "react";
 import QueryBar from "./QueryBar/QueryBar";
 import Sidebar from "./Sidebar";
@@ -38,31 +38,15 @@ const Tab: React.FC<TabProps> = ({ tab, updateTab, tables, onForeignKeyNavigatio
   };
 
   // Add filter for this tab
-  const addFilter = (
-    column: string,
-    value: string,
-    type: "exact" | "range" | "contains" = "exact",
-    min?: number,
-    max?: number
-  ) => {
+  const addFilter = (filter: Filter) => {
     updateQuery((query) => {
-      const existingFilterIndex = query.filters.findIndex((f) => f.column === column);
-      let newFilters;
-
-      const newFilter = type === "range"
-        ? { type: "range" as const, column, min: min!, max: max! }
-        : type === "contains"
-        ? { type: "contains" as const, column, value }
-        : { type: "exact" as const, column, value };
-      
+      const existingFilterIndex = query.filters.findIndex((f) => f.column === filter.column);
       if (existingFilterIndex >= 0) {
-        newFilters = [...query.filters];
-        newFilters[existingFilterIndex] = newFilter;
-      } else {
-        newFilters = [...query.filters, newFilter];
+        const newFilters = [...query.filters];
+        newFilters[existingFilterIndex] = filter;
+        return { ...query, filters: newFilters };
       }
-      
-      return { ...query, filters: newFilters };
+      return { ...query, filters: [...query.filters, filter] };
     });
   };
 

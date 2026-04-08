@@ -9,7 +9,7 @@ type NumericHistogramProps = {
   data: HistogramData[];
   error?: string;
   isEmpty?: boolean;
-  addFilter: (column: string, value: string, type?: 'exact' | 'range' | 'contains', min?: number, max?: number) => void;
+  addFilter: (filter: Filter) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
 };
@@ -110,14 +110,14 @@ const NumericHistogram: React.FC<NumericHistogramProps> = ({
           clickValue < item.bin_end
       );
       if (clickedBin) {
-        addFilter(columnName, `${clickedBin.bin_start}-${clickedBin.bin_end}`, 'range', clickedBin.bin_start!, clickedBin.bin_end!);
+        addFilter({ type: 'range', column: columnName, min: clickedBin.bin_start!, max: clickedBin.bin_end! });
       } else if (activeFilter) {
         removeFilter(columnName, '');
       }
     } else {
       const filterMin = xToValue(x1);
       const filterMax = xToValue(x2);
-      addFilter(columnName, `${filterMin}-${filterMax}`, 'range', filterMin, filterMax);
+      addFilter({ type: 'range', column: columnName, min: filterMin, max: filterMax });
     }
   };
 

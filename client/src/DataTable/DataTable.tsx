@@ -6,6 +6,7 @@ import SidePanel from "./SidePanel";
 import TableCell from "./TableCell";
 import DropdownMenu from "../components/DropdownMenu";
 import { SortDirection, Column } from "../api";
+import { Filter } from "../../../src/types";
 
 interface DataTableProps {
   tableData: any[];
@@ -16,7 +17,7 @@ interface DataTableProps {
   setHeaderMenu: (menu: { column: string; x: number; y: number } | null) => void;
   setSortColumn: (col: string) => void;
   setSortDirection: (dir: SortDirection) => void;
-  addFilter: (column: string, value: any) => void;
+  addFilter: (filter: Filter) => void;
   onNavigateToForeignKey?: (
     targetTable: string,
     targetColumn: string,
@@ -97,9 +98,9 @@ const DataTable: React.FC<DataTableProps> = ({
   };
 
   // Handler for selecting filter action
-  const handleAddFilter = () => {
+  const handleAddFilter = (negated = false) => {
     if (cellMenu) {
-      addFilter(cellMenu.column, cellMenu.value);
+      addFilter({ type: 'exact', column: cellMenu.column, value: cellMenu.value, negated });
       setCellMenu(null);
     }
   };
@@ -252,9 +253,15 @@ const DataTable: React.FC<DataTableProps> = ({
               <DropdownMenu align="left">
                 <div
                   style={{ padding: '8px 16px', cursor: 'pointer' }}
-                  onClick={handleAddFilter}
+                  onClick={() => handleAddFilter()}
                 >
                   Filter to this value
+                </div>
+                <div
+                  style={{ padding: '8px 16px', cursor: 'pointer' }}
+                  onClick={() => handleAddFilter(true)}
+                >
+                  Exclude this value
                 </div>
                 {(() => {
                   const columnInfo = columnMap.get(cellMenu.column);

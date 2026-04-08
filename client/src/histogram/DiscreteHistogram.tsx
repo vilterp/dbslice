@@ -16,7 +16,7 @@ type DiscreteHistogramProps = {
   data: HistogramData[];
   error?: string;
   isEmpty?: boolean;
-  addFilter: (column: string, value: string, type?: 'exact' | 'range' | 'contains', min?: number, max?: number) => void;
+  addFilter: (filter: Filter) => void;
   removeFilter: (column: string, value: string) => void;
   filters?: Filter[];
 };
@@ -96,7 +96,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
               if (checked) {
                 removeFilter(columnName, value);
               } else {
-                addFilter(columnName, value);
+                addFilter({ type: 'exact', column: columnName, value });
               }
             }}
             role="button"
@@ -106,7 +106,7 @@ const DiscreteHistogram: React.FC<DiscreteHistogramProps> = ({
                 if (checked) {
                   removeFilter(columnName, value);
                 } else {
-                  addFilter(columnName, value);
+                  addFilter({ type: 'exact', column: columnName, value });
                 }
               }
             }}
